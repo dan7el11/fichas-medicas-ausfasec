@@ -95,7 +95,11 @@ export default function Dashboard() {
                     <td className="p-3 text-slate-600">{t.cedula}</td>
                     <td className="p-3 text-slate-600">{t.puestoTrabajo}</td>
                     <td className="p-3 text-center">
-                      <button onClick={() => navigate(`/evaluar/${t.id}`)} className="text-blue-600 hover:text-blue-800 font-medium text-sm border border-blue-200 px-3 py-1 rounded bg-blue-50 hover:bg-blue-100 transition-colors"
+                      <button 
+                        onClick={() => navigate(`/evaluar/${t.id}`)}
+                        className="text-blue-600 hover:text-blue-800 font-medium text-sm border border-blue-200 px-3 py-1 rounded bg-blue-50 hover:bg-blue-100 transition-colors"
+                      >
+                        Nueva Evaluación
                       </button>
                     </td>
                   </tr>
