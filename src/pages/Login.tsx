@@ -1,12 +1,24 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '../services/firebase';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [cargando, setCargando] = useState(false);
+  
+  const navigate = useNavigate();
+  const { user } = useAuth();
+
+  // Si el sistema detecta que el usuario ya está logueado, lo envía al Dashboard
+  useEffect(() => {
+    if (user) {
+      navigate('/');
+    }
+  }, [user, navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -15,6 +27,8 @@ export default function Login() {
       setError('');
       // Envía las credenciales a Firebase
       await signInWithEmailAndPassword(auth, email, password);
+      // ¡Esta es la línea mágica que faltaba para abrir la puerta!
+      navigate('/');
     } catch (err) {
       setError('Error al iniciar sesión. Verifica tu correo y contraseña.');
     } finally {
