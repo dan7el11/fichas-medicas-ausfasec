@@ -1,0 +1,23 @@
+# Dependencias
+node_modules
+
+# Build
+dist
+
+# Variables de entorno
+.env
+.env.local
+.env.production
+
+# IDE
+.vscode
+.idea
+.DS_Store
+
+# Logs
+*.log
+npm-debug.log*
+
+# Firebase
+.firebase
+firebase-debug.log
