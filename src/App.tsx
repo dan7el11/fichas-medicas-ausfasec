@@ -4,12 +4,25 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import UserProfile from './pages/UserProfile';
 import NuevoTrabajador from './pages/NuevoTrabajador';
-import NuevaEvaluacion from './pages/NuevaEvaluacion'; // <-- IMPORT NUEVO
+import NuevaEvaluacion from './pages/NuevaEvaluacion';
+import DetalleTrabajador from './pages/DetalleTrabajador';
 
+// Componente de seguridad para proteger el acceso a las pantallas del sistema
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
-  if (loading) return <div className="min-h-screen flex items-center justify-center text-slate-500">Cargando sistema...</div>;
-  if (!user) return <Navigate to="/login" />;
+  
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-100 text-slate-500 font-bold">
+        Cargando sistema...
+      </div>
+    );
+  }
+  
+  if (!user) {
+    return <Navigate to="/login" />;
+  }
+  
   return <>{children}</>;
 };
 
@@ -18,14 +31,60 @@ function App() {
     <AuthProvider>
       <Router>
         <Routes>
+          {/* Ruta pública de acceso */}
           <Route path="/login" element={<Login />} />
-          <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-          <Route path="/perfil" element={<ProtectedRoute><UserProfile /></ProtectedRoute>} />
-          <Route path="/nuevo-trabajador" element={<ProtectedRoute><NuevoTrabajador /></ProtectedRoute>} />
           
-          {/* RUTA NUEVA PARA LA EVALUACIÓN */}
-          <Route path="/evaluar/:trabajadorId" element={<ProtectedRoute><NuevaEvaluacion /></ProtectedRoute>} />
+          {/* Panel principal de control */}
+          <Route 
+            path="/" 
+            element={
+              <ProtectedRoute>
+                <Dashboard />
+              </ProtectedRoute>
+            } 
+          />
           
+          {/* Registro y configuración del perfil del médico */}
+          <Route 
+            path="/perfil" 
+            element={
+              <ProtectedRoute>
+                <UserProfile />
+              </ProtectedRoute>
+            } 
+          />
+          
+          {/* Registro inicial de datos personales del trabajador */}
+          <Route 
+            path="/nuevo-trabajador" 
+            element={
+              <ProtectedRoute>
+                <NuevoTrabajador />
+              </ProtectedRoute>
+            } 
+          />
+          
+          {/* Formulario clínico de evaluación ocupacional SO-RE-38 */}
+          <Route 
+            path="/evaluar/:trabajadorId" 
+            element={
+              <ProtectedRoute>
+                <NuevaEvaluacion />
+              </ProtectedRoute>
+            } 
+          />
+          
+          {/* Expediente del trabajador: historial de evaluaciones por pestañas y descarga PDF */}
+          <Route 
+            path="/trabajador/:trabajadorId" 
+            element={
+              <ProtectedRoute>
+                <DetalleTrabajador />
+              </ProtectedRoute>
+            } 
+          />
+          
+          {/* Redirección automática en caso de escribir una dirección inexistente */}
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
       </Router>
