@@ -2,6 +2,8 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
+import UserProfile from './pages/UserProfile';
+import NuevoTrabajador from './pages/NuevoTrabajador';
 
 // Este es nuestro "guardia de seguridad". Revisa si hay sesión activa.
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -21,14 +23,18 @@ function App() {
           {/* Ruta pública */}
           <Route path="/login" element={<Login />} />
           
-          {/* Ruta privada (protegida) */}
+          {/* Rutas privadas (protegidas) */}
           <Route 
             path="/" 
-            element={
-              <ProtectedRoute>
-                <Dashboard />
-              </ProtectedRoute>
-            } 
+            element={<ProtectedRoute><Dashboard /></ProtectedRoute>} 
+          />
+          <Route 
+            path="/perfil" 
+            element={<ProtectedRoute><UserProfile /></ProtectedRoute>} 
+          />
+          <Route 
+            path="/nuevo-trabajador" 
+            element={<ProtectedRoute><NuevoTrabajador /></ProtectedRoute>} 
           />
           
           {/* Cualquier ruta inventada redirecciona al inicio */}
