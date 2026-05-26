@@ -5,7 +5,7 @@ import { getFirestore } from 'firebase/firestore';
 // Estas variables deben coincidir con tus credenciales de Firebase Console
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyCwp8KhisgZ64tdYHAq27k-_3O76MFNijQ",
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "AIzaSyCwp8KhisgZ64tdYHAq27k-_3O76MFNijQ",
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "polla-austrogas.firebaseapp.com",
   projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "polla-austrogas",
   storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "polla-austrogas.firebasestorage.app",
   messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "352531542943",
