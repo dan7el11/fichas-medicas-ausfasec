@@ -5,7 +5,6 @@ import {
   getDocs,
   query as fbQuery,
   orderBy,
-  where,
 } from 'firebase/firestore';
 import { signOut } from 'firebase/auth';
 import { auth, db } from '../services/firebase';
@@ -19,8 +18,6 @@ import FullFicha from '../components/dashboard/FullFicha';
 
 import {
   areaDeTrabajador,
-  aptitudLabel,
-  iniciales,
   lastEval,
   workerStatus,
 } from '../utils/medicalHelpers';
@@ -37,12 +34,12 @@ export default function Dashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
 
-  // ── Estado de datos ─────────────────────────────────────────────────────
+  // Estado de datos
   const [trabajadores, setTrabajadores] = useState<Trabajador[]>([]);
   const [evaluaciones, setEvaluaciones] = useState<EvaluacionMedica[]>([]);
   const [cargando, setCargando] = useState(true);
 
-  // ── Estado de UI ────────────────────────────────────────────────────────
+  // Estado de UI
   const [query, setQuery] = useState('');
   const [areaFilter, setAreaFilter] = useState<Area | 'Todas'>('Todas');
   const [tipoFilter, setTipoFilter] = useState<string>('Todos');
@@ -50,7 +47,7 @@ export default function Dashboard() {
   const [selectedId, setSelectedId] = useState<string | undefined>();
   const [view, setView] = useState<'quick' | 'full'>('quick');
 
-  // ── Carga inicial ───────────────────────────────────────────────────────
+  // Carga inicial
   useEffect(() => {
     (async () => {
       try {
@@ -74,10 +71,9 @@ export default function Dashboard() {
         setCargando(false);
       }
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [selectedId]);
 
-  // ── Index de evaluaciones por trabajador ───────────────────────────────
+  // Index de evaluaciones por trabajador
   const evalsPorTrabajador = useMemo(() => {
     const m = new Map<string, EvaluacionMedica[]>();
     for (const e of evaluaciones) {
@@ -88,7 +84,7 @@ export default function Dashboard() {
     return m;
   }, [evaluaciones]);
 
-  // ── Filtrado ───────────────────────────────────────────────────────────
+  // Filtrado
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return trabajadores.filter((w) => {
@@ -108,9 +104,6 @@ export default function Dashboard() {
       const evals = evalsPorTrabajador.get(w.id ?? '') ?? [];
       if (tipoFilter !== 'Todos') {
         const le = lastEval(evals);
-        // El tipo de evaluación no está en EvaluacionMedica (motivoConsulta sí).
-        // Si más adelante agregas un campo `tipoEvaluacion`, descomenta:
-        // if (!le || le.tipoEvaluacion !== tipoFilter) return false;
         if (!le) return false;
       }
       if (statusFilter !== 'Todos') {
@@ -125,7 +118,7 @@ export default function Dashboard() {
     trabajadores.find((w) => w.id === selectedId) ?? filtered[0] ?? null;
   const selectedEvals = selected ? evalsPorTrabajador.get(selected.id ?? '') ?? [] : [];
 
-  // ── Handlers ───────────────────────────────────────────────────────────
+  // Handlers
   const handleLogout = async () => {
     try {
       await signOut(auth);
@@ -138,11 +131,15 @@ export default function Dashboard() {
   const handleNewEval = () => {
     if (selected?.id) navigate(`/evaluar/${selected.id}`);
   };
-  const handleOpenFullPage = () => {
-    if (selected?.id) navigate(`/trabajador/${selected.id}`);
+
+  // Redirección inteligente al expediente clínico adjuntando la evaluación seleccionada
+  const handleOpenFullPage = (evalId?: string) => {
+    if (selected?.id) {
+      const url = evalId ? `/trabajador/${selected.id}?evalId=${evalId}` : `/trabajador/${selected.id}`;
+      navigate(url);
+    }
   };
 
-  // ── Iniciales del usuario logueado ─────────────────────────────────────
   const userInitials = user?.email?.slice(0, 2).toUpperCase() ?? 'DR';
 
   if (cargando) {
@@ -202,15 +199,14 @@ export default function Dashboard() {
                 onNewEval={handleNewEval}
               />
             ) : (
-             <FullFicha
+              <FullFicha
                 trabajador={selected}
                 evals={selectedEvals}
                 onClose={() => setView('quick')}
                 onNewEval={handleNewEval}
-                onEdit={handleOpenFullPage}
-                // Conectamos los botones a la página de detalle/expediente
-                onPrintPdf={handleOpenFullPage}
-                onViewEval={handleOpenFullPage}
+                onEdit={() => handleOpenFullPage()}
+                onPrintPdf={() => handleOpenFullPage()}
+                onViewEval={(evalId) => handleOpenFullPage(evalId)}
               />
             )
           ) : (
@@ -226,11 +222,9 @@ export default function Dashboard() {
         </main>
       </div>
 
-      {/* Botón de logout flotante discreto. Si prefieres mantener el botón en la topbar,
-          extiende TopBar.tsx con una acción adicional. */}
       <button
         onClick={handleLogout}
-        className="fixed bottom-4 right-4 bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-xs text-slate-700 shadow-sm hover:bg-slate-50"
+        className="fixed bottom-4 right-4 bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-xs text-slate-700 shadow-sm hover:bg-slate-50 z-50"
       >
         Cerrar sesión
       </button>
