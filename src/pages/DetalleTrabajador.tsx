@@ -85,6 +85,36 @@ export default function DetalleTrabajador() {
     }
   };
 
+  // NUEVA FUNCIÓN: Exportar pestaña actual a Excel (CSV)
+  const exportarExcel = () => {
+    const ev = evaluaciones[pestanaActiva];
+    if (!ev || !trabajador) return;
+
+    const rows = [
+      ['DATO', 'VALOR'],
+      ['Nombres Completos', `${trabajador.primerApellido} ${trabajador.segundoApellido} ${trabajador.primerNombre} ${trabajador.segundoNombre}`],
+      ['Cédula', trabajador.cedula],
+      ['Puesto de Trabajo', trabajador.puestoTrabajo],
+      ['Fecha de Evaluación', formatFecha(ev.fecha)],
+      ['N° Historia Clínica', ev.numeroHistoriaClinica || '-'],
+      ['Aptitud Médica', ev.aptitudMedica || 'Pendiente'],
+      ['Diagnósticos', ev.diagnosticos?.map(d => d.descripcion).join('; ') || 'Ninguno'],
+      ['Presión Arterial', `${ev.signosVitales?.presionSistolica || '-'}/${ev.signosVitales?.presionDiastolica || '-'} mmHg`],
+      ['IMC', ev.signosVitales?.imc || '-'],
+      ['Recomendaciones', ev.recomendaciones?.join('; ') || 'Ninguna']
+    ];
+
+    const csvContent = "\ufeff" + rows.map(e => e.join(";")).join("\n");
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", `Ficha_Excel_${trabajador.cedula}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   if (cargando) return <div className="min-h-screen p-8 text-center text-slate-500 font-bold">Cargando expediente...</div>;
   if (!trabajador) return <div className="min-h-screen p-8 text-center text-red-500 font-bold">Trabajador no encontrado</div>;
 
@@ -142,8 +172,14 @@ export default function DetalleTrabajador() {
 
             {ev && (
               <>
-                {/* Botón de Exportar a PDF */}
-                <div className="p-4 bg-white border-b border-slate-100 flex justify-end">
+                {/* NUEVOS BOTONES DE EXPORTACIÓN */}
+                <div className="p-4 bg-white border-b border-slate-100 flex justify-end gap-3">
+                  <button 
+                    onClick={exportarExcel}
+                    className="px-4 py-2 bg-[#107c41] text-white font-semibold rounded-lg hover:bg-[#0c5c30] transition-colors flex items-center gap-2 text-sm shadow-sm"
+                  >
+                    📊 Exportar a Excel
+                  </button>
                   <button 
                     onClick={generarPDF}
                     disabled={exportando}
