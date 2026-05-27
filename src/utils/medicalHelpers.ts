@@ -11,7 +11,7 @@ import {
 // ── Nombre / iniciales ─────────────────────────────────────────────────────
 
 export function apellidos(t: Trabajador): string {
-  return `${t.primerApellido} ${t.segundoApellido}`.trim();
+  return `${t.primerApellido} ${t.segundoApellido ?? ''}`.trim();
 }
 
 export function nombres(t: Trabajador): string {
@@ -35,7 +35,6 @@ export function iniciales(t: Trabajador): string {
 // ── Área ───────────────────────────────────────────────────────────────────
 
 export function areaDeTrabajador(t: Trabajador): Area {
-  // El Trabajador en Firestore puede no tener `area` (legacy) — la derivamos del puesto
   return ((t as Trabajador & { area?: Area }).area as Area) ??
     deriveAreaFromPuesto(t.puestoTrabajo);
 }
@@ -44,10 +43,21 @@ export function areaColors(t: Trabajador) {
   return AREA_COLORS[areaDeTrabajador(t)];
 }
 
+// ── Transformación Segura de Fechas de Firebase ────────────────────────────
+
+// Esta es la función mágica que evitará que el sistema se congele
+export function parseDate(d: any): Date {
+  if (!d) return new Date();
+  if (d instanceof Date) return d;
+  if (typeof d.toDate === 'function') return d.toDate(); // Convierte Firebase Timestamp
+  if (typeof d === 'object' && 'seconds' in d) return new Date(d.seconds * 1000); // Convierte Firebase Raw
+  return new Date(d); // Conversión normal
+}
+
 // ── Fechas ─────────────────────────────────────────────────────────────────
 
-export function fmtDate(d: Date | string): string {
-  const date = typeof d === 'string' ? new Date(d) : d;
+export function fmtDate(d: any): string {
+  const date = parseDate(d);
   return date.toLocaleDateString('es-EC', {
     day: '2-digit',
     month: 'short',
@@ -55,13 +65,13 @@ export function fmtDate(d: Date | string): string {
   });
 }
 
-export function daysUntil(d: Date | string, ref: Date = new Date()): number {
-  const date = typeof d === 'string' ? new Date(d) : d;
+export function daysUntil(d: any, ref: Date = new Date()): number {
+  const date = parseDate(d);
   return Math.round((date.getTime() - ref.getTime()) / (1000 * 60 * 60 * 24));
 }
 
-export function venceEn(fechaEval: Date | string, meses = 12): Date {
-  const base = typeof fechaEval === 'string' ? new Date(fechaEval) : new Date(fechaEval);
+export function venceEn(fechaEval: any, meses = 12): Date {
+  const base = parseDate(fechaEval);
   const out = new Date(base);
   out.setMonth(out.getMonth() + meses);
   return out;
@@ -70,18 +80,13 @@ export function venceEn(fechaEval: Date | string, meses = 12): Date {
 // ── Estado de aptitud ──────────────────────────────────────────────────────
 
 export type StatusTone = 'success' | 'warning' | 'danger' | 'muted';
-
 export interface WorkerStatus {
   label: string;
   tone: StatusTone;
-  /** Días hasta el vencimiento (negativo si ya venció). null si no hay evaluación. */
   dias: number | null;
 }
 
-export const TONE_STYLES: Record<
-  StatusTone,
-  { fg: string; bg: string; bar: string; dot: string }
-> = {
+export const TONE_STYLES: Record<StatusTone, { fg: string; bg: string; bar: string; dot: string }> = {
   success: { fg: '#0a6b3b', bg: '#e6f6ee', bar: '#10a05a', dot: '#10a05a' },
   warning: { fg: '#8a4a0a', bg: '#fff4e3', bar: '#e08a2c', dot: '#e08a2c' },
   danger: { fg: '#a01f2a', bg: '#fce8eb', bar: '#dc2e3c', dot: '#dc2e3c' },
@@ -89,12 +94,13 @@ export const TONE_STYLES: Record<
 };
 
 export function aptitudLabel(e: EvaluacionMedica): string {
+  if (!e || !e.aptitudMedica) return 'Pendiente';
   return APTITUD_LABEL[e.aptitudMedica] ?? 'Pendiente';
 }
 
 export function sortEvaluacionesDesc(evals: EvaluacionMedica[]): EvaluacionMedica[] {
   return [...evals].sort(
-    (a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime(),
+    (a, b) => parseDate(b.fecha).getTime() - parseDate(a.fecha).getTime(),
   );
 }
 
@@ -107,6 +113,7 @@ export function workerStatus(evals: EvaluacionMedica[]): WorkerStatus {
   if (!le) return { label: 'Sin evaluación', tone: 'muted', dias: null };
   const vence = venceEn(le.fecha);
   const dias = daysUntil(vence);
+  
   if (le.aptitudMedica === 'noApto') return { label: 'No apto', tone: 'danger', dias };
   if (dias < 0) return { label: 'Vencida', tone: 'danger', dias };
   if (dias <= 30) return { label: 'Por vencer', tone: 'warning', dias };
