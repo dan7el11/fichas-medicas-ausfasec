@@ -1,225 +1,255 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { collection, getDocs, query, orderBy } from 'firebase/firestore';
-import { useAuth } from '../contexts/AuthContext';
-import { auth, db } from '../services/firebase';
+import {
+  collection,
+  getDocs,
+  query as fbQuery,
+  orderBy,
+  where,
+} from 'firebase/firestore';
 import { signOut } from 'firebase/auth';
-import type { Trabajador } from '../types';
+import { auth, db } from '../services/firebase';
+import { useAuth } from '../contexts/AuthContext';
+import type { Trabajador, EvaluacionMedica } from '../types';
+
+import TopBar from '../components/dashboard/TopBar';
+import Sidebar from '../components/dashboard/Sidebar';
+import QuickView from '../components/dashboard/QuickView';
+import FullFicha from '../components/dashboard/FullFicha';
+
+import {
+  areaDeTrabajador,
+  aptitudLabel,
+  iniciales,
+  lastEval,
+  workerStatus,
+} from '../utils/medicalHelpers';
+import type { Area } from '../constants/medical';
+
+type StatusFilter =
+  | 'Todos'
+  | 'Apto vigente'
+  | 'Por vencer'
+  | 'Vencida'
+  | 'Sin evaluación';
 
 export default function Dashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
+
+  // ── Estado de datos ─────────────────────────────────────────────────────
   const [trabajadores, setTrabajadores] = useState<Trabajador[]>([]);
-  const [filtrados, setFiltrados] = useState<Trabajador[]>([]);
-  const [busqueda, setBusqueda] = useState('');
+  const [evaluaciones, setEvaluaciones] = useState<EvaluacionMedica[]>([]);
   const [cargando, setCargando] = useState(true);
 
+  // ── Estado de UI ────────────────────────────────────────────────────────
+  const [query, setQuery] = useState('');
+  const [areaFilter, setAreaFilter] = useState<Area | 'Todas'>('Todas');
+  const [tipoFilter, setTipoFilter] = useState<string>('Todos');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('Todos');
+  const [selectedId, setSelectedId] = useState<string | undefined>();
+  const [view, setView] = useState<'quick' | 'full'>('quick');
+
+  // ── Carga inicial ───────────────────────────────────────────────────────
   useEffect(() => {
-    const fetchTrabajadores = async () => {
+    (async () => {
       try {
-        const q = query(collection(db, 'trabajadores'), orderBy('primerApellido'));
-        const querySnapshot = await getDocs(q);
-        const data: Trabajador[] = [];
-        querySnapshot.forEach((doc) => {
-          data.push({ id: doc.id, ...doc.data() } as Trabajador);
-        });
-        setTrabajadores(data);
-        setFiltrados(data);
-      } catch (error) {
-        console.error("Error al cargar trabajadores:", error);
+        const trabajadoresSnap = await getDocs(
+          fbQuery(collection(db, 'trabajadores'), orderBy('primerApellido')),
+        );
+        const ts: Trabajador[] = trabajadoresSnap.docs.map(
+          (d) => ({ id: d.id, ...d.data() } as Trabajador),
+        );
+        setTrabajadores(ts);
+        if (ts.length > 0 && !selectedId) setSelectedId(ts[0].id);
+
+        const evalsSnap = await getDocs(collection(db, 'evaluaciones'));
+        const es: EvaluacionMedica[] = evalsSnap.docs.map(
+          (d) => ({ id: d.id, ...d.data() } as EvaluacionMedica),
+        );
+        setEvaluaciones(es);
+      } catch (err) {
+        console.error('Error al cargar dashboard:', err);
       } finally {
         setCargando(false);
       }
-    };
-
-    fetchTrabajadores();
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Filtrar trabajadores cuando cambia la búsqueda
-  useEffect(() => {
-    if (busqueda.trim() === '') {
-      setFiltrados(trabajadores);
-      return;
+  // ── Index de evaluaciones por trabajador ───────────────────────────────
+  const evalsPorTrabajador = useMemo(() => {
+    const m = new Map<string, EvaluacionMedica[]>();
+    for (const e of evaluaciones) {
+      const arr = m.get(e.trabajadorId) ?? [];
+      arr.push(e);
+      m.set(e.trabajadorId, arr);
     }
+    return m;
+  }, [evaluaciones]);
 
-    const termino = busqueda.toLowerCase();
-    const resultado = trabajadores.filter(t => {
-      const nombreCompleto = `${t.primerApellido} ${t.segundoApellido} ${t.primerNombre} ${t.segundoNombre}`.toLowerCase();
-      const cedula = t.cedula.toLowerCase();
-      const puesto = t.puestoTrabajo.toLowerCase();
-      return nombreCompleto.includes(termino) || cedula.includes(termino) || puesto.includes(termino);
+  // ── Filtrado ───────────────────────────────────────────────────────────
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return trabajadores.filter((w) => {
+      if (q) {
+        const full =
+          `${w.primerApellido} ${w.segundoApellido} ${w.primerNombre} ${w.segundoNombre}`.toLowerCase();
+        if (
+          !full.includes(q) &&
+          !w.cedula.toLowerCase().includes(q) &&
+          !w.puestoTrabajo.toLowerCase().includes(q)
+        ) {
+          return false;
+        }
+      }
+      if (areaFilter !== 'Todas' && areaDeTrabajador(w) !== areaFilter) return false;
+
+      const evals = evalsPorTrabajador.get(w.id ?? '') ?? [];
+      if (tipoFilter !== 'Todos') {
+        const le = lastEval(evals);
+        // El tipo de evaluación no está en EvaluacionMedica (motivoConsulta sí).
+        // Si más adelante agregas un campo `tipoEvaluacion`, descomenta:
+        // if (!le || le.tipoEvaluacion !== tipoFilter) return false;
+        if (!le) return false;
+      }
+      if (statusFilter !== 'Todos') {
+        const s = workerStatus(evals);
+        if (s.label !== statusFilter) return false;
+      }
+      return true;
     });
-    setFiltrados(resultado);
-  }, [busqueda, trabajadores]);
+  }, [trabajadores, query, areaFilter, tipoFilter, statusFilter, evalsPorTrabajador]);
 
+  const selected =
+    trabajadores.find((w) => w.id === selectedId) ?? filtered[0] ?? null;
+  const selectedEvals = selected ? evalsPorTrabajador.get(selected.id ?? '') ?? [] : [];
+
+  // ── Handlers ───────────────────────────────────────────────────────────
   const handleLogout = async () => {
     try {
       await signOut(auth);
-    } catch (error) {
-      console.error("Error al cerrar sesión", error);
+    } catch (err) {
+      console.error('Error al cerrar sesión', err);
     }
   };
 
-  // Contar evaluaciones totales
-  const totalEvaluaciones = trabajadores.reduce((sum, t) => sum + (t.evaluaciones?.length || 0), 0);
+  const handleNewWorker = () => navigate('/nuevo-trabajador');
+  const handleNewEval = () => {
+    if (selected?.id) navigate(`/evaluar/${selected.id}`);
+  };
+  const handleOpenFullPage = () => {
+    if (selected?.id) navigate(`/trabajador/${selected.id}`);
+  };
+
+  // ── Iniciales del usuario logueado ─────────────────────────────────────
+  const userInitials = user?.email?.slice(0, 2).toUpperCase() ?? 'DR';
+
+  if (cargando) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-100 text-slate-500 font-bold">
+        Cargando sistema...
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-slate-100 p-4 md:p-8">
-      <div className="max-w-6xl mx-auto space-y-6">
+    <div
+      className="w-screen h-screen flex flex-col overflow-hidden text-slate-900"
+      style={{
+        background: '#f5f7fa',
+        fontFamily: "'Public Sans', system-ui, sans-serif",
+      }}
+    >
+      <TopBar
+        userInitials={userInitials}
+        userName={user?.email ?? 'Médico'}
+        userRol="Medicina Ocupacional"
+        onNewWorker={handleNewWorker}
+      />
 
-        {/* Cabecera */}
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-            <div>
-              <h1 className="text-2xl font-bold text-slate-800">Dashboard — Fichas Médicas</h1>
-              <p className="text-slate-500 text-sm">CEM AUSTROGAS · Medicina Ocupacional</p>
-            </div>
-            <div className="flex gap-3">
-              <button
-                onClick={() => navigate('/perfil')}
-                className="text-blue-600 font-medium hover:underline text-sm"
-              >
-                Mi Perfil
-              </button>
-              <button
-                onClick={handleLogout}
-                className="bg-slate-200 text-slate-700 px-4 py-2 rounded-lg hover:bg-slate-300 transition-colors font-medium text-sm"
-              >
-                Cerrar Sesión
-              </button>
-            </div>
-          </div>
-        </div>
+      <div
+        className="flex-1 grid overflow-hidden"
+        style={{ gridTemplateColumns: '360px 1fr' }}
+      >
+        <Sidebar
+          trabajadores={trabajadores}
+          evalsPorTrabajador={evalsPorTrabajador}
+          filtered={filtered}
+          query={query}
+          setQuery={setQuery}
+          areaFilter={areaFilter}
+          setAreaFilter={setAreaFilter}
+          tipoFilter={tipoFilter}
+          setTipoFilter={setTipoFilter}
+          statusFilter={statusFilter}
+          setStatusFilter={setStatusFilter}
+          selectedId={selected?.id}
+          onSelect={(id) => {
+            setSelectedId(id);
+            setView('quick');
+          }}
+          onNewWorker={handleNewWorker}
+        />
 
-        {/* Tarjetas de estadísticas */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5 flex items-center gap-4">
-            <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center text-2xl">
-              👥
-            </div>
-            <div>
-              <p className="text-sm text-slate-500">Total Trabajadores</p>
-              <p className="text-2xl font-bold text-slate-800">{trabajadores.length}</p>
-            </div>
-          </div>
-          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5 flex items-center gap-4">
-            <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center text-2xl">
-              📋
-            </div>
-            <div>
-              <p className="text-sm text-slate-500">Evaluaciones Totales</p>
-              <p className="text-2xl font-bold text-slate-800">{totalEvaluaciones}</p>
-            </div>
-          </div>
-          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5 flex items-center gap-4">
-            <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center text-2xl">
-              🔍
-            </div>
-            <div>
-              <p className="text-sm text-slate-500">Resultados</p>
-              <p className="text-2xl font-bold text-slate-800">
-                {busqueda ? `${filtrados.length} de ${trabajadores.length}` : 'Todos'}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Barra de búsqueda y botón */}
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
-            <h2 className="text-lg font-bold text-slate-700">Lista de Trabajadores</h2>
-            <button
-              onClick={() => navigate('/nuevo-trabajador')}
-              className="bg-blue-600 text-white px-5 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm shadow-sm"
-            >
-              + Nuevo Trabajador
-            </button>
-          </div>
-
-          {/* Campo de búsqueda */}
-          <div className="relative mb-6">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">🔍</span>
-            <input
-              type="text"
-              className="w-full pl-10 pr-4 py-3 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-              placeholder="Buscar por nombre, cédula o puesto de trabajo..."
-              value={busqueda}
-              onChange={(e) => setBusqueda(e.target.value)}
-            />
-            {busqueda && (
-              <button
-                onClick={() => setBusqueda('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-              >
-                ✕
-              </button>
-            )}
-          </div>
-
-          {/* Tabla */}
-          {cargando ? (
-            <div className="text-center py-12 text-slate-500">Cargando trabajadores...</div>
-          ) : filtrados.length === 0 ? (
-            <div className="text-center py-12 text-slate-500 bg-slate-50 rounded-lg border border-dashed border-slate-300">
-              {busqueda
-                ? `No se encontraron resultados para "${busqueda}"`
-                : 'No hay trabajadores registrados aún. Haz clic en "+ Nuevo Trabajador" para comenzar.'
-              }
-            </div>
+        <main className="overflow-y-auto" style={{ background: '#f5f7fa' }}>
+          {selected ? (
+            view === 'quick' ? (
+              <QuickView
+                trabajador={selected}
+                evals={selectedEvals}
+                onOpenFull={() => setView('full')}
+                onNewEval={handleNewEval}
+              />
+            ) : (
+              <FullFicha
+                trabajador={selected}
+                evals={selectedEvals}
+                onClose={() => setView('quick')}
+                onNewEval={handleNewEval}
+                onEdit={handleOpenFullPage}
+              />
+            )
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-slate-50 text-slate-600 text-xs border-b border-slate-200">
-                    <th className="p-3 font-semibold">Apellidos y Nombres</th>
-                    <th className="p-3 font-semibold">Cédula</th>
-                    <th className="p-3 font-semibold">Sexo</th>
-                    <th className="p-3 font-semibold">Puesto</th>
-                    <th className="p-3 font-semibold text-center">Eval.</th>
-                    <th className="p-3 font-semibold text-center">Acciones</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filtrados.map((t) => (
-                    <tr key={t.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
-                      <td className="p-3 text-slate-800 font-medium text-sm">
-                        {t.primerApellido} {t.segundoApellido} {t.primerNombre} {t.segundoNombre}
-                      </td>
-                      <td className="p-3 text-slate-600 text-sm">{t.cedula}</td>
-                      <td className="p-3 text-slate-600 text-sm">{t.sexo}</td>
-                      <td className="p-3 text-slate-600 text-sm">{t.puestoTrabajo}</td>
-                      <td className="p-3 text-center">
-                        <span className={`inline-flex px-2 py-0.5 text-xs font-semibold rounded-full ${
-                          (t.evaluaciones?.length || 0) > 0
-                            ? 'bg-blue-100 text-blue-700'
-                            : 'bg-slate-100 text-slate-500'
-                        }`}>
-                          {t.evaluaciones?.length || 0}
-                        </span>
-                      </td>
-                      <td className="p-3 text-center">
-                        <div className="flex justify-center gap-2">
-                          <button
-                            onClick={() => navigate(`/trabajador/${t.id}`)}
-                            className="text-slate-600 hover:text-slate-800 font-medium text-xs border border-slate-200 px-3 py-1.5 rounded bg-slate-50 hover:bg-slate-100 transition-colors"
-                          >
-                            Ver Ficha
-                          </button>
-                          <button
-                            onClick={() => navigate(`/evaluar/${t.id}`)}
-                            className="text-blue-600 hover:text-blue-800 font-medium text-xs border border-blue-200 px-3 py-1.5 rounded bg-blue-50 hover:bg-blue-100 transition-colors"
-                          >
-                            Evaluar
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <EmptyState
+              onClear={() => {
+                setQuery('');
+                setAreaFilter('Todas');
+                setTipoFilter('Todos');
+                setStatusFilter('Todos');
+              }}
+            />
           )}
+        </main>
+      </div>
+
+      {/* Botón de logout flotante discreto. Si prefieres mantener el botón en la topbar,
+          extiende TopBar.tsx con una acción adicional. */}
+      <button
+        onClick={handleLogout}
+        className="fixed bottom-4 right-4 bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-xs text-slate-700 shadow-sm hover:bg-slate-50"
+      >
+        Cerrar sesión
+      </button>
+    </div>
+  );
+}
+
+function EmptyState({ onClear }: { onClear: () => void }) {
+  return (
+    <div className="h-full grid place-items-center text-slate-500 text-[13px]">
+      <div className="text-center max-w-[320px]">
+        <div className="text-4xl mb-2">·</div>
+        <div className="font-semibold text-slate-900 mb-1">
+          Selecciona un trabajador
         </div>
+        <div>Usa la búsqueda o los filtros del panel izquierdo para encontrar al trabajador.</div>
+        <button
+          onClick={onClear}
+          className="mt-3 bg-transparent border border-slate-300 rounded-md px-3 py-1.5 cursor-pointer text-xs text-slate-700 hover:bg-slate-50"
+        >
+          Limpiar filtros
+        </button>
       </div>
     </div>
   );
