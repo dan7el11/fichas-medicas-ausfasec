@@ -255,12 +255,12 @@ export default function DetalleTrabajador() {
                           </div>
                         )}
 
-                        {ev.styleVida && (
+                        {ev.estiloVida && (
                           <div>
                             <p className="font-bold text-slate-700 mb-1">Estilo de Vida:</p>
                             <p>
-                              Actividad física: {ev.styleVida.actividadFisica ? `Sí — ${ev.styleVida.tipoActividad || ''} (${ev.styleVida.tiempoCantidad || ''})` : 'No'}
-                              {ev.styleVida.medicacionHabitual && ` · Medicación: ${ev.styleVida.medicacionHabitual} (${ev.styleVida.medicacionCantidad || ''})`}
+                              Actividad física: {ev.estiloVida.actividadFisica ? `Sí — ${ev.estiloVida.tipoActividad || ''} (${ev.estiloVida.tiempoCantidad || ''})` : 'No'}
+                              {ev.estiloVida.medicacionHabitual && ` · Medicación: ${ev.estiloVida.medicacionHabitual} (${ev.estiloVida.medicacionCantidad || ''})`}
                             </p>
                           </div>
                         )}
