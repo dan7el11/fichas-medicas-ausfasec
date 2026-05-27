@@ -83,6 +83,10 @@ function App() {
               </ProtectedRoute>
             } 
           />
+          <Route 
+            path="/reportes" 
+            element={<ProtectedRoute><Reportes /></ProtectedRoute>} 
+          />
           
           {/* Redirección automática en caso de escribir una dirección inexistente */}
           <Route path="*" element={<Navigate to="/" />} />
