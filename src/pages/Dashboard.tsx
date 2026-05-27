@@ -202,12 +202,15 @@ export default function Dashboard() {
                 onNewEval={handleNewEval}
               />
             ) : (
-              <FullFicha
+             <FullFicha
                 trabajador={selected}
                 evals={selectedEvals}
                 onClose={() => setView('quick')}
                 onNewEval={handleNewEval}
                 onEdit={handleOpenFullPage}
+                // Conectamos los botones a la página de detalle/expediente
+                onPrintPdf={handleOpenFullPage}
+                onViewEval={handleOpenFullPage}
               />
             )
           ) : (
