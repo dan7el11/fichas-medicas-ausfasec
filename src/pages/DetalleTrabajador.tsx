@@ -438,4 +438,3 @@ export default function DetalleTrabajador() {
     </div>
   );
 }
-}
