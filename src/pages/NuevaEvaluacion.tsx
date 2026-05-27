@@ -4,7 +4,6 @@ import { doc, getDoc, collection, addDoc, updateDoc, arrayUnion, query, where, o
 import { db } from '../services/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import SignosVitalesForm from '../components/SignosVitalesForm';
-import CheckboxSelector from '../components/CheckboxSelector';
 import type { Trabajador, SignosVitales, HabitoToxico, EstiloVida, AccidenteTrabajo, EnfermedadProfesional, AntecedenteFamiliar, ExamenFisicoHallazgo, ExamenComplementario, Diagnostico, Usuario } from '../types';
 
 // Datos fijos de la empresa (Sección A)
