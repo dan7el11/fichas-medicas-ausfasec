@@ -36,7 +36,6 @@ export default function DetalleTrabajador() {
           evals.push({ id: doc.id, ...doc.data() } as EvaluacionMedica);
         });
 
-        // Ordenamiento seguro por fecha
         evals.sort((a: any, b: any) => {
           const dateA = a.fecha?.seconds ? a.fecha.seconds : new Date(a.fecha).getTime() / 1000;
           const dateB = b.fecha?.seconds ? b.fecha.seconds : new Date(b.fecha).getTime() / 1000;
@@ -72,13 +71,20 @@ export default function DetalleTrabajador() {
     return String(fecha);
   };
 
-  // Generador PDF optimizado para multi-página
+  // --- GENERADOR PDF MEJORADO (ULTRA HD) ---
   const generarPDF = async () => {
     if (!pdfRef.current || !trabajador) return;
     setExportando(true);
     try {
-      const canvas = await html2canvas(pdfRef.current, { scale: 2, useCORS: true });
-      const imgData = canvas.toDataURL('image/jpeg', 1.0);
+      // 1. Escala a x4 para máxima nitidez de texto.
+      const canvas = await html2canvas(pdfRef.current, { 
+        scale: 4, 
+        useCORS: true,
+        logging: false
+      });
+      
+      // 2. Usamos formato PNG sin pérdida de calidad en lugar de JPEG
+      const imgData = canvas.toDataURL('image/png');
       const pdf = new jsPDF('p', 'mm', 'a4');
       
       const pdfWidth = pdf.internal.pageSize.getWidth();
@@ -87,14 +93,13 @@ export default function DetalleTrabajador() {
       let heightLeft = pdfHeight;
       let position = 0;
 
-      pdf.addImage(imgData, 'JPEG', 0, position, pdfWidth, pdfHeight);
+      pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
       heightLeft -= pageHeight;
 
-      // Si el formato es más largo que una hoja A4, añade páginas adicionales
       while (heightLeft > 0) {
         position = heightLeft - pdfHeight;
         pdf.addPage();
-        pdf.addImage(imgData, 'JPEG', 0, position, pdfWidth, pdfHeight);
+        pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
         heightLeft -= pageHeight;
       }
       
@@ -147,7 +152,7 @@ export default function DetalleTrabajador() {
     <div className="min-h-screen bg-slate-50 p-4 md:p-8">
       <div className="max-w-6xl mx-auto space-y-6">
 
-        {/* Panel de Control del Sistema (No se exporta) */}
+        {/* Panel de Control */}
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
             <h1 className="text-2xl font-bold text-slate-800">
@@ -188,21 +193,20 @@ export default function DetalleTrabajador() {
                     📊 Exportar a Excel
                   </button>
                   <button onClick={generarPDF} disabled={exportando} className="px-4 py-2 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 disabled:opacity-50 flex items-center gap-2 text-sm shadow-sm">
-                    {exportando ? 'Generando...' : '📄 Exportar SO-RE-38 (PDF)'}
+                    {exportando ? 'Generando Alta Calidad...' : '📄 Exportar SO-RE-38 (PDF)'}
                   </button>
                 </div>
 
-                {/* EL DOCUMENTO A EXPORTAR - ESTILO EXCEL ESTRICTO */}
                 <div className="p-4 md:p-8 overflow-x-auto bg-slate-200 flex justify-center">
                   
-                  {/* Contenedor A4 Dinámico */}
-                  <div ref={pdfRef} className="bg-white p-6 w-[210mm] text-[9px] text-black font-sans leading-tight">
+                  {/* Contenedor A4: Añadido padding interior para dar respiro a los bordes */}
+                  <div ref={pdfRef} className="bg-white p-8 w-[210mm] text-[9px] text-black font-sans leading-tight">
                     
                     {/* CABECERA */}
                     <table className="w-full border-collapse border border-black mb-2 text-center text-[10px]">
                       <tbody>
                         <tr>
-                          <td rowSpan={3} className="border border-black w-1/4 font-bold text-xs p-2 uppercase">CEM AUSTROGAS</td>
+                          <td rowSpan={3} className="border border-black w-1/4 font-bold text-xs p-2 uppercase tracking-wide">CEM AUSTROGAS</td>
                           <td rowSpan={2} className="border border-black w-2/4 font-bold text-[11px] p-2">HISTORIA CLÍNICA OCUPACIONAL: EVALUACIÓN PERIÓDICA</td>
                           <td className="border border-black w-1/4 text-left px-2 py-1 text-[9px]">Código: SO-RE-38</td>
                         </tr>
@@ -217,15 +221,15 @@ export default function DetalleTrabajador() {
                     </table>
 
                     {/* A. DATOS DEL ESTABLECIMIENTO */}
-                    <div className="bg-slate-300 font-bold px-1 border border-black border-b-0">A. DATOS DEL ESTABLECIMIENTO - EMPRESA Y USUARIO</div>
-                    <table className="w-full border-collapse border border-black mb-2 text-center">
+                    <div className="bg-slate-200 font-bold px-1 border border-black border-b-0">A. DATOS DEL ESTABLECIMIENTO Y USUARIO</div>
+                    <table className="w-full border-collapse border border-black mb-2 text-center text-[9px]">
                       <tbody>
-                        <tr className="bg-slate-100 font-semibold">
+                        <tr className="bg-slate-50 font-semibold text-[8px]">
                           <td className="border border-black p-1">INSTITUCIÓN DEL SISTEMA</td>
                           <td className="border border-black p-1">RUC</td>
                           <td className="border border-black p-1">CIU</td>
                           <td className="border border-black p-1">ESTABLECIMIENTO DE SALUD</td>
-                          <td className="border border-black p-1">NÚMERO DE HISTORIA CLÍNICA</td>
+                          <td className="border border-black p-1">NÚMERO HISTORIA CLÍNICA</td>
                           <td className="border border-black p-1">NÚMERO DE ARCHIVO</td>
                         </tr>
                         <tr>
@@ -236,7 +240,7 @@ export default function DetalleTrabajador() {
                           <td className="border border-black p-1">{ev.numeroHistoriaClinica || trabajador.cedula}</td>
                           <td className="border border-black p-1">{ev.numeroArchivo || '-'}</td>
                         </tr>
-                        <tr className="bg-slate-100 font-semibold">
+                        <tr className="bg-slate-50 font-semibold text-[8px]">
                           <td className="border border-black p-1">PRIMER APELLIDO</td>
                           <td className="border border-black p-1">SEGUNDO APELLIDO</td>
                           <td className="border border-black p-1">PRIMER NOMBRE</td>
@@ -256,25 +260,20 @@ export default function DetalleTrabajador() {
                     </table>
 
                     {/* B. MOTIVO DE CONSULTA */}
-                    <div className="bg-slate-300 font-bold px-1 border border-black border-b-0">B. MOTIVO DE CONSULTA</div>
-                    <div className="border border-black p-1 mb-2 min-h-[30px]">{ev.motivoConsulta || 'EVALUACIÓN MÉDICA OCUPACIONAL PERIÓDICA'}</div>
+                    <div className="bg-slate-200 font-bold px-1 border border-black border-b-0">B. MOTIVO DE CONSULTA</div>
+                    <div className="border border-black p-1 mb-2 uppercase">{ev.motivoConsulta || 'EVALUACIÓN MÉDICA OCUPACIONAL PERIÓDICA'}</div>
 
                     {/* C. ANTECEDENTES PERSONALES */}
-                    <div className="bg-slate-300 font-bold px-1 border border-black border-b-0">C. ANTECEDENTES PERSONALES</div>
+                    <div className="bg-slate-200 font-bold px-1 border border-black border-b-0">C. ANTECEDENTES PERSONALES</div>
                     <div className="border border-black p-1 mb-2">
-                      <p className="font-bold">Clínicos y Quirúrgicos:</p>
-                      <p>{ev.antecedentesClinicosQuirurgicos || ev.antecedentesPersonales || 'Sin antecedentes relevantes reportados.'}</p>
-                      
+                      <p><span className="font-bold">Clínicos y Quirúrgicos:</span> {ev.antecedentesClinicosQuirurgicos || ev.antecedentesPersonales || 'Sin antecedentes relevantes reportados.'}</p>
                       {ev.habitosToxicos && ev.habitosToxicos.length > 0 && (
-                        <div className="mt-1">
-                          <p className="font-bold">Hábitos Tóxicos:</p>
-                          <p>{ev.habitosToxicos.map((h:any) => `${h.tipo}: ${h.consume ? 'Consume' : 'No Consume'}`).join(' | ')}</p>
-                        </div>
+                        <p className="mt-0.5"><span className="font-bold">Hábitos Tóxicos:</span> {ev.habitosToxicos.map((h:any) => `${h.tipo}: ${h.consume ? 'Consume' : 'No Consume'}`).join(' | ')}</p>
                       )}
                     </div>
 
                     {/* D. ANTECEDENTES FAMILIARES */}
-                    <div className="bg-slate-300 font-bold px-1 border border-black border-b-0">D. ANTECEDENTES FAMILIARES</div>
+                    <div className="bg-slate-200 font-bold px-1 border border-black border-b-0">D. ANTECEDENTES FAMILIARES</div>
                     <div className="border border-black p-1 mb-2">
                       {typeof ev.antecedentesFamiliares === 'string' ? <p>{ev.antecedentesFamiliares}</p> : 
                        ev.antecedentesFamiliares && ev.antecedentesFamiliares.length > 0 ? (
@@ -285,11 +284,11 @@ export default function DetalleTrabajador() {
                     </div>
 
                     {/* F. ENFERMEDAD ACTUAL */}
-                    <div className="bg-slate-300 font-bold px-1 border border-black border-b-0">F. ENFERMEDAD ACTUAL</div>
-                    <div className="border border-black p-1 mb-2 min-h-[25px]">{ev.enfermedadActual || 'PACIENTE ASINTOMÁTICO AL MOMENTO DE LA VALORACIÓN.'}</div>
+                    <div className="bg-slate-200 font-bold px-1 border border-black border-b-0">F. ENFERMEDAD ACTUAL</div>
+                    <div className="border border-black p-1 mb-2 uppercase">{ev.enfermedadActual || 'PACIENTE ASINTOMÁTICO AL MOMENTO DE LA VALORACIÓN.'}</div>
 
                     {/* G. REVISIÓN DE ÓRGANOS Y SISTEMAS */}
-                    <div className="bg-slate-300 font-bold px-1 border border-black border-b-0">G. REVISIÓN DE ÓRGANOS Y SISTEMAS</div>
+                    <div className="bg-slate-200 font-bold px-1 border border-black border-b-0">G. REVISIÓN DE ÓRGANOS Y SISTEMAS</div>
                     <div className="border border-black p-1 mb-2">
                       {ev.revisionSistemasSeleccionados && ev.revisionSistemasSeleccionados.length > 0 ? (
                         <>
@@ -301,20 +300,20 @@ export default function DetalleTrabajador() {
                       )}
                     </div>
 
-                    {/* H. CONSTANTES VITALES */}
-                    <div className="bg-slate-300 font-bold px-1 border border-black border-b-0">H. CONSTANTES VITALES Y ANTROPOMETRÍA</div>
-                    <table className="w-full border-collapse border border-black mb-2 text-center">
+                    {/* H. CONSTANTES VITALES - TITULOS OPTIMIZADOS PARA NO APLASTARSE */}
+                    <div className="bg-slate-200 font-bold px-1 border border-black border-b-0">H. CONSTANTES VITALES Y ANTROPOMETRÍA</div>
+                    <table className="w-full border-collapse border border-black mb-2 text-center text-[9px]">
                       <tbody>
-                        <tr className="bg-slate-100 font-semibold">
-                          <td className="border border-black p-1">PRESIÓN ARTERIAL</td>
-                          <td className="border border-black p-1">TEMPERATURA °C</td>
-                          <td className="border border-black p-1">FRECUENCIA CARDÍACA (lpm)</td>
-                          <td className="border border-black p-1">SATURACIÓN O2 (%)</td>
-                          <td className="border border-black p-1">FRECUENCIA RESP. (rpm)</td>
-                          <td className="border border-black p-1">PESO (Kg)</td>
-                          <td className="border border-black p-1">TALLA (cm)</td>
-                          <td className="border border-black p-1">IMC</td>
-                          <td className="border border-black p-1">PERÍMETRO ABDOMINAL</td>
+                        <tr className="bg-slate-50 font-semibold leading-tight text-[8px]">
+                          <td className="border border-black p-0.5">PRESIÓN<br/>ARTERIAL</td>
+                          <td className="border border-black p-0.5">TEMP.<br/>(°C)</td>
+                          <td className="border border-black p-0.5">FREC.<br/>CARDÍACA</td>
+                          <td className="border border-black p-0.5">SAT.<br/>O2 (%)</td>
+                          <td className="border border-black p-0.5">FREC.<br/>RESP.</td>
+                          <td className="border border-black p-0.5">PESO<br/>(Kg)</td>
+                          <td className="border border-black p-0.5">TALLA<br/>(cm)</td>
+                          <td className="border border-black p-0.5">IMC</td>
+                          <td className="border border-black p-0.5">PERÍMETRO<br/>ABD.</td>
                         </tr>
                         <tr>
                           <td className="border border-black p-1">{ev.signosVitales?.presionSistolica || ev.signosVitales?.presionArterial || '-'}/{ev.signosVitales?.presionDiastolica || ''}</td>
@@ -331,7 +330,7 @@ export default function DetalleTrabajador() {
                     </table>
 
                     {/* I. EXAMEN FÍSICO REGIONAL */}
-                    <div className="bg-slate-300 font-bold px-1 border border-black border-b-0">I. EXAMEN FÍSICO REGIONAL</div>
+                    <div className="bg-slate-200 font-bold px-1 border border-black border-b-0">I. EXAMEN FÍSICO REGIONAL</div>
                     <div className="border border-black p-1 mb-2">
                       {ev.examenFisicoHallazgos && ev.examenFisicoHallazgos.length > 0 ? (
                         ev.examenFisicoHallazgos.map((h: any, i: number) => (
@@ -343,10 +342,10 @@ export default function DetalleTrabajador() {
                     </div>
 
                     {/* K. DIAGNÓSTICO */}
-                    <div className="bg-slate-300 font-bold px-1 border border-black border-b-0">K. DIAGNÓSTICO</div>
+                    <div className="bg-slate-200 font-bold px-1 border border-black border-b-0">K. DIAGNÓSTICO</div>
                     <table className="w-full border-collapse border border-black mb-2">
                       <tbody>
-                        <tr className="bg-slate-100 text-center font-semibold">
+                        <tr className="bg-slate-50 text-center font-semibold text-[8px]">
                           <td className="border border-black p-1 w-3/5">DESCRIPCIÓN</td>
                           <td className="border border-black p-1 w-1/5">CIE-10</td>
                           <td className="border border-black p-1 w-1/5">PRE / DEF</td>
@@ -361,23 +360,23 @@ export default function DetalleTrabajador() {
                           ))
                         ) : (
                           <tr>
-                            <td colSpan={3} className="border border-black p-1 uppercase">{typeof ev.diagnosticos === 'string' ? ev.diagnosticos : 'PACIENTE SANO.'}</td>
+                            <td colSpan={3} className="border border-black p-1 uppercase text-center">{typeof ev.diagnosticos === 'string' ? ev.diagnosticos : 'PACIENTE SANO.'}</td>
                           </tr>
                         )}
                       </tbody>
                     </table>
 
                     {/* L. APTITUD MÉDICA */}
-                    <div className="bg-slate-300 font-bold px-1 border border-black border-b-0">L. APTITUD MÉDICA PARA EL TRABAJO</div>
-                    <table className="w-full border-collapse border border-black mb-2 text-center">
+                    <div className="bg-slate-200 font-bold px-1 border border-black border-b-0">L. APTITUD MÉDICA PARA EL TRABAJO</div>
+                    <table className="w-full border-collapse border border-black mb-2 text-center text-[9px]">
                       <tbody>
-                        <tr className="bg-slate-100 font-semibold">
+                        <tr className="bg-slate-50 font-semibold text-[8px]">
                           <td className="border border-black p-1 w-1/4">APTO</td>
                           <td className="border border-black p-1 w-1/4">APTO EN OBSERVACIÓN</td>
                           <td className="border border-black p-1 w-1/4">APTO CON LIMITACIONES</td>
                           <td className="border border-black p-1 w-1/4">NO APTO</td>
                         </tr>
-                        <tr className="text-sm">
+                        <tr className="text-[10px]">
                           <td className="border border-black p-1 font-bold">{(!ev.aptitudMedica || ev.aptitudMedica === 'apto') ? 'X' : ''}</td>
                           <td className="border border-black p-1 font-bold">{ev.aptitudMedica === 'aptoObservacion' ? 'X' : ''}</td>
                           <td className="border border-black p-1 font-bold">{ev.aptitudMedica === 'aptoLimitaciones' ? 'X' : ''}</td>
@@ -393,22 +392,22 @@ export default function DetalleTrabajador() {
                     </table>
 
                     {/* M. RECOMENDACIONES */}
-                    <div className="bg-slate-300 font-bold px-1 border border-black border-b-0">M. RECOMENDACIONES Y/O TRATAMIENTO</div>
-                    <div className="border border-black p-1 mb-2 min-h-[40px]">
+                    <div className="bg-slate-200 font-bold px-1 border border-black border-b-0">M. RECOMENDACIONES Y/O TRATAMIENTO</div>
+                    <div className="border border-black p-1 mb-2">
                       {Array.isArray(ev.recomendaciones) ? ev.recomendaciones.join('; ') : (ev.recomendaciones || 'Ninguna particular al momento.')}
                       {ev.recomendacionesOtras ? `; ${ev.recomendacionesOtras}` : ''}
                     </div>
 
                     {/* CERTIFICADO LEGAL */}
-                    <div className="border border-black p-1 font-bold text-justify mb-2 leading-tight">
+                    <div className="border border-black p-1.5 font-bold text-justify mb-2 leading-tight text-[8px] bg-slate-50">
                       CERTIFICO QUE LO ANTERIORMENTE EXPRESADO EN RELACIÓN A MI ESTADO DE SALUD ES VERDAD. SE ME HA INFORMADO LAS MEDIDAS PREVENTIVAS A TOMAR PARA DISMINUIR O MITIGAR LOS RIESGOS RELACIONADOS CON MI ACTIVIDAD LABORAL.
                     </div>
 
                     {/* N. FIRMAS */}
-                    <div className="bg-slate-300 font-bold px-1 border border-black border-b-0">N. DATOS DEL PROFESIONAL</div>
-                    <table className="w-full border-collapse border border-black text-center">
+                    <div className="bg-slate-200 font-bold px-1 border border-black border-b-0">N. DATOS DEL PROFESIONAL</div>
+                    <table className="w-full border-collapse border border-black text-center text-[9px]">
                       <tbody>
-                        <tr className="bg-slate-100 font-semibold">
+                        <tr className="bg-slate-50 font-semibold text-[8px]">
                           <td className="border border-black p-1 w-1/5">FECHA DE ATENCIÓN</td>
                           <td className="border border-black p-1 w-1/5">MÉDICO EXAMINADOR</td>
                           <td className="border border-black p-1 w-1/5">CÓDIGO MÉDICO</td>
