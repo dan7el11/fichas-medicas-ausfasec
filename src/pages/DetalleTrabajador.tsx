@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { doc, getDoc, collection, query, where, getDocs, orderBy } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../services/firebase';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
@@ -10,7 +10,7 @@ export default function DetalleTrabajador() {
   const { trabajadorId } = useParams();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const evalIdParam = searchParams.get('evalId'); // Detecta si venimos de una evaluación específica
+  const evalIdParam = searchParams.get('evalId'); // Para abrir la pestaña correcta desde el Dashboard
 
   const [trabajador, setTrabajador] = useState<Trabajador | null>(null);
   const [evaluaciones, setEvaluaciones] = useState<EvaluacionMedica[]>([]);
@@ -29,19 +29,27 @@ export default function DetalleTrabajador() {
           setTrabajador({ id: docSnap.id, ...docSnap.data() } as Trabajador);
         }
 
+        // SOLUCIÓN AL CRASHEO: Pedimos los datos SIN orderBy para evitar el bloqueo de Firebase
         const q = query(
           collection(db, 'evaluaciones'),
-          where('trabajadorId', '==', trabajadorId),
-          orderBy('fecha', 'desc')
+          where('trabajadorId', '==', trabajadorId)
         );
         const querySnapshot = await getDocs(q);
         const evals: EvaluacionMedica[] = [];
         querySnapshot.forEach((doc) => {
           evals.push({ id: doc.id, ...doc.data() } as EvaluacionMedica);
         });
+
+        // Ordenamos las fechas localmente en JavaScript
+        evals.sort((a: any, b: any) => {
+          const dateA = a.fecha?.seconds ? a.fecha.seconds : new Date(a.fecha).getTime() / 1000;
+          const dateB = b.fecha?.seconds ? b.fecha.seconds : new Date(b.fecha).getTime() / 1000;
+          return dateB - dateA;
+        });
+
         setEvaluaciones(evals);
 
-        // Si se envió un evalId desde el Dashboard, calcula qué pestaña le corresponde
+        // Si venimos del Dashboard con un ID, abrimos esa pestaña
         if (evalIdParam) {
           const index = evals.findIndex((e) => e.id === evalIdParam);
           if (index !== -1) {
@@ -97,8 +105,12 @@ export default function DetalleTrabajador() {
   };
 
   const exportarExcel = () => {
-    const ev = evaluaciones[pestanaActiva];
+    const ev: any = evaluaciones[pestanaActiva];
     if (!ev || !trabajador) return;
+
+    // Procesamiento seguro de arrays para Excel
+    const diag = Array.isArray(ev.diagnosticos) ? ev.diagnosticos.map((d: any) => d.descripcion).join('; ') : (ev.diagnosticos || 'Ninguno');
+    const recom = Array.isArray(ev.recomendaciones) ? ev.recomendaciones.join('; ') : (ev.recomendaciones || 'Ninguna');
 
     const rows = [
       ['DATO', 'VALOR'],
@@ -107,11 +119,11 @@ export default function DetalleTrabajador() {
       ['Puesto de Trabajo', trabajador.puestoTrabajo],
       ['Fecha de Evaluación', formatFecha(ev.fecha)],
       ['N° Historia Clínica', ev.numeroHistoriaClinica || '-'],
-      ['Aptitud Médica', ev.aptitudMedica || 'Pendiente'],
-      ['Diagnósticos', ev.diagnosticos?.map(d => d.descripcion).join('; ') || 'Ninguno'],
+      ['Aptitud Médica', ev.aptitudMedica || ev.aptitud || 'Pendiente'],
+      ['Diagnósticos', diag],
       ['Presión Arterial', `${ev.signosVitales?.presionSistolica || '-'}/${ev.signosVitales?.presionDiastolica || '-'} mmHg`],
       ['IMC', ev.signosVitales?.imc || '-'],
-      ['Recomendaciones', ev.recomendaciones?.join('; ') || 'Ninguna']
+      ['Recomendaciones', recom]
     ];
 
     const csvContent = "\ufeff" + rows.map(e => e.join(";")).join("\n");
@@ -128,7 +140,7 @@ export default function DetalleTrabajador() {
   if (cargando) return <div className="min-h-screen p-8 text-center text-slate-500 font-bold">Cargando expediente...</div>;
   if (!trabajador) return <div className="min-h-screen p-8 text-center text-red-500 font-bold">Trabajador no encontrado</div>;
 
-  const ev = evaluaciones[pestanaActiva] || null;
+  const ev: any = evaluaciones[pestanaActiva] || null;
 
   return (
     <div className="min-h-screen bg-slate-50 p-4 md:p-8">
@@ -199,13 +211,14 @@ export default function DetalleTrabajador() {
                 </div>
 
                 {/* Contenido de la evaluación (El documento a renderizar) */}
-                <div className="p-6 md:p-8" ref={pdfRef}>
+                <div className="p-6 md:p-8 overflow-x-auto" style={{ display: 'flex', justifyContent: 'center' }}>
+                 <div ref={pdfRef} className="bg-white p-10 w-[210mm] min-h-[297mm] shadow-lg border border-slate-300">
                   <div className="text-center mb-6 pb-4 border-b-2 border-slate-300">
                     <h2 className="text-xl font-bold uppercase text-slate-800">CEM AUSTROGAS</h2>
                     <p className="text-sm font-semibold text-slate-600">HISTORIA CLÍNICA OCUPACIONAL: EVALUACIÓN PERIÓDICA (SO-RE-38)</p>
                     <div className="flex justify-center gap-8 mt-2 text-xs text-slate-500">
-                      <span>N° Historia: {ev.numeroHistoriaClinica}</span>
-                      <span>N° Archivo: {ev.numeroArchivo}</span>
+                      <span>N° Historia: {ev.numeroHistoriaClinica || trabajador.cedula}</span>
+                      <span>N° Archivo: {ev.numeroArchivo || '-'}</span>
                       <span>Fecha: {formatFechaHora(ev.fecha)}</span>
                     </div>
                   </div>
@@ -236,14 +249,14 @@ export default function DetalleTrabajador() {
                       <div className="border border-slate-300 border-t-0 rounded-b p-3 space-y-3 text-xs">
                         <div>
                           <p className="font-bold text-slate-700 mb-1">Antecedentes Clínicos y Quirúrgicos:</p>
-                          <p>{ev.antecedentesClinicosQuirurgicos || 'Sin registros'}</p>
+                          <p>{ev.antecedentesClinicosQuirurgicos || ev.antecedentesPersonales || 'Sin registros'}</p>
                         </div>
 
                         {ev.habitosToxicos && ev.habitosToxicos.length > 0 && (
                           <div>
                             <p className="font-bold text-slate-700 mb-1">Hábitos Tóxicos:</p>
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-                              {ev.habitosToxicos.map((h, i) => (
+                              {ev.habitosToxicos.map((h: any, i: number) => (
                                 <div key={i} className="bg-slate-50 p-2 rounded">
                                   <span className="font-semibold capitalize">{h.tipo}: </span>
                                   {h.consume ? `Consume (${h.tiempoConsumo || '?'} meses, ${h.cantidad || '?'})` :
@@ -294,7 +307,7 @@ export default function DetalleTrabajador() {
                       <section>
                         <h3 className="text-xs font-bold text-white bg-slate-700 px-3 py-1.5 rounded-t">D. ANTECEDENTES FAMILIARES</h3>
                         <div className="border border-slate-300 border-t-0 rounded-b p-3 text-xs space-y-1">
-                          {ev.antecedentesFamiliares.map((af, i) => (
+                          {ev.antecedentesFamiliares.map((af: any, i: number) => (
                             <p key={i}><span className="font-semibold">{af.tipo}:</span> {af.parentesco} — {af.descripcion}</p>
                           ))}
                         </div>
@@ -328,7 +341,7 @@ export default function DetalleTrabajador() {
                         <div className="grid grid-cols-3 md:grid-cols-5 gap-3 text-xs">
                           <div className="bg-slate-50 p-2 rounded">
                             <p className="text-slate-500">Presión Arterial</p>
-                            <p className="font-bold">{ev.signosVitales?.presionSistolica || '-'}/{ev.signosVitales?.presionDiastolica || '-'} mmHg</p>
+                            <p className="font-bold">{ev.signosVitales?.presionSistolica || ev.signosVitales?.presionArterial || '-'}/{ev.signosVitales?.presionDiastolica || ''} mmHg</p>
                           </div>
                           <div className="bg-slate-50 p-2 rounded">
                             <p className="text-slate-500">Temperatura</p>
@@ -371,7 +384,7 @@ export default function DetalleTrabajador() {
                       <div className="border border-slate-300 border-t-0 rounded-b p-3 text-xs">
                         {ev.examenFisicoHallazgos && ev.examenFisicoHallazgos.length > 0 ? (
                           <div className="space-y-1">
-                            {ev.examenFisicoHallazgos.map((h, i) => (
+                            {ev.examenFisicoHallazgos.map((h: any, i: number) => (
                               <p key={i}><span className="font-bold text-blue-700">{h.codigo}:</span> {h.region} — {h.subregion}: {h.descripcion}</p>
                             ))}
                           </div>
@@ -394,7 +407,7 @@ export default function DetalleTrabajador() {
                               </tr>
                             </thead>
                             <tbody>
-                              {ev.examenesComplementarios.map((ex, i) => (
+                              {ev.examenesComplementarios.map((ex: any, i: number) => (
                                 <tr key={i} className="border-b border-slate-100">
                                   <td className="py-1">{ex.nombre}</td>
                                   <td className="py-1">{ex.fecha}</td>
@@ -411,7 +424,7 @@ export default function DetalleTrabajador() {
                       <section>
                         <h3 className="text-xs font-bold text-white bg-slate-700 px-3 py-1.5 rounded-t">K. DIAGNÓSTICO</h3>
                         <div className="border border-slate-300 border-t-0 rounded-b p-3 text-xs space-y-1">
-                          {ev.diagnosticos.map((dx, i) => (
+                          {ev.diagnosticos.map((dx: any, i: number) => (
                             <p key={i}>
                               <span className="font-semibold">{i + 1}.</span> {dx.descripcion}
                               {dx.cie && <span className="ml-2 text-slate-500">(CIE: {dx.cie})</span>}
@@ -438,7 +451,8 @@ export default function DetalleTrabajador() {
                           {ev.aptitudMedica === 'apto' ? 'APTO' :
                            ev.aptitudMedica === 'aptoObservacion' ? 'APTO EN OBSERVACIÓN' :
                            ev.aptitudMedica === 'aptoLimitaciones' ? 'APTO CON LIMITACIONES' :
-                           'NO APTO'}
+                           ev.aptitudMedica === 'noApto' ? 'NO APTO' :
+                           (ev.aptitud || 'APTO').toUpperCase()}
                         </span>
                         {ev.aptitudObservacion && <p className="mt-2"><span className="font-semibold">Observación:</span> {ev.aptitudObservacion}</p>}
                         {ev.aptitudLimitaciones && <p className="mt-2"><span className="font-semibold">Limitaciones:</span> {ev.aptitudLimitaciones}</p>}
@@ -450,7 +464,7 @@ export default function DetalleTrabajador() {
                       <div className="border border-slate-300 border-t-0 rounded-b p-3 text-xs">
                         {ev.recomendaciones && ev.recomendaciones.length > 0 ? (
                           <p>
-                            {ev.recomendaciones.join(', ')}
+                            {Array.isArray(ev.recomendaciones) ? ev.recomendaciones.join(', ') : ev.recomendaciones}
                             {ev.recomendacionesOtras && `, ${ev.recomendacionesOtras}`}
                           </p>
                         ) : (
@@ -474,6 +488,7 @@ export default function DetalleTrabajador() {
                     </section>
 
                   </div>
+                 </div>
                 </div>
               </>
             )}
