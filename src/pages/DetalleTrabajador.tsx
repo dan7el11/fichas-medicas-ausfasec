@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { doc, getDoc, collection, query, where, getDocs, orderBy } from 'firebase/firestore';
 import { db } from '../services/firebase';
 import jsPDF from 'jspdf';
@@ -9,6 +9,9 @@ import type { Trabajador, EvaluacionMedica } from '../types';
 export default function DetalleTrabajador() {
   const { trabajadorId } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const evalIdParam = searchParams.get('evalId'); // Detecta si venimos de una evaluación específica
+
   const [trabajador, setTrabajador] = useState<Trabajador | null>(null);
   const [evaluaciones, setEvaluaciones] = useState<EvaluacionMedica[]>([]);
   const [cargando, setCargando] = useState(true);
@@ -37,6 +40,14 @@ export default function DetalleTrabajador() {
           evals.push({ id: doc.id, ...doc.data() } as EvaluacionMedica);
         });
         setEvaluaciones(evals);
+
+        // Si se envió un evalId desde el Dashboard, calcula qué pestaña le corresponde
+        if (evalIdParam) {
+          const index = evals.findIndex((e) => e.id === evalIdParam);
+          if (index !== -1) {
+            setPestanaActiva(index);
+          }
+        }
       } catch (error) {
         console.error("Error al cargar detalles:", error);
       } finally {
@@ -44,7 +55,7 @@ export default function DetalleTrabajador() {
       }
     };
     cargarDatos();
-  }, [trabajadorId]);
+  }, [trabajadorId, evalIdParam]);
 
   const formatFecha = (fecha: any): string => {
     if (!fecha) return 'Sin fecha';
@@ -85,14 +96,13 @@ export default function DetalleTrabajador() {
     }
   };
 
-  // NUEVA FUNCIÓN: Exportar pestaña actual a Excel (CSV)
   const exportarExcel = () => {
     const ev = evaluaciones[pestanaActiva];
     if (!ev || !trabajador) return;
 
     const rows = [
       ['DATO', 'VALOR'],
-      ['Nombres Completos', `${trabajador.primerApellido} ${trabajador.segundoApellido} ${trabajador.primerNombre} ${trabajador.segundoNombre}`],
+      ['Nombres Completos', `${trabajador.primerApellido} ${trabajador.segundoApellido || ''} ${trabajador.primerNombre} ${trabajador.segundoNombre || ''}`],
       ['Cédula', trabajador.cedula],
       ['Puesto de Trabajo', trabajador.puestoTrabajo],
       ['Fecha de Evaluación', formatFecha(ev.fecha)],
@@ -128,7 +138,7 @@ export default function DetalleTrabajador() {
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
             <h1 className="text-2xl font-bold text-slate-800">
-              {trabajador.primerApellido} {trabajador.segundoApellido} {trabajador.primerNombre} {trabajador.segundoNombre}
+              {trabajador.primerApellido} {trabajador.segundoApellido || ''} {trabajador.primerNombre} {trabajador.segundoNombre || ''}
             </h1>
             <p className="text-slate-500 text-sm mt-1">
               CI: {trabajador.cedula} · Sexo: {trabajador.sexo === 'M' ? 'Masculino' : 'Femenino'} · Puesto: {trabajador.puestoTrabajo}
@@ -172,7 +182,6 @@ export default function DetalleTrabajador() {
 
             {ev && (
               <>
-                {/* NUEVOS BOTONES DE EXPORTACIÓN */}
                 <div className="p-4 bg-white border-b border-slate-100 flex justify-end gap-3">
                   <button 
                     onClick={exportarExcel}
@@ -207,8 +216,8 @@ export default function DetalleTrabajador() {
                       <div className="border border-slate-300 border-t-0 rounded-b p-3 grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
                         <div><span className="font-semibold">Institución:</span> CEM AUSTROGAS</div>
                         <div><span className="font-semibold">RUC:</span> 190070301001</div>
-                        <div><span className="font-semibold">Nombres:</span> {trabajador.primerNombre} {trabajador.segundoNombre}</div>
-                        <div><span className="font-semibold">Apellidos:</span> {trabajador.primerApellido} {trabajador.segundoApellido}</div>
+                        <div><span className="font-semibold">Nombres:</span> {trabajador.primerNombre} {trabajador.segundoNombre || ''}</div>
+                        <div><span className="font-semibold">Apellidos:</span> {trabajador.primerApellido} {trabajador.segundoApellido || ''}</div>
                         <div><span className="font-semibold">Cédula:</span> {trabajador.cedula}</div>
                         <div><span className="font-semibold">Sexo:</span> {trabajador.sexo}</div>
                         <div className="col-span-2"><span className="font-semibold">Puesto:</span> {trabajador.puestoTrabajo}</div>
@@ -246,12 +255,12 @@ export default function DetalleTrabajador() {
                           </div>
                         )}
 
-                        {ev.estiloVida && (
+                        {ev.styleVida && (
                           <div>
                             <p className="font-bold text-slate-700 mb-1">Estilo de Vida:</p>
                             <p>
-                              Actividad física: {ev.estiloVida.actividadFisica ? `Sí — ${ev.estiloVida.tipoActividad || ''} (${ev.estiloVida.tiempoCantidad || ''})` : 'No'}
-                              {ev.estiloVida.medicacionHabitual && ` · Medicación: ${ev.estiloVida.medicacionHabitual} (${ev.estiloVida.medicacionCantidad || ''})`}
+                              Actividad física: {ev.styleVida.actividadFisica ? `Sí — ${ev.styleVida.tipoActividad || ''} (${ev.styleVida.tiempoCantidad || ''})` : 'No'}
+                              {ev.styleVida.medicacionHabitual && ` · Medicación: ${ev.styleVida.medicacionHabitual} (${ev.styleVida.medicacionCantidad || ''})`}
                             </p>
                           </div>
                         )}
