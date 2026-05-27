@@ -301,33 +301,39 @@ export default function DetalleTrabajador() {
                     </div>
 
                     {/* H. CONSTANTES VITALES - TITULOS OPTIMIZADOS PARA NO APLASTARSE */}
-                    <div className="bg-slate-200 font-bold px-1 border border-black border-b-0">H. CONSTANTES VITALES Y ANTROPOMETRÍA</div>
-                    <table className="w-full border-collapse border border-black mb-2 text-center text-[9px]">
-                      <tbody>
-                        <tr className="bg-slate-50 font-semibold leading-tight text-[8px]">
-                          <td className="border border-black p-0.5">PRESIÓN<br/>ARTERIAL</td>
-                          <td className="border border-black p-0.5">TEMP.<br/>(°C)</td>
-                          <td className="border border-black p-0.5">FREC.<br/>CARDÍACA</td>
-                          <td className="border border-black p-0.5">SAT.<br/>O2 (%)</td>
-                          <td className="border border-black p-0.5">FREC.<br/>RESP.</td>
-                          <td className="border border-black p-0.5">PESO<br/>(Kg)</td>
-                          <td className="border border-black p-0.5">TALLA<br/>(cm)</td>
-                          <td className="border border-black p-0.5">IMC</td>
-                          <td className="border border-black p-0.5">PERÍMETRO<br/>ABD.</td>
-                        </tr>
-                        <tr>
-                          <td className="border border-black p-1">{ev.signosVitales?.presionSistolica || ev.signosVitales?.presionArterial || '-'}/{ev.signosVitales?.presionDiastolica || ''}</td>
-                          <td className="border border-black p-1">{ev.signosVitales?.temperatura || '-'}</td>
-                          <td className="border border-black p-1">{ev.signosVitales?.frecuenciaCardiaca || '-'}</td>
-                          <td className="border border-black p-1">{ev.signosVitales?.saturacion || '-'}</td>
-                          <td className="border border-black p-1">{ev.signosVitales?.frecuenciaRespiratoria || '-'}</td>
-                          <td className="border border-black p-1">{ev.signosVitales?.peso || '-'}</td>
-                          <td className="border border-black p-1">{ev.signosVitales?.talla || '-'}</td>
-                          <td className="border border-black p-1 font-bold">{ev.signosVitales?.imc || '-'}</td>
-                          <td className="border border-black p-1">{ev.signosVitales?.perimetroAbdominal || '-'}</td>
-                        </tr>
-                      </tbody>
-                    </table>
+                   <section>
+                      <h3 className="text-[11px] font-bold text-white bg-slate-700 px-3 py-1.5 rounded-t">H. CONSTANTES VITALES Y ANTROPOMETRÍA</h3>
+                      <div className="border border-black border-t-0 rounded-b p-1">
+                        <table className="w-full border-collapse table-fixed text-[8px] text-center">
+                          <thead>
+                            <tr className="bg-slate-100 font-bold border-b border-black">
+                              <td className="border border-black p-1">P.ARTERIAL<br/>(mmHg)</td>
+                              <td className="border border-black p-1">TEMP.<br/>(°C)</td>
+                              <td className="border border-black p-1">F.CARD.<br/>(lpm)</td>
+                              <td className="border border-black p-1">SAT.O2<br/>(%)</td>
+                              <td className="border border-black p-1">F.RESP.<br/>(rpm)</td>
+                              <td className="border border-black p-1">PESO<br/>(kg)</td>
+                              <td className="border border-black p-1">TALLA<br/>(cm)</td>
+                              <td className="border border-black p-1">IMC</td>
+                              <td className="border border-black p-1">PERÍMETRO<br/>(cm)</td>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            <tr>
+                              <td className="border border-black p-1 font-semibold">{ev.signosVitales?.presionSistolica || ev.signosVitales?.presionArterial || '-'}/{ev.signosVitales?.presionDiastolica || ''}</td>
+                              <td className="border border-black p-1">{ev.signosVitales?.temperatura || '-'}</td>
+                              <td className="border border-black p-1">{ev.signosVitales?.frecuenciaCardiaca || '-'}</td>
+                              <td className="border border-black p-1">{ev.signosVitales?.saturacion || '-'}</td>
+                              <td className="border border-black p-1">{ev.signosVitales?.frecuenciaRespiratoria || '-'}</td>
+                              <td className="border border-black p-1">{ev.signosVitales?.peso || '-'}</td>
+                              <td className="border border-black p-1">{ev.signosVitales?.talla || '-'}</td>
+                              <td className="border border-black p-1 font-bold bg-slate-50">{ev.signosVitales?.imc || '-'}</td>
+                              <td className="border border-black p-1">{ev.signosVitales?.perimetroAbdominal || '-'}</td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </section>
 
                     {/* I. EXAMEN FÍSICO REGIONAL */}
                     <div className="bg-slate-200 font-bold px-1 border border-black border-b-0">I. EXAMEN FÍSICO REGIONAL</div>
