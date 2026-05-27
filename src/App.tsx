@@ -6,7 +6,7 @@ import UserProfile from './pages/UserProfile';
 import NuevoTrabajador from './pages/NuevoTrabajador';
 import NuevaEvaluacion from './pages/NuevaEvaluacion';
 import DetalleTrabajador from './pages/DetalleTrabajador';
-
+import Reportes from './pages/Reportes';
 // Componente de seguridad para proteger el acceso a las pantallas del sistema
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
