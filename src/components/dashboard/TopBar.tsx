@@ -1,19 +1,16 @@
 import { Plus } from 'lucide-react';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 interface TopBarProps {
   userInitials?: string;
   userName?: string;
   userRol?: string;
   onNewWorker: () => void;
-  onNavigate?: (path: string) => void;
-  activeTab?: 'trabajadores' | 'evaluaciones' | 'reportes' | 'catalogos';
 }
 
-const TABS: Array<{ key: TopBarProps['activeTab']; label: string }> = [
-  { key: 'trabajadores', label: 'Trabajadores' },
-  { key: 'evaluaciones', label: 'Evaluaciones' },
-  { key: 'reportes', label: 'Reportes' },
-  { key: 'catalogos', label: 'Catálogos' },
+const TABS = [
+  { key: '/', label: 'Trabajadores / Dashboard' },
+  { key: '/reportes', label: 'Reportes y Estadísticas' }
 ];
 
 export default function TopBar({
@@ -21,14 +18,16 @@ export default function TopBar({
   userName = 'Dr. Donoso',
   userRol = 'Médico ocupacional',
   onNewWorker,
-  activeTab = 'trabajadores',
 }: TopBarProps) {
+  const navigate = useNavigate();
+  const location = useLocation();
+
   return (
     <header
       className="h-[52px] flex items-center gap-5 px-5 text-[13px] text-white border-b"
       style={{ background: '#0d1b2a', borderColor: 'rgba(255,255,255,0.08)' }}
     >
-      <div className="flex items-center gap-2.5">
+      <div className="flex items-center gap-2.5 cursor-pointer" onClick={() => navigate('/')}>
         <div
           className="w-[26px] h-[26px] rounded-[7px] text-white grid place-items-center font-extrabold text-xs"
           style={{ background: 'var(--brand-primary, #0a6b3b)' }}
@@ -43,18 +42,18 @@ export default function TopBar({
 
       <nav className="flex gap-0.5 ml-5">
         {TABS.map(({ key, label }) => {
-          const active = activeTab === key;
+          const active = location.pathname === key || (key !== '/' && location.pathname.startsWith(key));
           return (
-            <a
+            <button
               key={key}
-              href="#"
-              className={`px-3 py-1.5 rounded-md text-[13px] ${
-                active ? 'font-semibold text-white' : 'font-medium text-white/70'
+              onClick={() => navigate(key)}
+              className={`px-3 py-1.5 rounded-md text-[13px] border-none cursor-pointer transition-colors ${
+                active ? 'font-semibold text-white' : 'font-medium text-white/70 hover:text-white hover:bg-white/5'
               }`}
               style={{ background: active ? 'rgba(255,255,255,0.08)' : 'transparent' }}
             >
               {label}
-            </a>
+            </button>
           );
         })}
       </nav>
