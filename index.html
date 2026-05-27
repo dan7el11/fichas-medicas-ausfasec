@@ -1,150 +1,19 @@
-// Constantes del dominio médico ocupacional — CEM AUSTROGAS
-// Catálogos de áreas, puestos, tipos de evaluación y mapeos de color.
-
-export const AREAS = [
-  'Operaciones',
-  'Mantenimiento',
-  'Logística',
-  'Administración',
-  'Seguridad y Salud',
-  'Comercial',
-] as const;
-
-export type Area = (typeof AREAS)[number];
-
-export const PUESTOS_POR_AREA: Record<Area, string[]> = {
-  Operaciones: [
-    'Operario de planta',
-    'Supervisor de turno',
-    'Operador de envasado',
-    'Operador de almacenamiento',
-  ],
-  Mantenimiento: [
-    'Mecánico industrial',
-    'Soldador',
-    'Electricista',
-    'Técnico de mantenimiento',
-  ],
-  Logística: [
-    'Conductor de tanquero',
-    'Despachador',
-    'Bodeguero',
-    'Asistente de despacho',
-  ],
-  Administración: [
-    'Asistente contable',
-    'Analista de RRHH',
-    'Recepcionista',
-    'Asistente administrativo',
-  ],
-  'Seguridad y Salud': [
-    'Médico ocupacional',
-    'Enfermera ocupacional',
-    'Técnico de seguridad',
-    'Paramédico',
-  ],
-  Comercial: ['Ejecutivo comercial', 'Asesor de ventas', 'Coordinador comercial'],
-};
-
-export const TIPOS_EVAL = [
-  'Pre-empleo',
-  'Periódico',
-  'Retiro',
-  'Reintegro',
-  'Especial',
-] as const;
-
-export const APTITUDES = [
-  'Apto',
-  'Apto con restricciones',
-  'No apto',
-  'Pendiente',
-] as const;
-
-// Mapeo desde el enum del repo (EvaluacionMedica.aptitudMedica) al label legible
-export const APTITUD_LABEL: Record<string, (typeof APTITUDES)[number]> = {
-  apto: 'Apto',
-  aptoObservacion: 'Apto con restricciones',
-  aptoLimitaciones: 'Apto con restricciones',
-  noApto: 'No apto',
-};
-
-// Paleta de colores por área (clínica, suave)
-export const AREA_COLORS: Record<Area, { bg: string; fg: string; dot: string }> = {
-  Operaciones: { bg: '#eaf3ff', fg: '#1d4fad', dot: '#3b82f6' },
-  Mantenimiento: { bg: '#fff1e6', fg: '#9a4a07', dot: '#ea7c3c' },
-  Logística: { bg: '#f0ebff', fg: '#5b3fbd', dot: '#7c5cf2' },
-  Administración: { bg: '#eef1f5', fg: '#3a4a5e', dot: '#64748b' },
-  'Seguridad y Salud': { bg: '#e6f6ee', fg: '#0a6b3b', dot: '#10a05a' },
-  Comercial: { bg: '#fde9ee', fg: '#9c1d3f', dot: '#e3496a' },
-};
-
-// Categorías de riesgo y su color
-export const RIESGO_COLORS: Record<string, string> = {
-  Físico: '#3b82f6',
-  Químico: '#e08a2c',
-  Mecánico: '#dc2e3c',
-  Ergonómico: '#7c5cf2',
-  Psicosocial: '#e3496a',
-  Biológico: '#10a05a',
-  Eléctrico: '#facc15',
-};
-
-// Matriz de riesgos por puesto (puede moverse a Firestore más adelante)
-export const RIESGOS_POR_PUESTO: Record<string, string[]> = {
-  'Mecánico industrial': [
-    'Físico: ruido > 85 dB',
-    'Ergonómico: posturas forzadas',
-    'Mecánico: atrapamientos',
-    'Químico: hidrocarburos',
-  ],
-  Soldador: [
-    'Físico: radiación UV/IR',
-    'Químico: humos metálicos',
-    'Físico: ruido',
-    'Eléctrico: bajo voltaje',
-  ],
-  'Conductor de tanquero': [
-    'Psicosocial: jornadas largas',
-    'Ergonómico: postura sedente',
-    'Mecánico: accidentes viales',
-    'Químico: GLP',
-  ],
-  'Médico ocupacional': [
-    'Biológico: agentes infecciosos',
-    'Psicosocial: carga emocional',
-    'Ergonómico: postura sedente',
-  ],
-  'Operario de planta': [
-    'Físico: ruido',
-    'Químico: GLP',
-    'Mecánico: maquinaria',
-    'Ergonómico: cargas',
-  ],
-  'Operador de envasado': [
-    'Físico: ruido',
-    'Químico: GLP',
-    'Ergonómico: movimientos repetitivos',
-  ],
-  'Operador de almacenamiento': ['Químico: GLP', 'Físico: ruido', 'Mecánico: caídas'],
-  Electricista: ['Eléctrico: alta tensión', 'Mecánico: caídas', 'Físico: ruido'],
-  'Técnico de mantenimiento': [
-    'Mecánico: atrapamientos',
-    'Ergonómico: posturas forzadas',
-    'Físico: ruido',
-  ],
-  Despachador: ['Ergonómico: cargas', 'Químico: GLP', 'Mecánico: caídas'],
-  Bodeguero: ['Ergonómico: cargas', 'Mecánico: caídas'],
-  'Asistente de despacho': [
-    'Ergonómico: postura sedente',
-    'Psicosocial: atención al cliente',
-  ],
-};
-
-// Derivar área a partir del puesto cuando el Trabajador no la tenga guardada
-export function deriveAreaFromPuesto(puesto: string): Area {
-  for (const area of AREAS) {
-    if (PUESTOS_POR_AREA[area].includes(puesto)) return area;
-  }
-  return 'Operaciones';
-}
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CEM AUSTROGAS — Fichas Médicas</title>
+    <!-- Tipografías de la marca: Public Sans + JetBrains Mono (cédulas y números) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body class="bg-slate-50">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
