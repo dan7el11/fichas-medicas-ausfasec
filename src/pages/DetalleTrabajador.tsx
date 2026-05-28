@@ -433,6 +433,7 @@ export default function DetalleTrabajador() {
             pdf.text(lineasAjustadas[1], textX_Linea2, textY, { angle: 90, align: 'center', baseline: 'middle' });
           }
         }
+       }
       });
       y = (pdf as any).lastAutoTable.finalY;
 
