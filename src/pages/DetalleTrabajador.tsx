@@ -94,11 +94,6 @@ export default function DetalleTrabajador() {
     return d ? d.toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' }) : '-';
   };
 
-  // Helper para generar el texto vertical del Examen Físico
-  const makeVert = (num: number, text: string) => {
-    return `${num}\n.\n\n` + text.toUpperCase().replace(/ /g, '').split('').join('\n');
-  };
-
   // ============================================================
   //  GENERADOR PDF
   // ============================================================
@@ -112,9 +107,9 @@ export default function DetalleTrabajador() {
     const CW = W - M * 2;
     let y = 7;
 
-    const colorPrimario = '#ccffcc';   // Verde
-    const colorSecundario = '#ccccff'; // Lila
-    const colorTerciario = '#ccffff';  // Celeste
+    const colorPrimario = '#ccffcc';   // Verde pastel
+    const colorSecundario = '#ccccff'; // Azul/lila pastel
+    const colorTerciario = '#ccffff';  // Celeste pastel para tablas
     const negro: [number, number, number] = [0, 0, 0];
 
     const baseStyles = {
@@ -269,14 +264,14 @@ export default function DetalleTrabajador() {
     }
     y += 2;
 
-    // --- MEJORA HORIZONTAL: ANTECEDENTES FAMILIARES (Sección D) ---
+    // --- ANTECEDENTES FAMILIARES HORIZONTAL (De izquierda a derecha) ---
     checkPage(30);
     secHeader('D. ANTECEDENTES FAMILIARES');
     const dBody: string[][] = [];
     for (let r = 0; r < 2; r++) {
       const row: string[] = [];
       for (let c = 0; c < 4; c++) {
-        const idx = c * 2 + r; // Orden de lectura: abajo y derecha
+        const idx = r * 4 + c; // Lectura horizontal
         const tipo = TIPOS_ANTECEDENTES_FAMILIARES[idx];
         const hasIt = ev.antecedentesFamiliares?.find((a:any) => a.tipo === tipo);
         row.push(`${idx + 1}. ${tipo} [${hasIt ? 'X' : ' '}]`);
@@ -285,7 +280,7 @@ export default function DetalleTrabajador() {
     }
     autoTable(pdf, {
       startY: y, margin: { left: M, right: M }, theme: 'grid',
-      styles: { ...baseStyles, fontSize: 5.5, cellPadding: 1 },
+      styles: { ...baseStyles, fontSize: 5.5, cellPadding: 1, fillColor: '#ffffff' },
       body: dBody
     });
     y = (pdf as any).lastAutoTable.finalY;
@@ -374,13 +369,13 @@ export default function DetalleTrabajador() {
     textoLibre(ev.enfermedadActual || 'PACIENTE ASINTOMÁTICO AL MOMENTO DE LA VALORACIÓN.', 8);
     y += 1;
 
-    // --- MEJORA: REVISIÓN DE ÓRGANOS Y SISTEMAS (Sin etiquetas y horizontal) ---
+    // --- REVISIÓN DE ÓRGANOS Y SISTEMAS (Horizontal y sin palabras innecesarias) ---
     secHeader('G. REVISIÓN DE ÓRGANOS Y SISTEMAS');
     const gBody: string[][] = [];
     for (let r = 0; r < 2; r++) {
       const row: string[] = [];
       for (let c = 0; c < 5; c++) {
-        const idx = c * 2 + r;
+        const idx = r * 5 + c; // Lectura horizontal
         const sysName = SISTEMAS[idx];
         const isChecked = ev.revisionSistemasSeleccionados?.includes(sysName);
         row.push(`${idx + 1}. ${sysName} [${isChecked ? 'X' : ' '}]`);
@@ -389,14 +384,13 @@ export default function DetalleTrabajador() {
     }
     autoTable(pdf, {
       startY: y, margin: { left: M, right: M }, theme: 'grid',
-      styles: { ...baseStyles, fontSize: 5.5, cellPadding: 1 },
+      styles: { ...baseStyles, fontSize: 5.5, cellPadding: 1, fillColor: '#ffffff' },
       body: gBody
     });
     y = (pdf as any).lastAutoTable.finalY;
 
     if (ev.revisionSistemasSeleccionados && ev.revisionSistemasSeleccionados.length > 0) {
       const nums = ev.revisionSistemasSeleccionados.map((s:string) => SISTEMAS.indexOf(s) + 1).sort((a:number, b:number) => a - b).join(', ');
-      // Eliminadas las etiquetas de Numerales y Descripción
       textoLibre(`${nums}: ${ev.revisionSistemasDescripcion || '-'}`, 8);
     } else {
       textoLibre('Paciente no refiere síntomas adicionales o relevantes al momento de la consulta.', 5);
@@ -405,67 +399,58 @@ export default function DetalleTrabajador() {
 
     // H. CONSTANTES VITALES
     secHeader('H. CONSTANTES VITALES Y ANTROPOMETRÍA');
+    const sv = ev.signosVitales || {};
     autoTable(pdf, {
       startY: y, margin: { left: M, right: M }, theme: 'grid',
       styles: { ...baseStyles, halign: 'center', fontSize: 7 },
       headStyles: { ...headStyles, fontSize: 5.5, halign: 'center' },
       head: [['PRESIÓN\nARTERIAL\n(mmHg)', 'TEMP.\n(°C)', 'FREC.\nCARDÍACA\n(Lat/min)', 'SAT. DE\nOXÍGENO\n(O₂%)', 'FREC.\nRESP.\n(fr/min)', 'PESO\n(Kg)', 'TALLA\n(cm)', 'IMC\n(Kg/m²)', 'PERÍM.\nABD.\n(cm)']],
       body: [[
-        `${ev.signosVitales?.presionSistolica || ev.signosVitales?.presionArterial || '-'}/${ev.signosVitales?.presionDiastolica || '-'}`,
-        ev.signosVitales?.temperatura || '-', ev.signosVitales?.frecuenciaCardiaca || '-', ev.signosVitales?.saturacion || '-',
-        ev.signosVitales?.frecuenciaRespiratoria || '-', ev.signosVitales?.peso || '-', ev.signosVitales?.talla || '-',
-        ev.signosVitales?.imc || '-', ev.signosVitales?.perimetroAbdominal || '-'
+        `${sv.presionSistolica || '-'}/${sv.presionDiastolica || '-'}`,
+        sv.temperatura || '-', sv.frecuenciaCardiaca || '-', sv.saturacion || '-',
+        sv.frecuenciaRespiratoria || '-', sv.peso || '-', sv.talla || '-',
+        sv.imc || '-', sv.perimetroAbdominal || '-'
       ]],
     });
     y = (pdf as any).lastAutoTable.finalY + 2;
 
-    // --- MEJORA: EXAMEN FÍSICO AGRUPADO EN LÍNEAS DE TEXTO Y VERTICAL ---
+    // --- EXAMEN FÍSICO REGIONAL (14 filas, Texto Vertical 90°) ---
     checkPage(60);
     secHeader('I. EXAMEN FÍSICO REGIONAL');
-    const iBody: any[] = [];
-    for(let i=0; i<7; i++){
-       const row: any[] = [];
-       // Izquierda (1 al 7)
-       const rLeft = REGIONES_FISICO[i];
-       if(rLeft) {
-          row.push({ content: makeVert(rLeft.n, rLeft.r), styles: { halign: 'center', valign: 'middle' } });
-          const subs = rLeft.s.map(s => {
-             const codeMatch = s.match(/^([a-z])\./);
-             const fullCode = `${rLeft.n}${codeMatch ? codeMatch[1] : ''}`;
-             const isChecked = ev.examenFisicoHallazgos?.some((h:any) => h.codigo === fullCode);
-             return `${s} [${isChecked ? 'X' : ' '}]`;
-          }).join('   ');
-          row.push(subs);
-       } else {
-          row.push(''); row.push('');
-       }
-       // Derecha (8 al 13)
-       const rRight = REGIONES_FISICO[i+7];
-       if(rRight) {
-          row.push({ content: makeVert(rRight.n, rRight.r), styles: { halign: 'center', valign: 'middle' } });
-          const subs = rRight.s.map(s => {
-             const codeMatch = s.match(/^([a-z])\./);
-             const fullCode = `${rRight.n}${codeMatch ? codeMatch[1] : ''}`;
-             const isChecked = ev.examenFisicoHallazgos?.some((h:any) => h.codigo === fullCode);
-             return `${s} [${isChecked ? 'X' : ' '}]`;
-          }).join('   ');
-          row.push(subs);
-       } else {
-          row.push(''); row.push('');
-       }
-       iBody.push(row);
-    }
+    const iBody = REGIONES_FISICO.map(reg => {
+      const subsMarcados = reg.s.map(subName => {
+        const codeMatch = subName.match(/^([a-z])\./);
+        const fullCode = `${reg.n}${codeMatch ? codeMatch[1] : ''}`;
+        const isSelected = ev.examenFisicoHallazgos?.some((h:any) => h.codigo === fullCode);
+        return `${subName} [${isSelected ? 'X' : ' '}]`;
+      }).join('   ');
+      return [`${reg.n}. ${reg.r.toUpperCase()}`, subsMarcados];
+    });
 
     autoTable(pdf, {
       startY: y, margin: { left: M, right: M }, theme: 'grid',
       styles: { ...baseStyles, fontSize: 6, cellPadding: 1, valign: 'middle' },
+      headStyles: { fillColor: colorTerciario, textColor: negro },
       columnStyles: {
-        0: { cellWidth: 8, halign: 'center', fontStyle: 'bold', fillColor: '#f1f5f9' },
-        1: { cellWidth: 90 },
-        2: { cellWidth: 8, halign: 'center', fontStyle: 'bold', fillColor: '#f1f5f9' },
-        3: { cellWidth: 90 }
+        0: { cellWidth: 8, halign: 'center', fillColor: colorTerciario },
+        1: { cellWidth: 'auto' }
       },
-      body: iBody
+      head: [['REGIÓN', 'EVALUACIÓN DE SUBREGIONES (Marcado con X)']],
+      body: iBody,
+      didParseCell: function(data) {
+        if (data.column.index === 0 && data.section === 'body') {
+          data.cell.styles.textColor = colorTerciario; // Oculta el texto horizontal haciéndolo del mismo color que el fondo
+        }
+      },
+      didDrawCell: function(data) {
+        // Redibuja el texto pero con un ángulo de 90 grados (de abajo hacia arriba)
+        if (data.column.index === 0 && data.section === 'body' && data.cell.raw) {
+          pdf.setTextColor(0);
+          pdf.setFontSize(5);
+          pdf.setFont('helvetica', 'bold');
+          pdf.text(data.cell.raw, data.cell.x + 4.5, data.cell.y + data.cell.height - 2, { angle: 90 });
+        }
+      }
     });
     y = (pdf as any).lastAutoTable.finalY;
 
@@ -473,7 +458,7 @@ export default function DetalleTrabajador() {
       const lineasFisico = ev.examenFisicoHallazgos.map((h: any) => 
         `(${h.codigo}) ${h.region}, ${h.subregion}: ${h.descripcion || '-'}`
       ).join('; ');
-      textoLibre(lineasFisico, 6);
+      textoLibre(`Observaciones: ${lineasFisico}`, 6);
       y += 1;
     } else {
       textoLibre('Sin hallazgos patológicos al examen físico regional.', 5);
@@ -702,12 +687,13 @@ export default function DetalleTrabajador() {
                     </div>
                   </Sec>
 
+                  {/* ANTECEDENTES FAMILIARES HORIZONTAL */}
                   <Sec title="D. ANTECEDENTES FAMILIARES">
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-[10px] mb-3">
                       {TIPOS_ANTECEDENTES_FAMILIARES.map((tipo, idx) => {
                         const af = ev.antecedentesFamiliares?.find((a:any) => a.tipo === tipo);
                         return (
-                          <div key={idx} className={`p-1.5 border rounded flex items-center justify-between ${af ? 'bg-blue-50 border-blue-300 font-bold' : 'bg-slate-50 text-slate-600'}`}>
+                          <div key={idx} className={`p-1.5 border rounded flex items-center justify-between ${af ? 'bg-[#ccffff] border-blue-300 font-bold' : 'bg-slate-50 text-slate-600'}`}>
                              <span>{idx+1}. {tipo}</span>
                              <span className={af ? 'text-blue-700' : 'text-slate-400'}>[{af ? 'X' : ' '}]</span>
                           </div>
@@ -744,12 +730,13 @@ export default function DetalleTrabajador() {
 
                   <Sec title="F. ENFERMEDAD ACTUAL"><p className="text-xs uppercase">{ev.enfermedadActual || 'PACIENTE ASINTOMÁTICO AL MOMENTO DE LA VALORACIÓN.'}</p></Sec>
 
+                  {/* REVISIÓN DE ÓRGANOS Y SISTEMAS - TEXTO LIMPIO */}
                   <Sec title="G. REVISIÓN DE ÓRGANOS Y SISTEMAS">
                     <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-[10px] mb-3">
                       {SISTEMAS.map((sys, idx) => {
                         const checked = ev.revisionSistemasSeleccionados?.includes(sys);
                         return (
-                          <div key={idx} className={`p-1.5 border rounded flex items-center justify-between ${checked ? 'bg-blue-50 border-blue-300 font-bold' : 'bg-slate-50 text-slate-600'}`}>
+                          <div key={idx} className={`p-1.5 border rounded flex items-center justify-between ${checked ? 'bg-[#ccffff] border-blue-300 font-bold' : 'bg-slate-50 text-slate-600'}`}>
                              <span>{idx+1}. {sys}</span>
                              <span className={checked ? 'text-blue-700' : 'text-slate-400'}>[{checked ? 'X' : ' '}]</span>
                           </div>
@@ -784,13 +771,15 @@ export default function DetalleTrabajador() {
                     </div>
                   </Sec>
 
+                  {/* EXAMEN FÍSICO (TEXTO VERTICAL MEDIANTE CSS) */}
                   <Sec title="I. EXAMEN FÍSICO REGIONAL">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-[10px] mb-3">
                       {REGIONES_FISICO.map(reg => (
                         <div key={reg.n} className="flex border border-slate-200 rounded overflow-hidden">
-                          <div className="bg-slate-100 text-slate-700 font-bold p-1.5 flex flex-col justify-center items-center text-center w-6 border-r border-slate-200">
-                            <span className="mb-1">{reg.n}.</span>
-                            {reg.r.toUpperCase().replace(/ /g, '').split('').map((char, i) => <span key={i} className="text-[8px] leading-[1.1]">{char}</span>)}
+                          <div className="bg-[#ccffff] text-slate-700 font-bold p-1 flex items-center justify-center w-8 border-r border-slate-200">
+                            <span style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }} className="text-[9px] tracking-widest whitespace-nowrap">
+                              {reg.n}. {reg.r.toUpperCase()}
+                            </span>
                           </div>
                           <div className="p-2 flex-1 flex flex-wrap content-center gap-x-3 gap-y-1 bg-white">
                             {reg.s.map(sub => {
@@ -876,7 +865,7 @@ export default function DetalleTrabajador() {
 function Sec({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section>
-      <h3 className="text-xs font-bold text-white bg-slate-700 px-3 py-1.5 rounded-t">{title}</h3>
+      <h3 className="text-xs font-bold text-slate-800 bg-[#ccffcc] px-3 py-1.5 border border-slate-300 rounded-t">{title}</h3>
       <div className="border border-slate-300 border-t-0 rounded-b p-3 bg-white">{children}</div>
     </section>
   );
