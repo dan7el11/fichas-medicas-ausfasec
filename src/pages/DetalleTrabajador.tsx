@@ -79,15 +79,8 @@ const FISICO_ROWS = [
     { type: 'sub', txt: 'c. Marcha' }, { type: 'chk', code: '13c' }
   ],
   [
-    { type: 'empty', cs: 3 },
-    { type: 'empty', cs: 3 },
-    { type: 'empty', cs: 3 },
-    { type: 'empty', cs: 3 },
+    { type: 'instr', cs: 12, txt: 'SI EXISTE EVIDENCIA DE PATOLOGÍA MARCAR CON "X" Y DESCRIBIR EN LA SIGUIENTE SECCIÓN COLOCANDO EL NUMERAL' },
     { type: 'sub', txt: 'd. Reflejos' }, { type: 'chk', code: '13d' }
-  ],
-  // Fila final conjunta en la base de la tabla
-  [
-    { type: 'instr', cs: 15, txt: 'SI EXISTE EVIDENCIA DE PATOLOGÍA MARCAR CON "X" Y DESCRIBIR EN LA SIGUIENTE SECCIÓN COLOCANDO EL NUMERAL' }
   ]
 ];
 
@@ -406,10 +399,10 @@ export default function DetalleTrabajador() {
       head: [[{ content: 'REGIONES', colSpan: 15, styles: { halign: 'left', fillColor: colorTerciario } }]],
       body: pdfFisicoRows as any,
       didDrawCell: function(data) {
-        // Redibuja el texto vertical usando cálculo exacto al medio de la celda
         const raw = data.cell.raw as any;
         if (data.section === 'body' && raw && raw.textToRotate) {
           pdf.setTextColor(0); pdf.setFontSize(5.5); pdf.setFont('helvetica', 'bold');
+          // Cálculo exacto del centro para que no se salga de la celda
           const textX = data.cell.x + (data.cell.width / 2);
           const textY = data.cell.y + (data.cell.height / 2);
           pdf.text(String(raw.textToRotate), textX, textY, { angle: 90, align: 'center', baseline: 'middle' });
@@ -726,19 +719,17 @@ export default function DetalleTrabajador() {
                         <thead>
                            <tr><th colSpan={15} className="bg-[#ccffff] border border-slate-300 p-1 text-left font-bold text-slate-800">REGIONES</th></tr>
                         </thead>
-                        <tbody>
+                       <tbody>
                           {FISICO_ROWS.map((row, i) => (
                              <tr key={i}>
                                {row.map((cell, j) => {
-                                 // TEXTO VERTICAL (Controlado estrictamente con writing-mode para evitar que se desborde la celda)
+                                 // Alineación vertical estricta con inline-block para evitar que se desborde
                                  if(cell.type === 'reg') {
                                     return (
-                                      <td key={j} rowSpan={cell.rs} className="bg-[#ccffff] border border-slate-300 p-0 w-6">
-                                        <div className="flex items-center justify-center h-full w-full py-2">
-                                          <span style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }} className="text-[10px] font-bold text-slate-800 tracking-widest whitespace-nowrap">
-                                            {cell.txt}
-                                          </span>
-                                        </div>
+                                      <td key={j} rowSpan={cell.rs} className="bg-[#ccffff] border border-slate-300 align-middle text-center w-6 p-1">
+                                        <span style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }} className="inline-block text-[10px] font-bold text-slate-800 tracking-widest whitespace-nowrap">
+                                          {cell.txt}
+                                        </span>
                                       </td>
                                     );
                                  }
