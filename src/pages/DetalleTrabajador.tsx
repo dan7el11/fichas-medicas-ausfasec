@@ -251,14 +251,14 @@ export default function DetalleTrabajador() {
 
     secHeader('INCIDENTES, ACCIDENTES Y ENFERMEDAD PROFESIONAL', colorTerciario);
     autoTable(pdf, {
-      startY: y, margin: { left: M, right: M }, theme: 'grid', styles: { ...baseStyles, fontSize: 6.5 }, headStyles: { ...headStyles, fillColor: colorTerciario },
+      startY: y, margin: { left: M, right: M }, theme: 'grid', styles: { ...baseStyles, fontSize: 6.5 }, headStyles: { ...headStyles, fillColor: colorSecundario },
       head: [['INCIDENTES LABORALES REPORTADOS']], body: [[ev.incidentes || 'NINGUNO']],
     });
     y = (pdf as any).lastAutoTable.finalY;
 
     if (ev.accidentesTrabajo?.descripcion) {
       autoTable(pdf, {
-        startY: y, margin: { left: M, right: M }, theme: 'grid', styles: { ...baseStyles, fontSize: 6.5 }, headStyles: { ...headStyles, fillColor: colorTerciario },
+        startY: y, margin: { left: M, right: M }, theme: 'grid', styles: { ...baseStyles, fontSize: 6.5 }, headStyles: { ...headStyles, fillColor: colorSecundario },
         head: [['DESCRIPCIÓN DEL ACCIDENTE DE TRABAJO', 'CALIFICADO IESS', 'ESPECIFICACIÓN', 'OBSERVACIONES']],
         body: [[ev.accidentesTrabajo.descripcion, ev.accidentesTrabajo.calificado ? 'SÍ' : 'NO', ev.accidentesTrabajo.especificacion || '-', ev.accidentesTrabajo.observaciones || '-']],
         columnStyles: { 1: { halign: 'center' } },
@@ -268,7 +268,7 @@ export default function DetalleTrabajador() {
 
     if (ev.enfermedadesProfesionales?.descripcion) {
       autoTable(pdf, {
-        startY: y, margin: { left: M, right: M }, theme: 'grid', styles: { ...baseStyles, fontSize: 6.5 }, headStyles: { ...headStyles, fillColor: colorTerciario },
+        startY: y, margin: { left: M, right: M }, theme: 'grid', styles: { ...baseStyles, fontSize: 6.5 }, headStyles: { ...headStyles, fillColor: colorSecundario },
         head: [['DESCRIPCIÓN DE ENFERMEDAD PROFESIONAL', 'CALIFICADA IESS', 'ESPECIFICACIÓN', 'OBSERVACIONES']],
         body: [[ev.enfermedadesProfesionales.descripcion, ev.enfermedadesProfesionales.calificada ? 'SÍ' : 'NO', ev.enfermedadesProfesionales.especificacion || '-', ev.enfermedadesProfesionales.observaciones || '-']],
         columnStyles: { 1: { halign: 'center' } },
@@ -394,7 +394,7 @@ export default function DetalleTrabajador() {
     autoTable(pdf, {
       startY: y, margin: { left: M, right: M }, theme: 'grid',
       styles: { ...baseStyles, fontSize: 5.5, cellPadding: 0.8 },
-      bodyStyles: { minCellHeight: 6.5 }, // <-- Esta línea soluciona la altura
+      bodyStyles: { minCellHeight: 7 }, // <-- Esta línea soluciona la altura
       headStyles: { fillColor: colorTerciario, textColor: negro, fontSize: 6 },
       columnStyles: {
         0: { cellWidth: 5 }, 1: { cellWidth: 26 }, 2: { cellWidth: 4, halign: 'center' },
