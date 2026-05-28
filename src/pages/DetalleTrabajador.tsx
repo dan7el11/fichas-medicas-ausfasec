@@ -7,7 +7,7 @@ import autoTable from 'jspdf-autotable';
 import type { Trabajador, EvaluacionMedica } from '../types';
 
 // ============================================================================
-// CONSTANTES DE CATÁLOGOS PARA LAS TABLAS DEL PDF
+// CONSTANTES DE CATÁLOGOS
 // ============================================================================
 const TIPOS_ANTECEDENTES_FAMILIARES = [
   'Enfermedad Cardio-Vascular', 'Enfermedad Metabólica', 'Enfermedad Neurológica',
@@ -20,20 +20,17 @@ const SISTEMAS = [
   'DIGESTIVO', 'GENITO - URINARIO', 'MÚSCULO ESQUELÉTICO', 'ENDOCRINO', 'HEMO LINFÁTICO', 'NERVIOSO'
 ];
 
-const REGIONES_FISICO = [
-  { n: 1, r: 'Piel', s: ['a. Cicatrices', 'b. Tatuajes', 'c. Piel y faneras'] },
-  { n: 2, r: 'Ojos', s: ['a. Párpados', 'b. Conjuntivas', 'c. Pupilas', 'd. Córnea', 'e. Motilidad'] },
-  { n: 3, r: 'Oído', s: ['a. C. auditivo externo', 'b. Pabellón', 'c. Tímpanos'] },
-  { n: 4, r: 'Oro faringe', s: ['a. Labios', 'b. Lengua', 'c. Faringe', 'd. Amígdalas', 'e. Dentadura'] },
-  { n: 5, r: 'Nariz', s: ['a. Tabique', 'b. Cornetes', 'c. Mucosas', 'd. Senos paranasales'] },
-  { n: 6, r: 'Cuello', s: ['a. Tiroides / masas', 'b. Movilidad'] },
-  { n: 7, r: 'Tórax (Corazón)', s: ['a. Mamas', 'b. Corazón'] },
-  { n: 8, r: 'Tórax (Pulmones)', s: ['a. Pulmones', 'b. Parrilla costal'] },
-  { n: 9, r: 'Abdomen', s: ['a. Vísceras', 'b. Pared abdominal'] },
-  { n: 10, r: 'Columna', s: ['a. Flexibilidad', 'b. Desviación', 'c. Dolor'] },
-  { n: 11, r: 'Pelvis', s: ['a. Pelvis', 'b. Genitales'] },
-  { n: 12, r: 'Extremidades', s: ['a. Vascular', 'b. Miembros superiores', 'c. Miembros inferiores'] },
-  { n: 13, r: 'Neurológico', s: ['a. Fuerza', 'b. Sensibilidad', 'c. Marcha', 'd. Reflejos'] }
+// Matriz exacta de 14 columnas x 9 filas para replicar el Excel de Examen Físico
+const exFisicoMatrix = [
+  [{n:1, t:'1. Piel'}, {c:'1a', t:'a. Cicatrices'}, {s:true}, {n:3, t:'3. Oído'}, {c:'3a', t:'a. C. aud. ext'}, {s:true}, {n:5, t:'5. Nariz'}, {c:'5a', t:'a. Tabique'}, {s:true}, {n:8, t:'8. Tórax'}, {c:'8a', t:'a. Pulmones'}, {s:true}, {n:11, t:'11. Pelvis'}, {c:'11a', t:'a. Pelvis'}],
+  [{}, {c:'1b', t:'b. Tatuajes'}, {s:true}, {}, {c:'3b', t:'b. Pabellón'}, {s:true}, {}, {c:'5b', t:'b. Cornetes'}, {s:true}, {}, {c:'8b', t:'b. Parrilla costal'}, {s:true}, {}, {c:'11b', t:'b. Genitales'}],
+  [{}, {c:'1c', t:'c. Piel faneras'}, {s:true}, {}, {c:'3c', t:'c. Tímpanos'}, {s:true}, {}, {c:'5c', t:'c. Mucosas'}, {s:true}, {n:9, t:'9. Abdomen'}, {c:'9a', t:'a. Vísceras'}, {s:true}, {n:12, t:'12. Extremid.'}, {c:'12a', t:'a. Vascular'}],
+  [{n:2, t:'2. Ojos'}, {c:'2a', t:'a. Párpados'}, {s:true}, {n:4, t:'4. Orofaringe'}, {c:'4a', t:'a. Labios'}, {s:true}, {}, {c:'5d', t:'d. Senos paran.'}, {s:true}, {}, {c:'9b', t:'b. Pared abdom.'}, {s:true}, {}, {c:'12b', t:'b. Miembros S.'}],
+  [{}, {c:'2b', t:'b. Conjuntivas'}, {s:true}, {}, {c:'4b', t:'b. Lengua'}, {s:true}, {n:6, t:'6. Cuello'}, {c:'6a', t:'a. Tiroides/mas'}, {s:true}, {n:10, t:'10. Columna'}, {c:'10a', t:'a. Flexibilidad'}, {s:true}, {}, {c:'12c', t:'c. Miembros I.'}],
+  [{}, {c:'2c', t:'c. Pupilas'}, {s:true}, {}, {c:'4c', t:'c. Faringe'}, {s:true}, {}, {c:'6b', t:'b. Movilidad'}, {s:true}, {}, {c:'10b', t:'b. Desviación'}, {s:true}, {n:13, t:'13. Neurológ.'}, {c:'13a', t:'a. Fuerza'}],
+  [{}, {c:'2d', t:'d. Córnea'}, {s:true}, {}, {c:'4d', t:'d. Amígdalas'}, {s:true}, {n:7, t:'7. Tórax'}, {c:'7a', t:'a. Mamas'}, {s:true}, {}, {c:'10c', t:'c. Dolor'}, {s:true}, {}, {c:'13b', t:'b. Sensibilidad'}],
+  [{}, {c:'2e', t:'e. Motilidad'}, {s:true}, {}, {c:'4e', t:'e. Dentadura'}, {s:true}, {}, {c:'7b', t:'b. Corazón'}, {s:true}, {}, {}, {s:true}, {}, {c:'13c', t:'c. Marcha'}],
+  [{}, {}, {s:true}, {}, {}, {s:true}, {}, {}, {s:true}, {}, {}, {s:true}, {}, {c:'13d', t:'d. Reflejos'}]
 ];
 
 export default function DetalleTrabajador() {
@@ -95,7 +92,7 @@ export default function DetalleTrabajador() {
   };
 
   // ============================================================
-  //  GENERADOR PDF
+  //  GENERADOR PDF SO-RE-38 ESTRICTO
   // ============================================================
   const generarPDF = () => {
     const ev: any = evaluaciones[pestanaActiva];
@@ -109,7 +106,7 @@ export default function DetalleTrabajador() {
 
     const colorPrimario = '#ccffcc';   // Verde pastel
     const colorSecundario = '#ccccff'; // Azul/lila pastel
-    const colorTerciario = '#ccffff';  // Celeste pastel para tablas
+    const colorTerciario = '#ccffff';  // Celeste institucional (#ccffff)
     const negro: [number, number, number] = [0, 0, 0];
 
     const baseStyles = {
@@ -146,7 +143,6 @@ export default function DetalleTrabajador() {
     };
 
     // =============== PÁGINA 1 ===============
-
     autoTable(pdf, {
       startY: y, margin: { left: M, right: M }, theme: 'grid',
       styles: { ...baseStyles, halign: 'center', fontSize: 8 },
@@ -264,14 +260,14 @@ export default function DetalleTrabajador() {
     }
     y += 2;
 
-    // --- ANTECEDENTES FAMILIARES HORIZONTAL (De izquierda a derecha) ---
+    // --- MEJORA: D. ANTECEDENTES FAMILIARES CON FONDO #ccffff ---
     checkPage(30);
     secHeader('D. ANTECEDENTES FAMILIARES');
     const dBody: string[][] = [];
     for (let r = 0; r < 2; r++) {
       const row: string[] = [];
       for (let c = 0; c < 4; c++) {
-        const idx = r * 4 + c; // Lectura horizontal
+        const idx = r * 4 + c;
         const tipo = TIPOS_ANTECEDENTES_FAMILIARES[idx];
         const hasIt = ev.antecedentesFamiliares?.find((a:any) => a.tipo === tipo);
         row.push(`${idx + 1}. ${tipo} [${hasIt ? 'X' : ' '}]`);
@@ -280,7 +276,7 @@ export default function DetalleTrabajador() {
     }
     autoTable(pdf, {
       startY: y, margin: { left: M, right: M }, theme: 'grid',
-      styles: { ...baseStyles, fontSize: 5.5, cellPadding: 1, fillColor: '#ffffff' },
+      styles: { ...baseStyles, fontSize: 5.5, cellPadding: 1, fillColor: colorTerciario }, // Fondo celeste
       body: dBody
     });
     y = (pdf as any).lastAutoTable.finalY;
@@ -301,7 +297,6 @@ export default function DetalleTrabajador() {
       checkPage(25);
       secHeader('E. FACTORES DE RIESGOS DEL PUESTO DE TRABAJO');
       const fr = ev.factoresRiesgo;
-
       autoTable(pdf, {
         startY: y, margin: { left: M, right: M }, theme: 'grid',
         styles: { ...baseStyles, fontSize: 6.5 }, headStyles: { ...headStyles, fontSize: 6 },
@@ -311,12 +306,9 @@ export default function DetalleTrabajador() {
       y = (pdf as any).lastAutoTable.finalY;
 
       const categorias = [
-        { nombre: 'FÍSICO', items: fr.fisicos || [] },
-        { nombre: 'MECÁNICO', items: fr.mecanicos || [] },
-        { nombre: 'QUÍMICO', items: fr.quimicos || [] },
-        { nombre: 'BIOLÓGICO', items: fr.biologicos || [] },
-        { nombre: 'ERGONÓMICO', items: fr.ergonomicos || [] },
-        { nombre: 'PSICOSOCIAL', items: fr.psicosociales || [] },
+        { nombre: 'FÍSICO', items: fr.fisicos || [] }, { nombre: 'MECÁNICO', items: fr.mecanicos || [] },
+        { nombre: 'QUÍMICO', items: fr.quimicos || [] }, { nombre: 'BIOLÓGICO', items: fr.biologicos || [] },
+        { nombre: 'ERGONÓMICO', items: fr.ergonomicos || [] }, { nombre: 'PSICOSOCIAL', items: fr.psicosociales || [] },
       ].filter(c => c.items.length > 0);
 
       if (categorias.length > 0) {
@@ -326,17 +318,6 @@ export default function DetalleTrabajador() {
           head: [['CATEGORÍA', 'FACTORES DE RIESGO IDENTIFICADOS']],
           body: categorias.map(c => [c.nombre, c.items.join(', ')]),
           columnStyles: { 0: { cellWidth: 25, fontStyle: 'bold' } },
-        });
-        y = (pdf as any).lastAutoTable.finalY;
-      }
-
-      if (fr.medidasPreventivas) {
-        autoTable(pdf, {
-          startY: y, margin: { left: M, right: M }, theme: 'grid',
-          styles: { ...baseStyles, fontSize: 6 },
-          head: [['MEDIDAS PREVENTIVAS']],
-          headStyles: { ...headStyles, fontSize: 6 },
-          body: [[fr.medidasPreventivas]],
         });
         y = (pdf as any).lastAutoTable.finalY;
       }
@@ -369,13 +350,13 @@ export default function DetalleTrabajador() {
     textoLibre(ev.enfermedadActual || 'PACIENTE ASINTOMÁTICO AL MOMENTO DE LA VALORACIÓN.', 8);
     y += 1;
 
-    // --- REVISIÓN DE ÓRGANOS Y SISTEMAS (Horizontal y sin palabras innecesarias) ---
+    // --- MEJORA: G. REVISIÓN DE ÓRGANOS Y SISTEMAS CON FONDO #ccffff ---
     secHeader('G. REVISIÓN DE ÓRGANOS Y SISTEMAS');
     const gBody: string[][] = [];
     for (let r = 0; r < 2; r++) {
       const row: string[] = [];
       for (let c = 0; c < 5; c++) {
-        const idx = r * 5 + c; // Lectura horizontal
+        const idx = r * 5 + c;
         const sysName = SISTEMAS[idx];
         const isChecked = ev.revisionSistemasSeleccionados?.includes(sysName);
         row.push(`${idx + 1}. ${sysName} [${isChecked ? 'X' : ' '}]`);
@@ -384,20 +365,20 @@ export default function DetalleTrabajador() {
     }
     autoTable(pdf, {
       startY: y, margin: { left: M, right: M }, theme: 'grid',
-      styles: { ...baseStyles, fontSize: 5.5, cellPadding: 1, fillColor: '#ffffff' },
+      styles: { ...baseStyles, fontSize: 5.5, cellPadding: 1, fillColor: colorTerciario }, // Fondo celeste
       body: gBody
     });
     y = (pdf as any).lastAutoTable.finalY;
 
     if (ev.revisionSistemasSeleccionados && ev.revisionSistemasSeleccionados.length > 0) {
       const nums = ev.revisionSistemasSeleccionados.map((s:string) => SISTEMAS.indexOf(s) + 1).sort((a:number, b:number) => a - b).join(', ');
+      // Se suprimen etiquetas innecesarias, solo numeral y texto.
       textoLibre(`${nums}: ${ev.revisionSistemasDescripcion || '-'}`, 8);
     } else {
-      textoLibre('Paciente no refiere síntomas adicionales o relevantes al momento de la consulta.', 5);
+      textoLibre('Paciente no refiere síntomas adicionales.', 5);
     }
     y += 1;
 
-    // H. CONSTANTES VITALES
     secHeader('H. CONSTANTES VITALES Y ANTROPOMETRÍA');
     const sv = ev.signosVitales || {};
     autoTable(pdf, {
@@ -414,52 +395,49 @@ export default function DetalleTrabajador() {
     });
     y = (pdf as any).lastAutoTable.finalY + 2;
 
-    // --- EXAMEN FÍSICO REGIONAL (14 filas, Texto Vertical 90°) ---
+    // --- MEJORA: I. EXAMEN FÍSICO REGIONAL (14 Celdas horizontales, Identico al Excel) ---
     checkPage(60);
     secHeader('I. EXAMEN FÍSICO REGIONAL');
-    const iBody = REGIONES_FISICO.map(reg => {
-      const subsMarcados = reg.s.map(subName => {
-        const codeMatch = subName.match(/^([a-z])\./);
-        const fullCode = `${reg.n}${codeMatch ? codeMatch[1] : ''}`;
-        const isSelected = ev.examenFisicoHallazgos?.some((h:any) => h.codigo === fullCode);
-        return `${subName} [${isSelected ? 'X' : ' '}]`;
-      }).join('   ');
-      return [`${reg.n}. ${reg.r.toUpperCase()}`, subsMarcados];
-    });
+    const iBody = exFisicoMatrix.map(row => row.map(cell => {
+      if(cell.s) return '';
+      if(cell.n) return cell.t;
+      if(cell.c) {
+        const checked = ev.examenFisicoHallazgos?.some((h:any)=>h.codigo===cell.c);
+        return `${cell.t} [${checked ? 'X' : ' '}]`;
+      }
+      return '';
+    }));
+    
+    // Agregamos la fila final de instrucción
+    iBody.push([{ content: 'SI EXISTE EVIDENCIA DE PATOLOGÍA MARCAR CON "X" Y DESCRIBIR EN LA SIGUIENTE SECCIÓN COLOCANDO EL NUMERAL', colSpan: 14, styles: { halign: 'center', fontStyle: 'bold', fillColor: '#ffffff', textColor: negro } } as any]);
 
     autoTable(pdf, {
       startY: y, margin: { left: M, right: M }, theme: 'grid',
-      styles: { ...baseStyles, fontSize: 6, cellPadding: 1, valign: 'middle' },
-      headStyles: { fillColor: colorTerciario, textColor: negro },
+      styles: { ...baseStyles, fontSize: 5.2, cellPadding: 0.8 },
+      headStyles: { fillColor: colorTerciario, textColor: negro, fontSize: 6 },
       columnStyles: {
-        0: { cellWidth: 8, halign: 'center', fillColor: colorTerciario },
-        1: { cellWidth: 'auto' }
+        0: { cellWidth: 12, fontStyle: 'bold' }, 1: { cellWidth: 26 },
+        2: { cellWidth: 1.5, fillColor: '#ffffff', lineWidth: 0 },
+        3: { cellWidth: 12, fontStyle: 'bold' }, 4: { cellWidth: 26 },
+        5: { cellWidth: 1.5, fillColor: '#ffffff', lineWidth: 0 },
+        6: { cellWidth: 12, fontStyle: 'bold' }, 7: { cellWidth: 26 },
+        8: { cellWidth: 1.5, fillColor: '#ffffff', lineWidth: 0 },
+        9: { cellWidth: 14, fontStyle: 'bold' }, 10: { cellWidth: 24 },
+        11: { cellWidth: 1.5, fillColor: '#ffffff', lineWidth: 0 },
+        12: { cellWidth: 14, fontStyle: 'bold' }, 13: { cellWidth: 24 }
       },
-      head: [['REGIÓN', 'EVALUACIÓN DE SUBREGIONES (Marcado con X)']],
-      body: iBody,
-      didParseCell: function(data) {
-        if (data.column.index === 0 && data.section === 'body') {
-          data.cell.styles.textColor = colorTerciario; // Oculta el texto horizontal
-        }
-      },
-      didDrawCell: function(data) {
-        // Redibuja el texto pero con un ángulo de 90 grados (de abajo hacia arriba)
-        if (data.column.index === 0 && data.section === 'body' && data.cell.raw) {
-          pdf.setTextColor(0);
-          pdf.setFontSize(5);
-          pdf.setFont('helvetica', 'bold');
-          // CORRECCIÓN: Envolvemos en String() para que TypeScript no bloquee la compilación
-          pdf.text(String(data.cell.raw), data.cell.x + 4.5, data.cell.y + data.cell.height - 2, { angle: 90 });
-        }
-      }
+      head: [
+         [{ content: 'REGIONES', colSpan: 14, styles: { halign: 'left', fillColor: colorTerciario } }]
+      ],
+      body: iBody
     });
     y = (pdf as any).lastAutoTable.finalY;
 
     if (ev.examenFisicoHallazgos && ev.examenFisicoHallazgos.length > 0) {
       const lineasFisico = ev.examenFisicoHallazgos.map((h: any) => 
-        `(${h.codigo}) ${h.region}, ${h.subregion}: ${h.descripcion || '-'}`
+        `${h.codigo}: ${h.descripcion || '-'}`
       ).join('; ');
-      textoLibre(`Observaciones: ${lineasFisico}`, 6);
+      textoLibre(lineasFisico, 6);
       y += 1;
     } else {
       textoLibre('Sin hallazgos patológicos al examen físico regional.', 5);
@@ -600,7 +578,7 @@ export default function DetalleTrabajador() {
     <div className="min-h-screen bg-slate-50 p-4 md:p-8">
       <div className="max-w-6xl mx-auto space-y-6">
 
-        {/* Cabecera */}
+        {/* Cabecera Web */}
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
             <h1 className="text-2xl font-bold text-slate-800">
@@ -688,21 +666,26 @@ export default function DetalleTrabajador() {
                     </div>
                   </Sec>
 
-                  {/* ANTECEDENTES FAMILIARES HORIZONTAL */}
+                  {/* ANTECEDENTES FAMILIARES WEB */}
                   <Sec title="D. ANTECEDENTES FAMILIARES">
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-[10px] mb-3">
-                      {TIPOS_ANTECEDENTES_FAMILIARES.map((tipo, idx) => {
-                        const af = ev.antecedentesFamiliares?.find((a:any) => a.tipo === tipo);
-                        return (
-                          <div key={idx} className={`p-1.5 border rounded flex items-center justify-between ${af ? 'bg-[#ccffff] border-blue-300 font-bold' : 'bg-slate-50 text-slate-600'}`}>
-                             <span>{idx+1}. {tipo}</span>
-                             <span className={af ? 'text-blue-700' : 'text-slate-400'}>[{af ? 'X' : ' '}]</span>
-                          </div>
-                        )
-                      })}
+                    <div className="overflow-x-auto mb-2">
+                      <table className="w-full text-[10px] border-collapse border border-slate-300">
+                        <tbody>
+                          {[0, 1].map(r => (
+                            <tr key={r}>
+                              {[0,1,2,3].map(c => {
+                                 const idx = r * 4 + c;
+                                 const tipo = TIPOS_ANTECEDENTES_FAMILIARES[idx];
+                                 const hasIt = ev.antecedentesFamiliares?.find((a:any) => a.tipo === tipo);
+                                 return <td key={c} className={`border border-slate-300 p-1.5 ${hasIt?'font-bold text-blue-700':'text-slate-700'} bg-[#ccffff]`}>{idx+1}. {tipo} [{hasIt?'X':' '}]</td>
+                              })}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
                     </div>
                     {ev.antecedentesFamiliares?.length > 0 && (
-                      <div className="text-xs space-y-1 border-t border-slate-200 pt-2">
+                      <div className="text-xs space-y-1">
                         {ev.antecedentesFamiliares.map((af: any, i: number) => (
                           <p key={i}><span className="font-semibold">{af.tipo} ({af.parentesco}):</span> {af.descripcion}</p>
                         ))}
@@ -717,32 +700,28 @@ export default function DetalleTrabajador() {
                         {ev.factoresRiesgo.actividades && <> · <span className="font-bold">Actividades:</span> {ev.factoresRiesgo.actividades}</>}
                         {ev.factoresRiesgo.tiempoTrabajoMeses && <> · <span className="font-bold">Tiempo:</span> {ev.factoresRiesgo.tiempoTrabajoMeses} meses</>}
                       </div>
-                      <div className="flex flex-wrap gap-1.5">
-                        {(ev.factoresRiesgo.fisicos || []).map((r: string) => <span key={r} className="text-[10px] bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">{r}</span>)}
-                        {(ev.factoresRiesgo.mecanicos || []).map((r: string) => <span key={r} className="text-[10px] bg-red-100 text-red-800 px-2 py-0.5 rounded-full">{r}</span>)}
-                        {(ev.factoresRiesgo.quimicos || []).map((r: string) => <span key={r} className="text-[10px] bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full">{r}</span>)}
-                        {(ev.factoresRiesgo.biologicos || []).map((r: string) => <span key={r} className="text-[10px] bg-green-100 text-green-800 px-2 py-0.5 rounded-full">{r}</span>)}
-                        {(ev.factoresRiesgo.ergonomicos || []).map((r: string) => <span key={r} className="text-[10px] bg-purple-100 text-purple-800 px-2 py-0.5 rounded-full">{r}</span>)}
-                        {(ev.factoresRiesgo.psicosociales || []).map((r: string) => <span key={r} className="text-[10px] bg-pink-100 text-pink-800 px-2 py-0.5 rounded-full">{r}</span>)}
-                      </div>
-                      {ev.factoresRiesgo.medidasPreventivas && <p className="text-xs mt-2 italic text-slate-600">Medidas preventivas: {ev.factoresRiesgo.medidasPreventivas}</p>}
                     </Sec>
                   )}
 
                   <Sec title="F. ENFERMEDAD ACTUAL"><p className="text-xs uppercase">{ev.enfermedadActual || 'PACIENTE ASINTOMÁTICO AL MOMENTO DE LA VALORACIÓN.'}</p></Sec>
 
-                  {/* REVISIÓN DE ÓRGANOS Y SISTEMAS - TEXTO LIMPIO */}
+                  {/* REVISIÓN DE ÓRGANOS Y SISTEMAS WEB */}
                   <Sec title="G. REVISIÓN DE ÓRGANOS Y SISTEMAS">
-                    <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-[10px] mb-3">
-                      {SISTEMAS.map((sys, idx) => {
-                        const checked = ev.revisionSistemasSeleccionados?.includes(sys);
-                        return (
-                          <div key={idx} className={`p-1.5 border rounded flex items-center justify-between ${checked ? 'bg-[#ccffff] border-blue-300 font-bold' : 'bg-slate-50 text-slate-600'}`}>
-                             <span>{idx+1}. {sys}</span>
-                             <span className={checked ? 'text-blue-700' : 'text-slate-400'}>[{checked ? 'X' : ' '}]</span>
-                          </div>
-                        )
-                      })}
+                    <div className="overflow-x-auto mb-2">
+                      <table className="w-full text-[10px] border-collapse border border-slate-300">
+                        <tbody>
+                          {[0, 1].map(r => (
+                            <tr key={r}>
+                              {[0,1,2,3,4].map(c => {
+                                 const idx = r * 5 + c;
+                                 const sys = SISTEMAS[idx];
+                                 const hasIt = ev.revisionSistemasSeleccionados?.includes(sys);
+                                 return <td key={c} className={`border border-slate-300 p-1.5 ${hasIt?'font-bold text-blue-700':'text-slate-700'} bg-[#ccffff]`}>{idx+1}. {sys} [{hasIt?'X':' '}]</td>
+                              })}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
                     </div>
                     {ev.revisionSistemasSeleccionados?.length > 0 ? (
                       <p className="text-xs">
@@ -772,35 +751,39 @@ export default function DetalleTrabajador() {
                     </div>
                   </Sec>
 
-                  {/* EXAMEN FÍSICO (TEXTO VERTICAL MEDIANTE CSS) */}
+                  {/* EXAMEN FÍSICO REGIONAL WEB (Matriz 14x10 calcada del Excel) */}
                   <Sec title="I. EXAMEN FÍSICO REGIONAL">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-[10px] mb-3">
-                      {REGIONES_FISICO.map(reg => (
-                        <div key={reg.n} className="flex border border-slate-200 rounded overflow-hidden">
-                          <div className="bg-[#ccffff] text-slate-700 font-bold p-1 flex items-center justify-center w-8 border-r border-slate-200">
-                            <span style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }} className="text-[9px] tracking-widest whitespace-nowrap">
-                              {reg.n}. {reg.r.toUpperCase()}
-                            </span>
-                          </div>
-                          <div className="p-2 flex-1 flex flex-wrap content-center gap-x-3 gap-y-1 bg-white">
-                            {reg.s.map(sub => {
-                                const codeMatch = sub.match(/^([a-z])\./);
-                                const fullCode = `${reg.n}${codeMatch ? codeMatch[1] : ''}`;
-                                const checked = ev.examenFisicoHallazgos?.some((h:any) => h.codigo === fullCode);
-                                return (
-                                  <span key={sub} className={`flex items-center gap-1 ${checked ? 'text-blue-700 font-bold' : 'text-slate-600'}`}>
-                                    {sub} <span className="font-bold">[{checked ? 'X' : ' '}]</span>
-                                  </span>
-                                )
-                            })}
-                          </div>
-                        </div>
-                      ))}
+                    <div className="overflow-x-auto mb-2">
+                      <table className="w-full text-[9px] border-collapse border border-slate-300">
+                        <thead>
+                           <tr>
+                             <th colSpan={14} className="bg-[#ccffff] border border-slate-300 p-1 text-left font-bold text-slate-800">REGIONES</th>
+                           </tr>
+                        </thead>
+                        <tbody>
+                          {exFisicoMatrix.map((row, i) => (
+                             <tr key={i}>
+                               {row.map((cell, j) => {
+                                 if(cell.s) return <td key={j} className="w-1 border-none bg-white"></td>;
+                                 if(cell.n) return <td key={j} className="border border-slate-300 p-1 font-bold bg-slate-50">{cell.t}</td>;
+                                 if(cell.c) {
+                                   const checked = ev.examenFisicoHallazgos?.some((h:any)=>h.codigo===cell.c);
+                                   return <td key={j} className={`border border-slate-300 p-1 ${checked?'text-blue-700 font-bold':'text-slate-600'}`}>{cell.t} [{checked?'X':' '}]</td>;
+                                 }
+                                 return <td key={j} className="border border-slate-300 bg-white"></td>;
+                               })}
+                             </tr>
+                          ))}
+                          <tr>
+                            <td colSpan={14} className="border border-slate-300 p-1.5 text-center font-bold text-[8px] text-slate-500 bg-slate-50">SI EXISTE EVIDENCIA DE PATOLOGÍA MARCAR CON "X" Y DESCRIBIR EN LA SIGUIENTE SECCIÓN COLOCANDO EL NUMERAL</td>
+                          </tr>
+                        </tbody>
+                      </table>
                     </div>
                     {ev.examenFisicoHallazgos?.length > 0 ? (
-                      <div className="text-xs space-y-1 border-t border-slate-200 pt-2">
+                      <div className="text-xs space-y-1">
                         {ev.examenFisicoHallazgos.map((h: any, i: number) => (
-                          <p key={i}><span className="font-bold text-blue-700">({h.codigo})</span> {h.region}, {h.subregion}: {h.descripcion}</p>
+                          <p key={i}><span className="font-bold text-blue-700">{h.codigo}:</span> {h.descripcion}</p>
                         ))}
                       </div>
                     ) : <p className="text-xs text-green-700">Sin hallazgos patológicos al examen físico regional.</p>}
