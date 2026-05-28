@@ -434,7 +434,7 @@ export default function DetalleTrabajador() {
           }
         }
       }
-       y = (pdf as any).lastAutoTable.finalY;
+      y = (pdf as any).lastAutoTable.finalY;
 
     if (ev.examenFisicoHallazgos && ev.examenFisicoHallazgos.length > 0) {
       const lineasFisico = ev.examenFisicoHallazgos
