@@ -367,9 +367,9 @@ export default function DetalleTrabajador() {
 
     // --- MEJORA: TABLA DE ÓRGANOS Y SISTEMAS CON MARCADORES ---
     secHeader('G. REVISIÓN DE ÓRGANOS Y SISTEMAS');
-    const gBody = [];
+    const gBody: string[][] = []; // <-- Se añadió el tipo string[][]
     for (let r = 0; r < 2; r++) {
-      const row = [];
+      const row: string[] = [];   // <-- Se añadió el tipo string[]
       for (let c = 0; c < 5; c++) {
         const idx = c * 2 + r;
         const sysName = SISTEMAS[idx];
@@ -393,7 +393,6 @@ export default function DetalleTrabajador() {
       textoLibre('Paciente no refiere síntomas adicionales o relevantes al momento de la consulta.', 5);
     }
     y += 1;
-
     // H. CONSTANTES VITALES
     secHeader('H. CONSTANTES VITALES Y ANTROPOMETRÍA');
     const sv = ev.signosVitales || {};
