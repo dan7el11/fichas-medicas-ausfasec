@@ -361,20 +361,17 @@ export default function DetalleTrabajador() {
     y = (pdf as any).lastAutoTable.finalY;
 
     if (ev.revisionSistemasSeleccionados && ev.revisionSistemasSeleccionados.length > 0) {
-      // Obtenemos solo los números de los sistemas marcados
       const nums = ev.revisionSistemasSeleccionados.map((s: string) => SISTEMAS.indexOf(s) + 1).sort((a: number, b: number) => a - b);
-      
-      // Separamos la descripción del usuario por saltos de línea (enters)
       const descripciones = (ev.revisionSistemasDescripcion || '').split('\n').filter((l: string) => l.trim() !== '');
       
       const lineasRevision: string[] = [];
       
-      // Emparejamos cada número con la línea correspondiente que escribió el usuario
       nums.forEach((num: number, index: number) => {
-        lineasRevision.push(`${num}. ${descripciones[index] || ''}`);
+        // Eliminamos cualquier número o viñeta inicial que el usuario haya escrito para evitar duplicados
+        const textoLimpio = (descripciones[index] || '').replace(/^\d+[\.\-\)]?\s*/, '');
+        lineasRevision.push(`${num}. ${textoLimpio}`);
       });
       
-      // Si el usuario escribió más líneas que sistemas seleccionados, no perdemos esa información
       if (descripciones.length > nums.length) {
         lineasRevision.push(...descripciones.slice(nums.length));
       }
