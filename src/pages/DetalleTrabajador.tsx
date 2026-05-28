@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs, orderBy } from 'firebase/firestore';
 import { db } from '../services/firebase';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import type { Trabajador, EvaluacionMedica } from '../types';
-import { orderBy } from 'firebase/firestore';  // agregar orderBy si no lo tienes ya
 import ExamenesPanel from '../components/examenes/ExamenesPanel';
 
 // ============================================================================
@@ -848,10 +847,10 @@ export default function DetalleTrabajador() {
                 </>
             )}
           </>
-        )}
-      </div>
-    </div>
-  );
+            )}
+            </>
+          )}
+        </div>
 }
 
 function Sec({ title, children }: { title: string; children: React.ReactNode }) {
