@@ -630,15 +630,15 @@ export default function DetalleTrabajador() {
                   <Sec title="H. CONSTANTES VITALES Y ANTROPOMETRÍA">
                     <div className="grid grid-cols-3 md:grid-cols-5 gap-3 text-xs">
                       {[
-                        { l: 'P.A.', v: `${sv?.presionSistolica || '-'}/${sv?.presionDiastolica || '-'} mmHg` },
-                        { l: 'Temp', v: `${sv?.temperatura || '-'} °C` },
-                        { l: 'F.C.', v: `${sv?.frecuenciaCardiaca || '-'} lpm` },
-                        { l: 'SAT O₂', v: `${sv?.saturacion || '-'} %` },
-                        { l: 'F.R.', v: `${sv?.frecuenciaRespiratoria || '-'} rpm` },
-                        { l: 'Peso', v: `${sv?.peso || '-'} Kg` },
-                        { l: 'Talla', v: `${sv?.talla || '-'} cm` },
-                        { l: 'IMC', v: `${sv?.imc || '-'}`, hl: true },
-                        { l: 'Perím.', v: `${sv?.perimetroAbdominal || '-'} cm` },
+                        { l: 'P.A.', v: `${ev.signosVitales?.presionSistolica || '-'}/${sv?.presionDiastolica || '-'} mmHg` },
+                        { l: 'Temp', v: `${ev.signosVitales?.temperatura || '-'} °C` },
+                        { l: 'F.C.', v: `${ev.signosVitales?.frecuenciaCardiaca || '-'} lpm` },
+                        { l: 'SAT O₂', v: `${ev.signosVitales?.saturacion || '-'} %` },
+                        { l: 'F.R.', v: `${ev.signosVitales?.frecuenciaRespiratoria || '-'} rpm` },
+                        { l: 'Peso', v: `${ev.signosVitales?.peso || '-'} Kg` },
+                        { l: 'Talla', v: `${ev.signosVitales?.talla || '-'} cm` },
+                        { l: 'IMC', v: `${ev.signosVitales?.imc || '-'}`, hl: true },
+                        { l: 'Perím.', v: `${ev.signosVitales?.perimetroAbdominal || '-'} cm` },
                       ].map((s, i) => (
                         <div key={i} className={`p-2 rounded text-center ${(s as any).hl ? 'bg-blue-50 border border-blue-200' : 'bg-slate-50'}`}>
                           <p className="text-slate-500 text-[10px]">{s.l}</p>
