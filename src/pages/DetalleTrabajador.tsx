@@ -357,9 +357,14 @@ export default function DetalleTrabajador() {
     y = (pdf as any).lastAutoTable.finalY;
 
     if (ev.revisionSistemasSeleccionados && ev.revisionSistemasSeleccionados.length > 0) {
-      const nums = ev.revisionSistemasSeleccionados.map((s:string) => SISTEMAS.indexOf(s) + 1).sort((a:number, b:number) => a - b).join(', ');
-      textoLibre(`${nums}: ${ev.revisionSistemasDescripcion || '-'}`, 8);
-    } else { textoLibre('Paciente no refiere síntomas adicionales.', 5); }
+      const sistemasAfectados = ev.revisionSistemasSeleccionados
+        .map((s: string) => `${SISTEMAS.indexOf(s) + 1}. ${s}`)
+        .sort((a: string, b: string) => parseInt(a) - parseInt(b))
+        .join('\n');
+      textoLibre(`${sistemasAfectados}\nDescripción: ${ev.revisionSistemasDescripcion || '-'}`, 8);
+    } else { 
+      textoLibre('Paciente no refiere síntomas adicionales.', 5); 
+    }
     y += 1;
 
     secHeader('H. CONSTANTES VITALES Y ANTROPOMETRÍA');
@@ -389,6 +394,7 @@ export default function DetalleTrabajador() {
     autoTable(pdf, {
       startY: y, margin: { left: M, right: M }, theme: 'grid',
       styles: { ...baseStyles, fontSize: 5.5, cellPadding: 0.8 },
+      bodyStyles: { minCellHeight: 5.5 }, // <-- Esta línea soluciona la altura
       headStyles: { fillColor: colorTerciario, textColor: negro, fontSize: 6 },
       columnStyles: {
         0: { cellWidth: 5 }, 1: { cellWidth: 26 }, 2: { cellWidth: 4, halign: 'center' },
@@ -422,10 +428,15 @@ export default function DetalleTrabajador() {
     y = (pdf as any).lastAutoTable.finalY;
 
     if (ev.examenFisicoHallazgos && ev.examenFisicoHallazgos.length > 0) {
-      const lineasFisico = ev.examenFisicoHallazgos.map((h: any) => `${h.codigo}: ${h.descripcion || '-'}`).join('; ');
-      textoLibre(lineasFisico, 6); y += 1;
-    } else { textoLibre('Sin hallazgos patológicos al examen físico regional.', 5); y += 1; }
-
+      const lineasFisico = ev.examenFisicoHallazgos
+        .map((h: any) => `${h.codigo}. ${h.region || ''}, ${h.subregion || ''}: ${h.descripcion || '-'}`)
+        .join('\n');
+      textoLibre(`Observaciones:\n${lineasFisico}`, 6); 
+      y += 1;
+    } else { 
+      textoLibre('Sin hallazgos patológicos al examen físico regional.', 5); 
+      y += 1; 
+    }
     // J. EXÁMENES COMPLEMENTARIOS
     if (ev.examenesComplementarios && ev.examenesComplementarios.length > 0) {
       checkPage(15); secHeader('J. RESULTADOS DE EXÁMENES GENERALES Y ESPECÍFICOS');
