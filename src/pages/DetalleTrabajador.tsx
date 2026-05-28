@@ -65,9 +65,7 @@ export default function DetalleTrabajador() {
   };
 
   // ============================================================
-  //  GENERADOR PDF — Réplica fiel del formato SO-RE-38
-  //  Usa jsPDF + autoTable: tablas con bordes negros, cabeceras
-  //  grises, misma estructura que el documento Excel original
+  //  GENERADOR PDF — Fase 1: Colores, Textos Agrupados y Firmas
   // ============================================================
   const generarPDF = () => {
     const ev: any = evaluaciones[pestanaActiva];
@@ -79,39 +77,20 @@ export default function DetalleTrabajador() {
     const CW = W - M * 2;
     let y = 7;
 
-    // Colores del formato original
-    const gris: [number, number, number] = [210, 210, 210];
+    // COLORES DE FASE 1: Extraídos directamente del formato original
+    const colorPrimario = '#ccffcc';   // Verde claro: Para secciones principales (A, B, C...)
+    const colorSecundario = '#ccccff'; // Azul/lila claro: Para cabeceras de tablas internas
+    const colorTerciario = '#ccffff';  // Celeste claro: Para sub-secciones especiales (Incidentes)
     const negro: [number, number, number] = [0, 0, 0];
 
-    // Estilos base para autoTable — bordes negros como el Excel
+    // Estilos base para autoTable
     const baseStyles = {
       lineColor: negro, lineWidth: 0.25,
       fontSize: 7, cellPadding: 1.2, textColor: negro,
     };
     const headStyles = {
-      fillColor: gris, textColor: negro, fontStyle: 'bold' as const,
+      fillColor: colorSecundario, textColor: negro, fontStyle: 'bold' as const,
       fontSize: 6.5, lineColor: negro, lineWidth: 0.25, cellPadding: 1.2,
-    };
-
-    // Helper: cabecera de sección (franja gris con borde negro)
-    const secHeader = (texto: string) => {
-      if (y > 275) { pdf.addPage(); y = 7; }
-      pdf.setFillColor(...gris);
-      pdf.setDrawColor(0);
-      pdf.rect(M, y, CW, 5, 'FD');
-      pdf.setFontSize(7); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(0);
-      pdf.text(texto, M + 1.5, y + 3.5);
-      y += 5;
-    };
-
-    // Helper: texto libre en recuadro con borde
-    const textoLibre = (texto: string, minH = 8) => {
-      pdf.setDrawColor(0); pdf.setFontSize(7); pdf.setFont('helvetica', 'normal');
-      const lines = pdf.splitTextToSize(texto || '-', CW - 3);
-      const h = Math.max(minH, lines.length * 3 + 2);
-      pdf.rect(M, y, CW, h, 'S');
-      pdf.text(lines, M + 1.5, y + 3);
-      y += h;
     };
 
     // Helper: salto de página seguro
@@ -119,9 +98,31 @@ export default function DetalleTrabajador() {
       if (y + needed > 285) { pdf.addPage(); y = 7; }
     };
 
+    // Helper: cabecera de sección (franja de color con borde negro)
+    const secHeader = (texto: string, bgColor = colorPrimario) => {
+      checkPage(10);
+      pdf.setFillColor(bgColor);
+      pdf.setDrawColor(0);
+      pdf.rect(M, y, CW, 5, 'FD');
+      pdf.setFontSize(7); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(0);
+      pdf.text(texto, M + 1.5, y + 3.5);
+      y += 5;
+    };
+
+    // Helper: texto libre en recuadro con borde (Acepta saltos de línea \n)
+    const textoLibre = (texto: string, minH = 8) => {
+      pdf.setDrawColor(0); pdf.setFontSize(7); pdf.setFont('helvetica', 'normal');
+      const lines = pdf.splitTextToSize(texto || '-', CW - 3);
+      const h = Math.max(minH, lines.length * 3 + 2);
+      checkPage(h + 2);
+      pdf.rect(M, y, CW, h, 'S');
+      pdf.text(lines, M + 1.5, y + 3);
+      y += h;
+    };
+
     // =============== PÁGINA 1 ===============
 
-    // ENCABEZADO CORPORATIVO (tabla 3x3 idéntica al Excel)
+    // ENCABEZADO CORPORATIVO
     autoTable(pdf, {
       startY: y, margin: { left: M, right: M }, theme: 'grid',
       styles: { ...baseStyles, halign: 'center', fontSize: 8 },
@@ -163,22 +164,20 @@ export default function DetalleTrabajador() {
     textoLibre((ev.motivoConsulta || 'ACTUALIZACIÓN DE FICHA OCUPACIONAL').toUpperCase(), 6);
     y += 1;
 
-    // C. ANTECEDENTES PERSONALES
+    // C. ANTECEDENTES PERSONALES Y LABORALES
     secHeader('C. ANTECEDENTES PERSONALES');
 
-    // Clínicos y quirúrgicos
     pdf.setFontSize(6.5); pdf.setFont('helvetica', 'bold');
     pdf.setDrawColor(0); pdf.rect(M, y, CW, 4, 'S');
     pdf.text('ANTECEDENTES CLÍNICOS Y QUIRÚRGICOS', M + 1.5, y + 3); y += 4;
     textoLibre(ev.antecedentesClinicosQuirurgicos || 'Sin antecedentes relevantes reportados.', 5);
 
-    // Hábitos tóxicos
     if (ev.habitosToxicos && ev.habitosToxicos.length > 0) {
       checkPage(20);
       autoTable(pdf, {
         startY: y, margin: { left: M, right: M }, theme: 'grid',
         styles: { ...baseStyles, fontSize: 6.5 }, headStyles: { ...headStyles, fontSize: 6 },
-        head: [['CONSUMOS NOCIVOS', 'SI', 'NO', 'TIEMPO CONSUMO\n(meses)', 'CANTIDAD', 'EX\nCONSUMIDOR', 'TIEMPO ABSTINENCIA\n(meses)']],
+        head: [['CONSUMOS NOCIVOS', 'SI', 'NO', 'TIEMPO CONSUMO', 'CANTIDAD', 'EX CONSUMIDOR', 'TIEMPO ABSTINENCIA']],
         body: ev.habitosToxicos.map((h: any) => [
           h.tipo.toUpperCase(), h.consume ? 'X' : '', h.consume ? '' : 'X',
           h.tiempoConsumo || '-', h.cantidad || '-', h.exConsumidor ? 'X' : '', h.tiempoAbstinencia || '-'
@@ -188,7 +187,6 @@ export default function DetalleTrabajador() {
       y = (pdf as any).lastAutoTable.finalY;
     }
 
-    // Estilo de vida
     if (ev.estiloVida) {
       autoTable(pdf, {
         startY: y, margin: { left: M, right: M }, theme: 'grid',
@@ -202,39 +200,54 @@ export default function DetalleTrabajador() {
       });
       y = (pdf as any).lastAutoTable.finalY;
     }
+    y += 1;
 
-    // Incidentes
-    pdf.setDrawColor(0); pdf.rect(M, y, CW, 4, 'S');
-    pdf.setFontSize(6.5); pdf.setFont('helvetica', 'bold');
-    pdf.text('INCIDENTES', M + 1.5, y + 3);
-    pdf.setFont('helvetica', 'normal');
-    pdf.text(ev.incidentes || 'NINGUNO', M + 25, y + 3);
-    y += 5;
+    // --- MEJORA: INCIDENTES Y ACCIDENTES DELIMITADOS ---
+    secHeader('INCIDENTES, ACCIDENTES Y ENFERMEDAD PROFESIONAL', colorTerciario);
+    
+    // Incidentes simples
+    autoTable(pdf, {
+      startY: y, margin: { left: M, right: M }, theme: 'grid',
+      styles: { ...baseStyles, fontSize: 6.5 }, headStyles: { ...headStyles, fillColor: colorTerciario },
+      head: [['INCIDENTES LABORALES REPORTADOS']],
+      body: [[ev.incidentes || 'NINGUNO']],
+    });
+    y = (pdf as any).lastAutoTable.finalY;
 
-    // Accidentes de trabajo
+    // Accidentes
     if (ev.accidentesTrabajo?.descripcion) {
-      checkPage(15);
-      secHeader('ACCIDENTES DE TRABAJO (DESCRIPCIÓN)');
-      textoLibre(ev.accidentesTrabajo.descripcion, 4);
       autoTable(pdf, {
         startY: y, margin: { left: M, right: M }, theme: 'grid',
-        styles: { ...baseStyles, fontSize: 6 },
+        styles: { ...baseStyles, fontSize: 6.5 }, headStyles: { ...headStyles, fillColor: colorTerciario },
+        head: [['DESCRIPCIÓN DEL ACCIDENTE DE TRABAJO', 'CALIFICADO IESS', 'ESPECIFICACIÓN', 'OBSERVACIONES']],
         body: [[
-          `Calificado IESS: ${ev.accidentesTrabajo.calificado ? 'SÍ' : 'NO'}`,
-          `Especificar: ${ev.accidentesTrabajo.especificacion || '-'}`,
-          `Obs: ${ev.accidentesTrabajo.observaciones || '-'}`
+          ev.accidentesTrabajo.descripcion, 
+          ev.accidentesTrabajo.calificado ? 'SÍ' : 'NO', 
+          ev.accidentesTrabajo.especificacion || '-', 
+          ev.accidentesTrabajo.observaciones || '-'
         ]],
+        columnStyles: { 1: { halign: 'center' } },
       });
-      y = (pdf as any).lastAutoTable.finalY + 1;
+      y = (pdf as any).lastAutoTable.finalY;
     }
 
-    // Enfermedades profesionales
+    // Enfermedad Profesional
     if (ev.enfermedadesProfesionales?.descripcion) {
-      checkPage(10);
-      secHeader('ENFERMEDADES PROFESIONALES');
-      textoLibre(ev.enfermedadesProfesionales.descripcion, 4);
-      y += 1;
+      autoTable(pdf, {
+        startY: y, margin: { left: M, right: M }, theme: 'grid',
+        styles: { ...baseStyles, fontSize: 6.5 }, headStyles: { ...headStyles, fillColor: colorTerciario },
+        head: [['DESCRIPCIÓN DE ENFERMEDAD PROFESIONAL', 'CALIFICADA IESS', 'ESPECIFICACIÓN', 'OBSERVACIONES']],
+        body: [[
+          ev.enfermedadesProfesionales.descripcion, 
+          ev.enfermedadesProfesionales.calificada ? 'SÍ' : 'NO', 
+          ev.enfermedadesProfesionales.especificacion || '-', 
+          ev.enfermedadesProfesionales.observaciones || '-'
+        ]],
+        columnStyles: { 1: { halign: 'center' } },
+      });
+      y = (pdf as any).lastAutoTable.finalY;
     }
+    y += 2;
 
     // D. ANTECEDENTES FAMILIARES
     checkPage(15);
@@ -258,7 +271,6 @@ export default function DetalleTrabajador() {
       secHeader('E. FACTORES DE RIESGOS DEL PUESTO DE TRABAJO');
       const fr = ev.factoresRiesgo;
 
-      // Puesto / Actividades / Tiempo
       autoTable(pdf, {
         startY: y, margin: { left: M, right: M }, theme: 'grid',
         styles: { ...baseStyles, fontSize: 6.5 }, headStyles: { ...headStyles, fontSize: 6 },
@@ -267,7 +279,6 @@ export default function DetalleTrabajador() {
       });
       y = (pdf as any).lastAutoTable.finalY;
 
-      // Tabla de riesgos por categoría
       const categorias = [
         { nombre: 'FÍSICO', items: fr.fisicos || [] },
         { nombre: 'MECÁNICO', items: fr.mecanicos || [] },
@@ -288,7 +299,6 @@ export default function DetalleTrabajador() {
         y = (pdf as any).lastAutoTable.finalY;
       }
 
-      // Medidas preventivas
       if (fr.medidasPreventivas) {
         autoTable(pdf, {
           startY: y, margin: { left: M, right: M }, theme: 'grid',
@@ -305,7 +315,6 @@ export default function DetalleTrabajador() {
     // =============== PÁGINA 2 ===============
     pdf.addPage(); y = 7;
 
-    // Encabezado página 2
     autoTable(pdf, {
       startY: y, margin: { left: M, right: M }, theme: 'grid',
       styles: { ...baseStyles, halign: 'center', fontSize: 8 },
@@ -330,10 +339,11 @@ export default function DetalleTrabajador() {
     textoLibre(ev.enfermedadActual || 'PACIENTE ASINTOMÁTICO AL MOMENTO DE LA VALORACIÓN.', 8);
     y += 1;
 
-    // G. REVISIÓN DE ÓRGANOS Y SISTEMAS
+    // --- MEJORA: REVISIÓN DE ÓRGANOS AGRUPADOS EN LÍNEA DE TEXTO ---
     secHeader('G. REVISIÓN DE ÓRGANOS Y SISTEMAS');
     if (ev.revisionSistemasSeleccionados && ev.revisionSistemasSeleccionados.length > 0) {
-      textoLibre(`Sistemas afectados: ${ev.revisionSistemasSeleccionados.join(', ')}\nDescripción: ${ev.revisionSistemasDescripcion || '-'}`, 8);
+      const textoOrganos = `Sistemas afectados: ${ev.revisionSistemasSeleccionados.join(', ')}.\nObservación: ${ev.revisionSistemasDescripcion || '-'}`;
+      textoLibre(textoOrganos, 8);
     } else {
       textoLibre('Paciente no refiere síntomas adicionales o relevantes al momento de la consulta.', 5);
     }
@@ -348,24 +358,23 @@ export default function DetalleTrabajador() {
       headStyles: { ...headStyles, fontSize: 5.5, halign: 'center' },
       head: [['PRESIÓN\nARTERIAL\n(mmHg)', 'TEMP.\n(°C)', 'FREC.\nCARDÍACA\n(Lat/min)', 'SAT. DE\nOXÍGENO\n(O₂%)', 'FREC.\nRESP.\n(fr/min)', 'PESO\n(Kg)', 'TALLA\n(cm)', 'IMC\n(Kg/m²)', 'PERÍM.\nABD.\n(cm)']],
       body: [[
-        `${ev.signosVitales?.presionSistolica || '-'}/${ev.signosVitales?.presionDiastolica || '-'}`,
-        ev.signosVitales?.temperatura || '-', ev.signosVitales?.frecuenciaCardiaca || '-', ev.signosVitales?.saturacion || '-',
-        ev.signosVitales?.frecuenciaRespiratoria || '-', ev.signosVitales?.peso || '-', ev.signosVitales?.signosVitales?.talla || '-',
-        ev.signosVitales?.imc || '-', ev.signosVitales?.perimetroAbdominal || '-'
+        `${sv.presionSistolica || '-'}/${sv.presionDiastolica || '-'}`,
+        sv.temperatura || '-', sv.frecuenciaCardiaca || '-', sv.saturacion || '-',
+        sv.frecuenciaRespiratoria || '-', sv.peso || '-', sv.talla || '-',
+        sv.imc || '-', sv.perimetroAbdominal || '-'
       ]],
     });
     y = (pdf as any).lastAutoTable.finalY + 2;
 
-    // I. EXAMEN FÍSICO REGIONAL
+    // --- MEJORA: EXAMEN FÍSICO AGRUPADO EN LÍNEAS DE TEXTO ---
     secHeader('I. EXAMEN FÍSICO REGIONAL');
     if (ev.examenFisicoHallazgos && ev.examenFisicoHallazgos.length > 0) {
-      autoTable(pdf, {
-        startY: y, margin: { left: M, right: M }, theme: 'grid',
-        styles: { ...baseStyles, fontSize: 6.5 }, headStyles: { ...headStyles, fontSize: 6 },
-        head: [['N°', 'REGIÓN', 'SUBREGIÓN', 'OBSERVACIÓN']],
-        body: ev.examenFisicoHallazgos.map((h: any) => [h.codigo, h.region, h.subregion, h.descripcion || '-']),
-      });
-      y = (pdf as any).lastAutoTable.finalY + 1;
+      // Creamos un string con saltos de línea (\n) para cada hallazgo
+      const lineasFisico = ev.examenFisicoHallazgos.map((h: any) => 
+        `${h.codigo}. ${h.region}, ${h.subregion}: ${h.descripcion || '-'}`
+      ).join('\n');
+      textoLibre(lineasFisico, 5);
+      y += 1;
     } else {
       textoLibre('Sin hallazgos patológicos al examen físico regional.', 5);
       y += 1;
@@ -425,7 +434,6 @@ export default function DetalleTrabajador() {
     });
     y = (pdf as any).lastAutoTable.finalY;
 
-    // Observación y Limitación
     autoTable(pdf, {
       startY: y, margin: { left: M, right: M }, theme: 'grid',
       styles: { ...baseStyles, fontSize: 6.5, halign: 'left' },
@@ -455,12 +463,12 @@ export default function DetalleTrabajador() {
     pdf.text(certLines, M + 1.5, y + 3);
     y += certH + 3;
 
-    // N. DATOS DEL PROFESIONAL + O. FIRMA DEL USUARIO
+    // --- MEJORA: CENTRADO DE N. DATOS DEL PROFESIONAL Y FIRMAS ---
     checkPage(25);
     secHeader('N. DATOS DEL PROFESIONAL                                                                             O. FIRMA DEL USUARIO');
     autoTable(pdf, {
       startY: y, margin: { left: M, right: M }, theme: 'grid',
-      styles: { ...baseStyles, fontSize: 6.5 },
+      styles: { ...baseStyles, fontSize: 6.5, halign: 'center' }, // halign: center centra toda la tabla
       headStyles: { ...headStyles, fontSize: 6, halign: 'center' },
       head: [['FECHA\naaaa-mm-dd', 'HORA', 'NOMBRES Y APELLIDOS', 'CÓDIGO', 'FIRMA Y SELLO', 'FIRMA DEL USUARIO']],
       body: [[
@@ -468,15 +476,13 @@ export default function DetalleTrabajador() {
         (ev.medicoNombre || 'MÉDICO OCUPACIONAL').toUpperCase(),
         ev.medicoCedula || '-', '', ''
       ]],
-      bodyStyles: { minCellHeight: 18, valign: 'bottom' },
+      bodyStyles: { minCellHeight: 18, valign: 'bottom', halign: 'center' }, // Firmas y contenido centrados al fondo
     });
 
-    // Guardar archivo
     const nombre = `SO-RE-38_${trabajador.primerApellido}_${trabajador.primerNombre}_${fmtF(ev.fecha)}`.replace(/[\s\/]/g, '_');
     pdf.save(`${nombre}.pdf`);
   };
 
-  // ============ EXPORTAR CSV ============
   const exportarExcel = () => {
     const ev: any = evaluaciones[pestanaActiva];
     if (!ev || !trabajador) return;
@@ -498,8 +504,6 @@ export default function DetalleTrabajador() {
     link.setAttribute("download", `Ficha_${trabajador.cedula}.csv`);
     document.body.appendChild(link); link.click(); document.body.removeChild(link);
   };
-
-  // ============ RENDER ============
 
   if (cargando) return <div className="min-h-screen p-8 text-center text-slate-500 font-bold">Cargando expediente...</div>;
   if (!trabajador) return <div className="min-h-screen p-8 text-center text-red-500 font-bold">Trabajador no encontrado</div>;
