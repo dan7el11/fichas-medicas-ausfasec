@@ -249,21 +249,21 @@ export default function DetalleTrabajador() {
     }
     y += 1;
 
-   secHeader('INCIDENTES, ACCIDENTES Y ENFERMEDAD PROFESIONAL', colorTerciario);
+   secHeader('INCIDENTES, ACCIDENTES Y ENFERMEDAD PROFESIONAL', colorSecundario);
     
     // 1. Incidentes
     autoTable(pdf, {
       startY: y, margin: { left: M, right: M }, theme: 'grid', styles: { ...baseStyles, fontSize: 6.5 }, headStyles: { ...headStyles, fillColor: colorTerciario },
       head: [['INCIDENTES LABORALES REPORTADOS']], 
-      body: [[ev.incidentes || 'El trabajador/a no ha sufrido o reportado incidentes hasta el momento.']],
+      body: [[ev.incidentes || 'NINGUNO']],
     });
     y = (pdf as any).lastAutoTable.finalY;
 
     // 2. Accidentes (SIEMPRE se muestra)
-    const descAccidente = ev.accidentesTrabajo?.descripcion || 'El trabajador/a no ha sufrido o reportado accidentes de trabajo hasta el momento.';
+    const descAccidente = ev.accidentesTrabajo?.descripcion || 'NINGUNO';
     const califAccidente = ev.accidentesTrabajo?.descripcion ? (ev.accidentesTrabajo.calificado ? 'SÍ' : 'NO') : '-';
     autoTable(pdf, {
-      startY: y, margin: { left: M, right: M }, theme: 'grid', styles: { ...baseStyles, fontSize: 6.5 }, headStyles: { ...headStyles, fillColor: colorTerciario },
+      startY: y, margin: { left: M, right: M }, theme: 'grid', styles: { ...baseStyles, fontSize: 6.5 }, headStyles: { ...headStyles, fillColor: colorSecundario },
       head: [['DESCRIPCIÓN DEL ACCIDENTE DE TRABAJO', 'CALIFICADO IESS', 'ESPECIFICACIÓN', 'OBSERVACIONES']],
       body: [[descAccidente, califAccidente, ev.accidentesTrabajo?.especificacion || '-', ev.accidentesTrabajo?.observaciones || '-']],
       columnStyles: { 1: { halign: 'center' } },
@@ -274,7 +274,7 @@ export default function DetalleTrabajador() {
     const descEnfermedad = ev.enfermedadesProfesionales?.descripcion || 'El trabajador/a no ha sufrido o reportado enfermedades profesionales hasta el momento.';
     const califEnfermedad = ev.enfermedadesProfesionales?.descripcion ? (ev.enfermedadesProfesionales.calificada ? 'SÍ' : 'NO') : '-';
     autoTable(pdf, {
-      startY: y, margin: { left: M, right: M }, theme: 'grid', styles: { ...baseStyles, fontSize: 6.5 }, headStyles: { ...headStyles, fillColor: colorTerciario },
+      startY: y, margin: { left: M, right: M }, theme: 'grid', styles: { ...baseStyles, fontSize: 6.5 }, headStyles: { ...headStyles, fillColor: colorSecundario },
       head: [['DESCRIPCIÓN DE ENFERMEDAD PROFESIONAL', 'CALIFICADA IESS', 'ESPECIFICACIÓN', 'OBSERVACIONES']],
       body: [[descEnfermedad, califEnfermedad, ev.enfermedadesProfesionales?.especificacion || '-', ev.enfermedadesProfesionales?.observaciones || '-']],
       columnStyles: { 1: { halign: 'center' } },
