@@ -846,12 +846,12 @@ export default function DetalleTrabajador() {
                   </Sec>
                 </div>
               </>
-          )}
+            )}
+          </div>
         </div>
       </div>
-    </div>
-  );
-}
+    );
+  }
 
 function Sec({ title, children }: { title: string; children: React.ReactNode }) {
   return (
