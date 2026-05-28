@@ -249,33 +249,37 @@ export default function DetalleTrabajador() {
     }
     y += 1;
 
-    secHeader('INCIDENTES, ACCIDENTES Y ENFERMEDAD PROFESIONAL', colorTerciario);
+   secHeader('INCIDENTES, ACCIDENTES Y ENFERMEDAD PROFESIONAL', colorTerciario);
+    
+    // 1. Incidentes
     autoTable(pdf, {
-      startY: y, margin: { left: M, right: M }, theme: 'grid', styles: { ...baseStyles, fontSize: 6.5 }, headStyles: { ...headStyles, fillColor: colorSecundario },
-      head: [['INCIDENTES LABORALES REPORTADOS']], body: [[ev.incidentes || 'NINGUNO']],
+      startY: y, margin: { left: M, right: M }, theme: 'grid', styles: { ...baseStyles, fontSize: 6.5 }, headStyles: { ...headStyles, fillColor: colorTerciario },
+      head: [['INCIDENTES LABORALES REPORTADOS']], 
+      body: [[ev.incidentes || 'El trabajador/a no ha sufrido o reportado incidentes hasta el momento.']],
     });
     y = (pdf as any).lastAutoTable.finalY;
 
-    if (ev.accidentesTrabajo?.descripcion) {
-      autoTable(pdf, {
-        startY: y, margin: { left: M, right: M }, theme: 'grid', styles: { ...baseStyles, fontSize: 6.5 }, headStyles: { ...headStyles, fillColor: colorSecundario },
-        head: [['DESCRIPCIÓN DEL ACCIDENTE DE TRABAJO', 'CALIFICADO IESS', 'ESPECIFICACIÓN', 'OBSERVACIONES']],
-        body: [[ev.accidentesTrabajo.descripcion, ev.accidentesTrabajo.calificado ? 'SÍ' : 'NO', ev.accidentesTrabajo.especificacion || '-', ev.accidentesTrabajo.observaciones || '-']],
-        columnStyles: { 1: { halign: 'center' } },
-      });
-      y = (pdf as any).lastAutoTable.finalY;
-    }
+    // 2. Accidentes (SIEMPRE se muestra)
+    const descAccidente = ev.accidentesTrabajo?.descripcion || 'El trabajador/a no ha sufrido o reportado accidentes de trabajo hasta el momento.';
+    const califAccidente = ev.accidentesTrabajo?.descripcion ? (ev.accidentesTrabajo.calificado ? 'SÍ' : 'NO') : '-';
+    autoTable(pdf, {
+      startY: y, margin: { left: M, right: M }, theme: 'grid', styles: { ...baseStyles, fontSize: 6.5 }, headStyles: { ...headStyles, fillColor: colorTerciario },
+      head: [['DESCRIPCIÓN DEL ACCIDENTE DE TRABAJO', 'CALIFICADO IESS', 'ESPECIFICACIÓN', 'OBSERVACIONES']],
+      body: [[descAccidente, califAccidente, ev.accidentesTrabajo?.especificacion || '-', ev.accidentesTrabajo?.observaciones || '-']],
+      columnStyles: { 1: { halign: 'center' } },
+    });
+    y = (pdf as any).lastAutoTable.finalY;
 
-    if (ev.enfermedadesProfesionales?.descripcion) {
-      autoTable(pdf, {
-        startY: y, margin: { left: M, right: M }, theme: 'grid', styles: { ...baseStyles, fontSize: 6.5 }, headStyles: { ...headStyles, fillColor: colorSecundario },
-        head: [['DESCRIPCIÓN DE ENFERMEDAD PROFESIONAL', 'CALIFICADA IESS', 'ESPECIFICACIÓN', 'OBSERVACIONES']],
-        body: [[ev.enfermedadesProfesionales.descripcion, ev.enfermedadesProfesionales.calificada ? 'SÍ' : 'NO', ev.enfermedadesProfesionales.especificacion || '-', ev.enfermedadesProfesionales.observaciones || '-']],
-        columnStyles: { 1: { halign: 'center' } },
-      });
-      y = (pdf as any).lastAutoTable.finalY;
-    }
-    y += 2;
+    // 3. Enfermedades (SIEMPRE se muestra)
+    const descEnfermedad = ev.enfermedadesProfesionales?.descripcion || 'El trabajador/a no ha sufrido o reportado enfermedades profesionales hasta el momento.';
+    const califEnfermedad = ev.enfermedadesProfesionales?.descripcion ? (ev.enfermedadesProfesionales.calificada ? 'SÍ' : 'NO') : '-';
+    autoTable(pdf, {
+      startY: y, margin: { left: M, right: M }, theme: 'grid', styles: { ...baseStyles, fontSize: 6.5 }, headStyles: { ...headStyles, fillColor: colorTerciario },
+      head: [['DESCRIPCIÓN DE ENFERMEDAD PROFESIONAL', 'CALIFICADA IESS', 'ESPECIFICACIÓN', 'OBSERVACIONES']],
+      body: [[descEnfermedad, califEnfermedad, ev.enfermedadesProfesionales?.especificacion || '-', ev.enfermedadesProfesionales?.observaciones || '-']],
+      columnStyles: { 1: { halign: 'center' } },
+    });
+    y = (pdf as any).lastAutoTable.finalY + 2;
 
     // --- D. ANTECEDENTES FAMILIARES ---
     checkPage(30);
@@ -357,24 +361,29 @@ export default function DetalleTrabajador() {
     y = (pdf as any).lastAutoTable.finalY;
 
     if (ev.revisionSistemasSeleccionados && ev.revisionSistemasSeleccionados.length > 0) {
-      const sistemasAfectados = ev.revisionSistemasSeleccionados
-        .map((s: string) => `${SISTEMAS.indexOf(s) + 1}. ${s}`)
-        .sort((a: string, b: string) => parseInt(a) - parseInt(b))
-        .join('\n');
-      textoLibre(`${sistemasAfectados}\nDescripción: ${ev.revisionSistemasDescripcion || '-'}`, 8);
+      // Obtenemos solo los números de los sistemas marcados
+      const nums = ev.revisionSistemasSeleccionados.map((s: string) => SISTEMAS.indexOf(s) + 1).sort((a: number, b: number) => a - b);
+      
+      // Separamos la descripción del usuario por saltos de línea (enters)
+      const descripciones = (ev.revisionSistemasDescripcion || '').split('\n').filter((l: string) => l.trim() !== '');
+      
+      const lineasRevision: string[] = [];
+      
+      // Emparejamos cada número con la línea correspondiente que escribió el usuario
+      nums.forEach((num: number, index: number) => {
+        lineasRevision.push(`${num}. ${descripciones[index] || ''}`);
+      });
+      
+      // Si el usuario escribió más líneas que sistemas seleccionados, no perdemos esa información
+      if (descripciones.length > nums.length) {
+        lineasRevision.push(...descripciones.slice(nums.length));
+      }
+      
+      textoLibre(lineasRevision.join('\n'), 8);
     } else { 
       textoLibre('Paciente no refiere síntomas adicionales.', 5); 
     }
     y += 1;
-
-    secHeader('H. CONSTANTES VITALES Y ANTROPOMETRÍA');
-    const sv = ev.signosVitales || {};
-    autoTable(pdf, {
-      startY: y, margin: { left: M, right: M }, theme: 'grid', styles: { ...baseStyles, halign: 'center', fontSize: 7 }, headStyles: { ...headStyles, fontSize: 5.5, halign: 'center' },
-      head: [['PRESIÓN\nARTERIAL\n(mmHg)', 'TEMP.\n(°C)', 'FREC.\nCARDÍACA\n(Lat/min)', 'SAT. DE\nOXÍGENO\n(O₂%)', 'FREC.\nRESP.\n(fr/min)', 'PESO\n(Kg)', 'TALLA\n(cm)', 'IMC\n(Kg/m²)', 'PERÍM.\nABD.\n(cm)']],
-      body: [[`${sv.presionSistolica || '-'}/${sv.presionDiastolica || '-'}`, sv.temperatura || '-', sv.frecuenciaCardiaca || '-', sv.saturacion || '-', sv.frecuenciaRespiratoria || '-', sv.peso || '-', sv.talla || '-', sv.imc || '-', sv.perimetroAbdominal || '-']],
-    });
-    y = (pdf as any).lastAutoTable.finalY + 2;
 
     // --- I. EXAMEN FÍSICO REGIONAL (Con texto rotado arreglado y celda unida al final) ---
     checkPage(60);
