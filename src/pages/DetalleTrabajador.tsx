@@ -399,6 +399,19 @@ export default function DetalleTrabajador() {
       },
       head: [[{ content: 'REGIONES', colSpan: 15, styles: { halign: 'left', fillColor: colorTerciario } }]],
       body: pdfFisicoRows as any,
+     autoTable(pdf, {
+      startY: y, margin: { left: M, right: M }, theme: 'grid',
+      styles: { ...baseStyles, fontSize: 5.5, cellPadding: 0.8 },
+      headStyles: { fillColor: colorTerciario, textColor: negro, fontSize: 6 },
+      columnStyles: {
+        0: { cellWidth: 5 }, 1: { cellWidth: 26 }, 2: { cellWidth: 4, halign: 'center' },
+        3: { cellWidth: 5 }, 4: { cellWidth: 26 }, 5: { cellWidth: 4, halign: 'center' },
+        6: { cellWidth: 5 }, 7: { cellWidth: 26 }, 8: { cellWidth: 4, halign: 'center' },
+        9: { cellWidth: 5 }, 10: { cellWidth: 26 }, 11: { cellWidth: 4, halign: 'center' },
+        12: { cellWidth: 5 }, 13: { cellWidth: 26 }, 14: { cellWidth: 4, halign: 'center' }
+      },
+      head: [[{ content: 'REGIONES', colSpan: 15, styles: { halign: 'left', fillColor: colorTerciario } }]],
+      body: pdfFisicoRows as any,
       didDrawCell: function(data) {
         const raw = data.cell.raw as any;
         if (data.section === 'body' && raw && raw.textToRotate) {
@@ -409,19 +422,17 @@ export default function DetalleTrabajador() {
           const str = String(raw.textToRotate);
           const textWidth = pdf.getTextWidth(str);
           
-          // X: Centro exacto de la celda + 1mm a la derecha. 
-          // (Al girar 90°, jsPDF dibuja la letra hacia la izquierda, el +1 lo centra perfecto)
+          // X: Centro de la celda ajustado a la derecha para compensar el giro
           const textX = data.cell.x + (data.cell.width / 2) + 1; 
           
-          // Y: Mitad de la celda + la mitad del ancho de la palabra. 
-          // (Para que empiece en la parte de abajo y termine exacto arriba)
+          // Y: Centro de la celda ajustado hacia abajo usando el ancho de la palabra
           const textY = data.cell.y + (data.cell.height / 2) + (textWidth / 2);
           
           pdf.text(str, textX, textY, { angle: 90 });
         }
       }
+    });
     y = (pdf as any).lastAutoTable.finalY;
-
     if (ev.examenFisicoHallazgos && ev.examenFisicoHallazgos.length > 0) {
       const lineasFisico = ev.examenFisicoHallazgos.map((h: any) => `${h.codigo}: ${h.descripcion || '-'}`).join('; ');
       textoLibre(lineasFisico, 6); y += 1;
