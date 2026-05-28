@@ -24,7 +24,7 @@ const SISTEMAS = [
 const FISICO_ROWS = [
   [
     { type: 'reg', rs: 3, txt: '1. PIEL' }, { type: 'sub', txt: 'a. Cicatrices' }, { type: 'chk', code: '1a' },
-    { type: 'reg', rs: 3, txt: '3. OÍDO' }, { type: 'sub', txt: 'a. C. aud ext' }, { type: 'chk', code: '3a' },
+    { type: 'reg', rs: 3, txt: '3. OÍDO' }, { type: 'sub', txt: 'a. C. auditivo ext.' }, { type: 'chk', code: '3a' },
     { type: 'reg', rs: 4, txt: '5. NARIZ' }, { type: 'sub', txt: 'a. Tabique' }, { type: 'chk', code: '5a' },
     { type: 'reg', rs: 2, txt: '8. TÓRAX' }, { type: 'sub', txt: 'a. Pulmones' }, { type: 'chk', code: '8a' },
     { type: 'reg', rs: 2, txt: '11. PELVIS' }, { type: 'sub', txt: 'a. Pelvis' }, { type: 'chk', code: '11a' }
@@ -37,7 +37,7 @@ const FISICO_ROWS = [
     { type: 'sub', txt: 'b. Genitales' }, { type: 'chk', code: '11b' }
   ],
   [
-    { type: 'sub', txt: 'c. Piel faneras' }, { type: 'chk', code: '1c' },
+    { type: 'sub', txt: 'c. Piel y faneras' }, { type: 'chk', code: '1c' },
     { type: 'sub', txt: 'c. Tímpanos' }, { type: 'chk', code: '3c' },
     { type: 'sub', txt: 'c. Mucosas' }, { type: 'chk', code: '5c' },
     { type: 'reg', rs: 2, txt: '9. ABDOMEN' }, { type: 'sub', txt: 'a. Vísceras' }, { type: 'chk', code: '9a' },
@@ -67,7 +67,7 @@ const FISICO_ROWS = [
   [
     { type: 'sub', txt: 'd. Córnea' }, { type: 'chk', code: '2d' },
     { type: 'sub', txt: 'd. Amígdalas' }, { type: 'chk', code: '4d' },
-    { type: 'reg', rs: 2, txt: '7. TÓRAX (Cor)' }, { type: 'sub', txt: 'a. Mamas' }, { type: 'chk', code: '7a' },
+    { type: 'reg', rs: 2, txt: '7. TÓRAX' }, { type: 'sub', txt: 'a. Mamas' }, { type: 'chk', code: '7a' },
     { type: 'sub', txt: 'c. Dolor' }, { type: 'chk', code: '10c' },
     { type: 'sub', txt: 'b. Sensibilidad' }, { type: 'chk', code: '13b' }
   ],
@@ -75,10 +75,11 @@ const FISICO_ROWS = [
     { type: 'sub', txt: 'e. Motilidad' }, { type: 'chk', code: '2e' },
     { type: 'sub', txt: 'e. Dentadura' }, { type: 'chk', code: '4e' },
     { type: 'sub', txt: 'b. Corazón' }, { type: 'chk', code: '7b' },
-    { type: 'empty', rs: 2, cs: 3 },
+    { type: 'empty', cs: 3 },
     { type: 'sub', txt: 'c. Marcha' }, { type: 'chk', code: '13c' }
   ],
   [
+    { type: 'empty', cs: 3 },
     { type: 'empty', cs: 3 },
     { type: 'empty', cs: 3 },
     { type: 'empty', cs: 3 },
@@ -130,12 +131,6 @@ export default function DetalleTrabajador() {
     if (fecha.seconds) return new Date(fecha.seconds * 1000).toLocaleDateString('es-EC');
     if (fecha instanceof Date) return fecha.toLocaleDateString('es-EC');
     return String(fecha);
-  };
-
-  const fmtFH = (fecha: any): string => {
-    if (!fecha) return '-';
-    const d = fecha.seconds ? new Date(fecha.seconds * 1000) : fecha instanceof Date ? fecha : null;
-    return d ? d.toLocaleString('es-EC') : String(fecha);
   };
 
   const fmtHora = (fecha: any): string => {
@@ -403,6 +398,7 @@ export default function DetalleTrabajador() {
         const raw = data.cell.raw as any;
         if (data.section === 'body' && raw && raw.textToRotate) {
           pdf.setTextColor(0); pdf.setFontSize(5.5); pdf.setFont('helvetica', 'bold');
+          // Imprime el texto vertical centrado en la celda
           const textX = data.cell.x + (data.cell.width / 2) + 1.5;
           const textY = data.cell.y + (data.cell.height / 2);
           pdf.text(String(raw.textToRotate), textX, textY, { angle: 90, align: 'center' });
@@ -561,18 +557,73 @@ export default function DetalleTrabajador() {
 
                   <Sec title="B. MOTIVO DE CONSULTA"><p className="text-xs uppercase">{ev.motivoConsulta || 'ACTUALIZACIÓN DE FICHA OCUPACIONAL'}</p></Sec>
                   
+                  {/* RESTAURADO: C. ANTECEDENTES PERSONALES (Campos completos) */}
                   <Sec title="C. ANTECEDENTES PERSONALES Y LABORALES">
-                    <p className="text-xs mb-2"><span className="font-bold">Clínicos y Quirúrgicos:</span> {ev.antecedentesClinicosQuirurgicos || 'Sin registros'}</p>
-                    {ev.habitosToxicos?.length > 0 && (
-                      <div className="grid grid-cols-3 gap-2 mb-3">
-                        {ev.habitosToxicos.map((h: any, i: number) => <div key={i} className="bg-slate-50 p-2 rounded text-xs"><span className="font-semibold capitalize">{h.tipo}: </span>{h.consume ? `Consume (${h.tiempoConsumo || '?'}m)` : h.exConsumidor ? `Ex consumidor (${h.tiempoAbstinencia || '?'}m)` : 'No consume'}</div>)}
+                    <div className="space-y-4">
+                      {/* Clínicos y quirúrgicos */}
+                      <div>
+                        <p className="text-xs font-bold text-slate-700 mb-1">Antecedentes Clínicos y Quirúrgicos:</p>
+                        <p className="text-xs p-2 bg-slate-50 rounded border border-slate-100">{ev.antecedentesClinicosQuirurgicos || 'Sin registros'}</p>
                       </div>
-                    )}
-                    <div className="border-t border-slate-200 pt-2 mb-2">
-                      <p className="text-xs font-bold mb-1">Incidentes y Accidentes:</p>
-                      <p className="text-xs mb-1"><span className="font-semibold">Incidentes:</span> {ev.incidentes || 'NINGUNO'}</p>
-                      {ev.accidentesTrabajo?.descripcion && <p className="text-xs"><span className="font-semibold">Accidente Trabajo:</span> {ev.accidentesTrabajo.descripcion} (IESS: {ev.accidentesTrabajo.calificado ? 'SÍ' : 'NO'})</p>}
-                      {ev.enfermedadesProfesionales?.descripcion && <p className="text-xs"><span className="font-semibold">Enf. Profesional:</span> {ev.enfermedadesProfesionales.descripcion} (IESS: {ev.enfermedadesProfesionales.calificada ? 'SÍ' : 'NO'})</p>}
+
+                      {/* Hábitos Tóxicos */}
+                      {ev.habitosToxicos?.length > 0 && (
+                        <div>
+                          <p className="text-xs font-bold text-slate-700 mb-1">Hábitos Tóxicos:</p>
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                            {ev.habitosToxicos.map((h: any, i: number) => (
+                              <div key={i} className="bg-slate-50 p-2 rounded text-xs border border-slate-100">
+                                <span className="font-semibold capitalize">{h.tipo}: </span>
+                                {h.consume ? `Consume (${h.tiempoConsumo || '?'} meses, ${h.cantidad || '?'})` : h.exConsumidor ? `Ex consumidor (${h.tiempoAbstinencia || '?'} meses)` : 'No consume'}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Estilo de Vida (RESTAURADO) */}
+                      {ev.estiloVida && (
+                        <div>
+                          <p className="text-xs font-bold text-slate-700 mb-1">Estilo de Vida:</p>
+                          <div className="bg-slate-50 p-2 rounded text-xs border border-slate-100 space-y-1">
+                            <p><span className="font-semibold">Actividad física:</span> {ev.estiloVida.actividadFisica ? `Sí — ${ev.estiloVida.tipoActividad || ''} (${ev.estiloVida.tiempoCantidad || ''})` : 'No'}</p>
+                            <p><span className="font-semibold">Medicación habitual:</span> {ev.estiloVida.medicacionHabitual ? `Sí — ${ev.estiloVida.medicacionHabitual} (${ev.estiloVida.medicacionCantidad || ''})` : 'No'}</p>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Incidentes y Accidentes */}
+                      <div className="border-t border-slate-200 pt-3">
+                        <p className="text-xs font-bold text-slate-700 mb-2">Incidentes, Accidentes y Enfermedad Profesional:</p>
+                        <div className="space-y-2">
+                          <div className="bg-slate-50 p-2 rounded text-xs border border-slate-100">
+                            <span className="font-semibold block mb-1">Incidentes Reportados:</span>
+                            {ev.incidentes || 'NINGUNO'}
+                          </div>
+                          
+                          {ev.accidentesTrabajo?.descripcion && (
+                            <div className="bg-red-50 p-2 rounded text-xs border border-red-100">
+                              <span className="font-semibold text-red-800 block mb-1">Accidente de Trabajo:</span>
+                              <p>{ev.accidentesTrabajo.descripcion}</p>
+                              <div className="flex gap-4 mt-1 text-slate-600">
+                                <span><span className="font-semibold">Calificado IESS:</span> {ev.accidentesTrabajo.calificado ? 'SÍ' : 'NO'}</span>
+                                <span><span className="font-semibold">Obs:</span> {ev.accidentesTrabajo.observaciones || '-'}</span>
+                              </div>
+                            </div>
+                          )}
+
+                          {ev.enfermedadesProfesionales?.descripcion && (
+                            <div className="bg-orange-50 p-2 rounded text-xs border border-orange-100">
+                              <span className="font-semibold text-orange-800 block mb-1">Enfermedad Profesional:</span>
+                              <p>{ev.enfermedadesProfesionales.descripcion}</p>
+                              <div className="flex gap-4 mt-1 text-slate-600">
+                                <span><span className="font-semibold">Calificada IESS:</span> {ev.enfermedadesProfesionales.calificada ? 'SÍ' : 'NO'}</span>
+                                <span><span className="font-semibold">Obs:</span> {ev.enfermedadesProfesionales.observaciones || '-'}</span>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   </Sec>
 
@@ -599,7 +650,7 @@ export default function DetalleTrabajador() {
                       </table>
                     </div>
                     {ev.antecedentesFamiliares?.length > 0 && (
-                      <div className="text-xs space-y-1">
+                      <div className="text-xs space-y-1 border-t border-slate-200 pt-2 mt-2">
                         {ev.antecedentesFamiliares.map((af: any, i: number) => <p key={i}><span className="font-semibold">{af.tipo} ({af.parentesco}):</span> {af.descripcion}</p>)}
                       </div>
                     )}
@@ -612,6 +663,15 @@ export default function DetalleTrabajador() {
                         {ev.factoresRiesgo.actividades && <> · <span className="font-bold">Actividades:</span> {ev.factoresRiesgo.actividades}</>}
                         {ev.factoresRiesgo.tiempoTrabajoMeses && <> · <span className="font-bold">Tiempo:</span> {ev.factoresRiesgo.tiempoTrabajoMeses} meses</>}
                       </div>
+                      <div className="flex flex-wrap gap-1.5 mb-2">
+                        {(ev.factoresRiesgo.fisicos || []).map((r: string) => <span key={r} className="text-[10px] bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">{r}</span>)}
+                        {(ev.factoresRiesgo.mecanicos || []).map((r: string) => <span key={r} className="text-[10px] bg-red-100 text-red-800 px-2 py-0.5 rounded-full">{r}</span>)}
+                        {(ev.factoresRiesgo.quimicos || []).map((r: string) => <span key={r} className="text-[10px] bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full">{r}</span>)}
+                        {(ev.factoresRiesgo.biologicos || []).map((r: string) => <span key={r} className="text-[10px] bg-green-100 text-green-800 px-2 py-0.5 rounded-full">{r}</span>)}
+                        {(ev.factoresRiesgo.ergonomicos || []).map((r: string) => <span key={r} className="text-[10px] bg-purple-100 text-purple-800 px-2 py-0.5 rounded-full">{r}</span>)}
+                        {(ev.factoresRiesgo.psicosociales || []).map((r: string) => <span key={r} className="text-[10px] bg-pink-100 text-pink-800 px-2 py-0.5 rounded-full">{r}</span>)}
+                      </div>
+                      {ev.factoresRiesgo.medidasPreventivas && <p className="text-xs italic text-slate-600">Medidas preventivas: {ev.factoresRiesgo.medidasPreventivas}</p>}
                     </Sec>
                   )}
 
@@ -660,7 +720,7 @@ export default function DetalleTrabajador() {
                     </div>
                   </Sec>
 
-                  {/* MATRIZ I. EXAMEN FISICO REGIONAL */}
+                  {/* MATRIZ I. EXAMEN FISICO REGIONAL (CORREGIDA SIN POSITION ABSOLUTE) */}
                   <Sec title="I. EXAMEN FÍSICO REGIONAL">
                     <div className="overflow-x-auto mb-2">
                       <table className="w-full text-[9px] border-collapse border border-slate-300">
@@ -671,12 +731,12 @@ export default function DetalleTrabajador() {
                           {FISICO_ROWS.map((row, i) => (
                              <tr key={i}>
                                {row.map((cell, j) => {
-                                 // REGIONES COMBINADAS Y GIRADAS (-90deg) MEDIANTE POSITION ABSOLUTE
+                                 // TEXTO VERTICAL CORREGIDO: Se usa standard CSS writing-mode sin absolute
                                  if(cell.type === 'reg') {
                                     return (
-                                      <td key={j} rowSpan={cell.rs} className="bg-[#ccffff] border border-slate-300 relative w-6 min-w-[24px]">
-                                        <div className="absolute inset-0 flex items-center justify-center">
-                                          <span className="transform -rotate-90 whitespace-nowrap text-[8px] font-bold text-slate-800 tracking-widest">{cell.txt}</span>
+                                      <td key={j} rowSpan={cell.rs} className="bg-[#ccffff] border border-slate-300 p-1 align-middle text-center w-8">
+                                        <div style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }} className="text-[10px] font-bold text-slate-800 mx-auto tracking-widest whitespace-nowrap">
+                                          {cell.txt}
                                         </div>
                                       </td>
                                     );
@@ -695,7 +755,7 @@ export default function DetalleTrabajador() {
                       </table>
                     </div>
                     {ev.examenFisicoHallazgos?.length > 0 ? (
-                      <div className="text-xs space-y-1">
+                      <div className="text-xs space-y-1 mt-3 border-t border-slate-200 pt-2">
                         {ev.examenFisicoHallazgos.map((h: any, i: number) => <p key={i}><span className="font-bold text-blue-700">{h.codigo}:</span> {h.descripcion}</p>)}
                       </div>
                     ) : <p className="text-xs text-green-700">Sin hallazgos patológicos al examen físico regional.</p>}
