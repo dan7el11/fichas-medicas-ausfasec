@@ -402,14 +402,24 @@ export default function DetalleTrabajador() {
       didDrawCell: function(data) {
         const raw = data.cell.raw as any;
         if (data.section === 'body' && raw && raw.textToRotate) {
-          pdf.setTextColor(0); pdf.setFontSize(5.5); pdf.setFont('helvetica', 'bold');
-          // Cálculo exacto del centro para que el texto nunca se salga de su celda
-          const textX = data.cell.x + (data.cell.width / 2);
-          const textY = data.cell.y + (data.cell.height / 2);
-          pdf.text(String(raw.textToRotate), textX, textY, { angle: 90, align: 'center', baseline: 'middle' });
+          pdf.setTextColor(0); 
+          pdf.setFontSize(5.5); 
+          pdf.setFont('helvetica', 'bold');
+          
+          const str = String(raw.textToRotate);
+          const textWidth = pdf.getTextWidth(str);
+          
+          // X: Centro exacto de la celda + 1mm a la derecha. 
+          // (Al girar 90°, jsPDF dibuja la letra hacia la izquierda, el +1 lo centra perfecto)
+          const textX = data.cell.x + (data.cell.width / 2) + 1; 
+          
+          // Y: Mitad de la celda + la mitad del ancho de la palabra. 
+          // (Para que empiece en la parte de abajo y termine exacto arriba)
+          const textY = data.cell.y + (data.cell.height / 2) + (textWidth / 2);
+          
+          pdf.text(str, textX, textY, { angle: 90 });
         }
       }
-    });
     y = (pdf as any).lastAutoTable.finalY;
 
     if (ev.examenFisicoHallazgos && ev.examenFisicoHallazgos.length > 0) {
