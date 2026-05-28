@@ -5,6 +5,9 @@ import { db } from '../services/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import SignosVitalesForm from '../components/SignosVitalesForm';
 import type { Trabajador, SignosVitales, HabitoToxico, EstiloVida, AccidenteTrabajo, EnfermedadProfesional, AntecedenteFamiliar, ExamenFisicoHallazgo, ExamenComplementario, Diagnostico, Usuario, FactorRiesgoPuesto } from '../types';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { storage } from '../services/firebase';
+import AdjuntarExamenes, { type ExamenAdjunto } from '../components/examenes/AdjuntarExamenes';
 
 // Datos fijos de la empresa (Sección A)
 const DATOS_EMPRESA = {
@@ -281,8 +284,10 @@ export default function NuevaEvaluacion() {
   const [aptitudMedica, setAptitudMedica] = useState<'apto' | 'aptoObservacion' | 'aptoLimitaciones' | 'noApto'>('apto');
   const [aptitudObservacion, setAptitudObservacion] = useState('');
   const [aptitudLimitaciones, setAptitudLimitaciones] = useState('');
+  const [examenesAdjuntos, setExamenesAdjuntos] = useState<ExamenAdjunto[]>([]);
 
-  // M. Recomendaciones
+
+  // M. endaciones
   const [recomendaciones, setRecomendaciones] = useState<string[]>([]);
   const [recomendacionesOtras, setRecomendacionesOtras] = useState('');
 
@@ -415,6 +420,45 @@ export default function NuevaEvaluacion() {
       };
 
       const evalRef = await addDoc(collection(db, 'evaluaciones'), evaluacion);
+      // Subir exámenes adjuntos y vincularlos a la evaluación
+      const examenesIds: string[] = [];
+      for (const item of examenesAdjuntos) {
+        if (!item.nombreExamen.trim()) continue;
+        if (item.estado === 'patologico' && !item.observacion.trim()) continue;
+
+        // Subir archivo a Storage
+        const ext = item.file.name.split('.').pop() || 'pdf';
+        const storagePath = `examenes/${trabajadorId}/${Date.now()}_${item.nombreExamen.replace(/\s+/g, '_')}.${ext}`;
+        const storageRef = ref(storage, storagePath);
+        await uploadBytes(storageRef, item.file);
+        const url = await getDownloadURL(storageRef);
+
+        // Crear documento en Firestore
+        const exDoc = await addDoc(collection(db, 'examenes'), {
+          trabajadorId,
+          evaluacionId: evalRef.id,
+          tipoExamen: item.tipoExamen,
+          nombreExamen: item.nombreExamen,
+          grupoExamen: item.grupoExamen,
+          fecha: new Date(item.fecha),
+          resultado: item.resultado,
+          estado: item.estado,
+          observacion: item.observacion,
+          archivoUrl: url,
+          archivoNombre: item.file.name,
+          archivoTipo: item.file.type,
+          archivoPath: storagePath,
+          medicoId: user.uid,
+          medicoNombre: medicoData?.nombreCompleto || '',
+          createdAt: hoy,
+        });
+        examenesIds.push(exDoc.id);
+      }
+
+      // Actualizar evaluación con los IDs de exámenes vinculados
+      if (examenesIds.length > 0) {
+        await updateDoc(evalRef, { examenesVinculados: examenesIds });
+      }
 
       await updateDoc(doc(db, 'trabajadores', trabajadorId), {
         evaluaciones: arrayUnion(evalRef.id),
@@ -759,7 +803,11 @@ export default function NuevaEvaluacion() {
           ))}
           <button type="button" onClick={() => setExamenesComplementarios(prev => [...prev, { nombre: '', fecha: '', resultado: '' }])} className="text-blue-600 text-xs font-medium mt-2 hover:underline">+ Agregar examen</button>
         </div>
-
+        <AdjuntarExamenes
+          examenes={examenesAdjuntos}
+          onChange={setExamenesAdjuntos}
+          fechaEvaluacion={new Date()}
+        />
         {/* ===== K. DIAGNÓSTICOS ===== */}
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
           <h2 className="text-sm font-bold text-slate-800 mb-3 border-b pb-2">K. DIAGNÓSTICO</h2>
@@ -775,7 +823,7 @@ export default function NuevaEvaluacion() {
           ))}
           <button type="button" onClick={() => setDiagnosticos(prev => [...prev, { descripcion: '', cie: '', tipo: 'definitivo' }])} className="text-blue-600 text-xs font-medium mt-2 hover:underline">+ Agregar diagnóstico</button>
         </div>
-
+        
         {/* ===== L. APTITUD MÉDICA ===== */}
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
           <h2 className="text-sm font-bold text-slate-800 mb-3 border-b pb-2">L. APTITUD MÉDICA PARA EL TRABAJO</h2>
