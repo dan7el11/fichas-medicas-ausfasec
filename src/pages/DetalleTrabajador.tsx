@@ -348,10 +348,10 @@ export default function DetalleTrabajador() {
       headStyles: { ...headStyles, fontSize: 5.5, halign: 'center' },
       head: [['PRESIÓN\nARTERIAL\n(mmHg)', 'TEMP.\n(°C)', 'FREC.\nCARDÍACA\n(Lat/min)', 'SAT. DE\nOXÍGENO\n(O₂%)', 'FREC.\nRESP.\n(fr/min)', 'PESO\n(Kg)', 'TALLA\n(cm)', 'IMC\n(Kg/m²)', 'PERÍM.\nABD.\n(cm)']],
       body: [[
-        `${sv.presionSistolica || '-'}/${sv.presionDiastolica || '-'}`,
-        sv.temperatura || '-', sv.frecuenciaCardiaca || '-', sv.saturacion || '-',
-        sv.frecuenciaRespiratoria || '-', sv.peso || '-', sv.talla || '-',
-        sv.imc || '-', sv.perimetroAbdominal || '-'
+        `${ev.signosVitales?.presionSistolica || '-'}/${ev.signosVitales?.presionDiastolica || '-'}`,
+        ev.signosVitales?.temperatura || '-', ev.signosVitales?.frecuenciaCardiaca || '-', ev.signosVitales?.saturacion || '-',
+        ev.signosVitales?.frecuenciaRespiratoria || '-', ev.signosVitales?.peso || '-', ev.signosVitales?.signosVitales?.talla || '-',
+        ev.signosVitales?.imc || '-', ev.signosVitales?.perimetroAbdominal || '-'
       ]],
     });
     y = (pdf as any).lastAutoTable.finalY + 2;
