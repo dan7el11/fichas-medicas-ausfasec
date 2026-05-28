@@ -158,12 +158,12 @@ export default function DetalleTrabajador() {
     const CW = W - M * 2;
     let y = 7;
 
-    const colorPrimario = '#ccffcc';   
-    const colorSecundario = '#ccccff'; 
+    const colorPrimario = '#ccccff';
+    const colorSecundario = '#ccffcc'; 
     const colorTerciario = '#ccffff';  
     const negro: [number, number, number] = [0, 0, 0];
 
-    const baseStyles = { lineColor: negro, lineWidth: 0.25, fontSize: 7, cellPadding: 1.2, textColor: negro };
+    const baseStyles = { lineColor: negro, lineWidth: 0.25, fontSize: 6.5, cellPadding: 1.2, textColor: negro };
     const headStyles = { fillColor: colorSecundario, textColor: negro, fontStyle: 'bold' as const, fontSize: 6.5, lineColor: negro, lineWidth: 0.25, cellPadding: 1.2 };
 
     const checkPage = (needed: number) => {
@@ -394,7 +394,7 @@ export default function DetalleTrabajador() {
     autoTable(pdf, {
       startY: y, margin: { left: M, right: M }, theme: 'grid',
       styles: { ...baseStyles, fontSize: 5.5, cellPadding: 0.8 },
-      bodyStyles: { minCellHeight: 5.5 }, // <-- Esta línea soluciona la altura
+      bodyStyles: { minCellHeight: 6.5 }, // <-- Esta línea soluciona la altura
       headStyles: { fillColor: colorTerciario, textColor: negro, fontSize: 6 },
       columnStyles: {
         0: { cellWidth: 5 }, 1: { cellWidth: 26 }, 2: { cellWidth: 4, halign: 'center' },
