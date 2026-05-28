@@ -7,7 +7,7 @@ import autoTable from 'jspdf-autotable';
 import type { Trabajador, EvaluacionMedica } from '../types';
 
 // ============================================================================
-// CONSTANTES DE CATÁLOGOS Y MATRIZ FÍSICA
+// CONSTANTES DE CATÁLOGOS
 // ============================================================================
 const TIPOS_ANTECEDENTES_FAMILIARES = [
   'Enfermedad Cardio-Vascular', 'Enfermedad Metabólica', 'Enfermedad Neurológica',
@@ -20,71 +20,17 @@ const SISTEMAS = [
   'DIGESTIVO', 'GENITO - URINARIO', 'MÚSCULO ESQUELÉTICO', 'ENDOCRINO', 'HEMO LINFÁTICO', 'NERVIOSO'
 ];
 
-// Matriz horizontal de 9 filas x 15 columnas (5 bloques de: Región, Subregión, Celda X)
-const FISICO_ROWS = [
-  [
-    { type: 'reg', rs: 3, txt: '1. PIEL' }, { type: 'sub', txt: 'a. Cicatrices' }, { type: 'chk', code: '1a' },
-    { type: 'reg', rs: 3, txt: '3. OÍDO' }, { type: 'sub', txt: 'a. C. auditivo ext.' }, { type: 'chk', code: '3a' },
-    { type: 'reg', rs: 4, txt: '5. NARIZ' }, { type: 'sub', txt: 'a. Tabique' }, { type: 'chk', code: '5a' },
-    { type: 'reg', rs: 2, txt: '8. TÓRAX' }, { type: 'sub', txt: 'a. Pulmones' }, { type: 'chk', code: '8a' },
-    { type: 'reg', rs: 2, txt: '11. PELVIS' }, { type: 'sub', txt: 'a. Pelvis' }, { type: 'chk', code: '11a' }
-  ],
-  [
-    { type: 'sub', txt: 'b. Tatuajes' }, { type: 'chk', code: '1b' },
-    { type: 'sub', txt: 'b. Pabellón' }, { type: 'chk', code: '3b' },
-    { type: 'sub', txt: 'b. Cornetes' }, { type: 'chk', code: '5b' },
-    { type: 'sub', txt: 'b. Parrilla costal' }, { type: 'chk', code: '8b' },
-    { type: 'sub', txt: 'b. Genitales' }, { type: 'chk', code: '11b' }
-  ],
-  [
-    { type: 'sub', txt: 'c. Piel y faneras' }, { type: 'chk', code: '1c' },
-    { type: 'sub', txt: 'c. Tímpanos' }, { type: 'chk', code: '3c' },
-    { type: 'sub', txt: 'c. Mucosas' }, { type: 'chk', code: '5c' },
-    { type: 'reg', rs: 2, txt: '9. ABDOMEN' }, { type: 'sub', txt: 'a. Vísceras' }, { type: 'chk', code: '9a' },
-    { type: 'reg', rs: 3, txt: '12. EXTREM.' }, { type: 'sub', txt: 'a. Vascular' }, { type: 'chk', code: '12a' }
-  ],
-  [
-    { type: 'reg', rs: 5, txt: '2. OJOS' }, { type: 'sub', txt: 'a. Párpados' }, { type: 'chk', code: '2a' },
-    { type: 'reg', rs: 5, txt: '4. OROFARINGE' }, { type: 'sub', txt: 'a. Labios' }, { type: 'chk', code: '4a' },
-    { type: 'sub', txt: 'd. Senos paran.' }, { type: 'chk', code: '5d' },
-    { type: 'sub', txt: 'b. Pared abdom.' }, { type: 'chk', code: '9b' },
-    { type: 'sub', txt: 'b. Miembros sup.' }, { type: 'chk', code: '12b' }
-  ],
-  [
-    { type: 'sub', txt: 'b. Conjuntivas' }, { type: 'chk', code: '2b' },
-    { type: 'sub', txt: 'b. Lengua' }, { type: 'chk', code: '4b' },
-    { type: 'reg', rs: 2, txt: '6. CUELLO' }, { type: 'sub', txt: 'a. Tiroides/mas' }, { type: 'chk', code: '6a' },
-    { type: 'reg', rs: 3, txt: '10. COLUMNA' }, { type: 'sub', txt: 'a. Flexibilidad' }, { type: 'chk', code: '10a' },
-    { type: 'sub', txt: 'c. Miembros inf.' }, { type: 'chk', code: '12c' }
-  ],
-  [
-    { type: 'sub', txt: 'c. Pupilas' }, { type: 'chk', code: '2c' },
-    { type: 'sub', txt: 'c. Faringe' }, { type: 'chk', code: '4c' },
-    { type: 'sub', txt: 'b. Movilidad' }, { type: 'chk', code: '6b' },
-    { type: 'sub', txt: 'b. Desviación' }, { type: 'chk', code: '10b' },
-    { type: 'reg', rs: 4, txt: '13. NEUROLÓG.' }, { type: 'sub', txt: 'a. Fuerza' }, { type: 'chk', code: '13a' }
-  ],
-  [
-    { type: 'sub', txt: 'd. Córnea' }, { type: 'chk', code: '2d' },
-    { type: 'sub', txt: 'd. Amígdalas' }, { type: 'chk', code: '4d' },
-    { type: 'reg', rs: 2, txt: '7. TÓRAX' }, { type: 'sub', txt: 'a. Mamas' }, { type: 'chk', code: '7a' },
-    { type: 'sub', txt: 'c. Dolor' }, { type: 'chk', code: '10c' },
-    { type: 'sub', txt: 'b. Sensibilidad' }, { type: 'chk', code: '13b' }
-  ],
-  [
-    { type: 'sub', txt: 'e. Motilidad' }, { type: 'chk', code: '2e' },
-    { type: 'sub', txt: 'e. Dentadura' }, { type: 'chk', code: '4e' },
-    { type: 'sub', txt: 'b. Corazón' }, { type: 'chk', code: '7b' },
-    { type: 'empty', cs: 3 },
-    { type: 'sub', txt: 'c. Marcha' }, { type: 'chk', code: '13c' }
-  ],
-  [
-    { type: 'empty', cs: 3 },
-    { type: 'empty', cs: 3 },
-    { type: 'empty', cs: 3 },
-    { type: 'empty', cs: 3 },
-    { type: 'sub', txt: 'd. Reflejos' }, { type: 'chk', code: '13d' }
-  ]
+// Matriz exacta de 14 columnas x 9 filas para replicar el Excel de Examen Físico
+const exFisicoMatrix = [
+  [{n:1, t:'1. Piel'}, {c:'1a', t:'a. Cicatrices'}, {s:true}, {n:3, t:'3. Oído'}, {c:'3a', t:'a. C. aud. ext'}, {s:true}, {n:5, t:'5. Nariz'}, {c:'5a', t:'a. Tabique'}, {s:true}, {n:8, t:'8. Tórax'}, {c:'8a', t:'a. Pulmones'}, {s:true}, {n:11, t:'11. Pelvis'}, {c:'11a', t:'a. Pelvis'}],
+  [{}, {c:'1b', t:'b. Tatuajes'}, {s:true}, {}, {c:'3b', t:'b. Pabellón'}, {s:true}, {}, {c:'5b', t:'b. Cornetes'}, {s:true}, {}, {c:'8b', t:'b. Parrilla costal'}, {s:true}, {}, {c:'11b', t:'b. Genitales'}],
+  [{}, {c:'1c', t:'c. Piel faneras'}, {s:true}, {}, {c:'3c', t:'c. Tímpanos'}, {s:true}, {}, {c:'5c', t:'c. Mucosas'}, {s:true}, {n:9, t:'9. Abdomen'}, {c:'9a', t:'a. Vísceras'}, {s:true}, {n:12, t:'12. Extremid.'}, {c:'12a', t:'a. Vascular'}],
+  [{n:2, t:'2. Ojos'}, {c:'2a', t:'a. Párpados'}, {s:true}, {n:4, t:'4. Orofaringe'}, {c:'4a', t:'a. Labios'}, {s:true}, {}, {c:'5d', t:'d. Senos paran.'}, {s:true}, {}, {c:'9b', t:'b. Pared abdom.'}, {s:true}, {}, {c:'12b', t:'b. Miembros S.'}],
+  [{}, {c:'2b', t:'b. Conjuntivas'}, {s:true}, {}, {c:'4b', t:'b. Lengua'}, {s:true}, {n:6, t:'6. Cuello'}, {c:'6a', t:'a. Tiroides/mas'}, {s:true}, {n:10, t:'10. Columna'}, {c:'10a', t:'a. Flexibilidad'}, {s:true}, {}, {c:'12c', t:'c. Miembros I.'}],
+  [{}, {c:'2c', t:'c. Pupilas'}, {s:true}, {}, {c:'4c', t:'c. Faringe'}, {s:true}, {}, {c:'6b', t:'b. Movilidad'}, {s:true}, {}, {c:'10b', t:'b. Desviación'}, {s:true}, {n:13, t:'13. Neurológ.'}, {c:'13a', t:'a. Fuerza'}],
+  [{}, {c:'2d', t:'d. Córnea'}, {s:true}, {}, {c:'4d', t:'d. Amígdalas'}, {s:true}, {n:7, t:'7. Tórax'}, {c:'7a', t:'a. Mamas'}, {s:true}, {}, {c:'10c', t:'c. Dolor'}, {s:true}, {}, {c:'13b', t:'b. Sensibilidad'}],
+  [{}, {c:'2e', t:'e. Motilidad'}, {s:true}, {}, {c:'4e', t:'e. Dentadura'}, {s:true}, {}, {c:'7b', t:'b. Corazón'}, {s:true}, {}, {}, {s:true}, {}, {c:'13c', t:'c. Marcha'}],
+  [{}, {}, {s:true}, {}, {}, {s:true}, {}, {}, {s:true}, {}, {}, {s:true}, {}, {c:'13d', t:'d. Reflejos'}]
 ];
 
 export default function DetalleTrabajador() {
@@ -133,16 +79,20 @@ export default function DetalleTrabajador() {
     return String(fecha);
   };
 
+  const fmtFH = (fecha: any): string => {
+    if (!fecha) return '-';
+    const d = fecha.seconds ? new Date(fecha.seconds * 1000) : fecha instanceof Date ? fecha : null;
+    return d ? d.toLocaleString('es-EC') : String(fecha);
+  };
+
   const fmtHora = (fecha: any): string => {
     if (!fecha) return '-';
     const d = fecha.seconds ? new Date(fecha.seconds * 1000) : fecha instanceof Date ? fecha : null;
     return d ? d.toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' }) : '-';
   };
 
-  const hasFisico = (ev: any, code: string) => ev.examenFisicoHallazgos?.some((h:any) => h.codigo === code);
-
   // ============================================================
-  //  GENERADOR PDF SO-RE-38
+  //  GENERADOR PDF SO-RE-38 ESTRICTO
   // ============================================================
   const generarPDF = () => {
     const ev: any = evaluaciones[pestanaActiva];
@@ -154,13 +104,19 @@ export default function DetalleTrabajador() {
     const CW = W - M * 2;
     let y = 7;
 
-    const colorPrimario = '#ccffcc';   
-    const colorSecundario = '#ccccff'; 
-    const colorTerciario = '#ccffff';  
+    const colorPrimario = '#ccffcc';   // Verde pastel
+    const colorSecundario = '#ccccff'; // Azul/lila pastel
+    const colorTerciario = '#ccffff';  // Celeste institucional (#ccffff)
     const negro: [number, number, number] = [0, 0, 0];
 
-    const baseStyles = { lineColor: negro, lineWidth: 0.25, fontSize: 7, cellPadding: 1.2, textColor: negro };
-    const headStyles = { fillColor: colorSecundario, textColor: negro, fontStyle: 'bold' as const, fontSize: 6.5, lineColor: negro, lineWidth: 0.25, cellPadding: 1.2 };
+    const baseStyles = {
+      lineColor: negro, lineWidth: 0.25,
+      fontSize: 7, cellPadding: 1.2, textColor: negro,
+    };
+    const headStyles = {
+      fillColor: colorSecundario, textColor: negro, fontStyle: 'bold' as const,
+      fontSize: 6.5, lineColor: negro, lineWidth: 0.25, cellPadding: 1.2,
+    };
 
     const checkPage = (needed: number) => {
       if (y + needed > 285) { pdf.addPage(); y = 7; }
@@ -168,7 +124,8 @@ export default function DetalleTrabajador() {
 
     const secHeader = (texto: string, bgColor = colorPrimario) => {
       checkPage(10);
-      pdf.setFillColor(bgColor); pdf.setDrawColor(0);
+      pdf.setFillColor(bgColor);
+      pdf.setDrawColor(0);
       pdf.rect(M, y, CW, 5, 'FD');
       pdf.setFontSize(7); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(0);
       pdf.text(texto, M + 1.5, y + 3.5);
@@ -187,24 +144,35 @@ export default function DetalleTrabajador() {
 
     // =============== PÁGINA 1 ===============
     autoTable(pdf, {
-      startY: y, margin: { left: M, right: M }, theme: 'grid', styles: { ...baseStyles, halign: 'center', fontSize: 8 }, columnStyles: { 0: { cellWidth: 42 }, 2: { cellWidth: 33 } },
+      startY: y, margin: { left: M, right: M }, theme: 'grid',
+      styles: { ...baseStyles, halign: 'center', fontSize: 8 },
+      columnStyles: { 0: { cellWidth: 42 }, 2: { cellWidth: 33 } },
       body: [
-        [{ content: 'CEM AUSTROGAS', rowSpan: 3, styles: { fontStyle: 'bold', fontSize: 11, valign: 'middle' } }, { content: 'HISTORIA CLÍNICA OCUPACIONAL:\nEVALUACIÓN PERIÓDICA', rowSpan: 2, styles: { fontStyle: 'bold', fontSize: 9, valign: 'middle' } }, { content: 'Código:   SO-RE-38', styles: { fontSize: 7, halign: 'left' } }],
+        [
+          { content: 'CEM AUSTROGAS', rowSpan: 3, styles: { fontStyle: 'bold', fontSize: 11, valign: 'middle' } },
+          { content: 'HISTORIA CLÍNICA OCUPACIONAL:\nEVALUACIÓN PERIÓDICA', rowSpan: 2, styles: { fontStyle: 'bold', fontSize: 9, valign: 'middle' } },
+          { content: 'Código:   SO-RE-38', styles: { fontSize: 7, halign: 'left' } }
+        ],
         [{ content: 'Revisión:  1', styles: { fontSize: 7, halign: 'left' } }],
-        [{ content: 'MACROPROCESO: PLANIFICACIÓN, SEGURIDAD Y AMBIENTE', styles: { fontSize: 6, fontStyle: 'bold' } }, { content: 'Página:    1 de 2', styles: { fontSize: 7, halign: 'left' } }]
+        [
+          { content: 'MACROPROCESO: PLANIFICACIÓN, SEGURIDAD Y AMBIENTE', styles: { fontSize: 6, fontStyle: 'bold' } },
+          { content: 'Página:    1 de 2', styles: { fontSize: 7, halign: 'left' } }
+        ]
       ],
     });
     y = (pdf as any).lastAutoTable.finalY + 2;
 
     secHeader('A. DATOS DEL ESTABLECIMIENTO - EMPRESA Y USUARIO');
     autoTable(pdf, {
-      startY: y, margin: { left: M, right: M }, theme: 'grid', styles: baseStyles, headStyles: headStyles,
+      startY: y, margin: { left: M, right: M }, theme: 'grid',
+      styles: baseStyles, headStyles: headStyles,
       head: [['INSTITUCIÓN DEL SISTEMA', 'RUC', 'CIU', 'ESTABLECIMIENTO DE SALUD', 'N° HISTORIA CLÍNICA', 'N° ARCHIVO']],
       body: [['CEM AUSTROGAS', '190070301001', '4661', 'MEDICINA OCUPACIONAL', ev.numeroHistoriaClinica || trabajador.cedula, ev.numeroArchivo || '-']],
     });
     y = (pdf as any).lastAutoTable.finalY;
     autoTable(pdf, {
-      startY: y, margin: { left: M, right: M }, theme: 'grid', styles: baseStyles, headStyles: headStyles,
+      startY: y, margin: { left: M, right: M }, theme: 'grid',
+      styles: baseStyles, headStyles: headStyles,
       head: [['PRIMER APELLIDO', 'SEGUNDO APELLIDO', 'PRIMER NOMBRE', 'SEGUNDO NOMBRE', 'SEXO', 'PUESTO DE TRABAJO (CIUO)']],
       body: [[trabajador.primerApellido, trabajador.segundoApellido || '-', trabajador.primerNombre, trabajador.segundoNombre || '-', trabajador.sexo, trabajador.puestoTrabajo]],
     });
@@ -223,9 +191,13 @@ export default function DetalleTrabajador() {
     if (ev.habitosToxicos && ev.habitosToxicos.length > 0) {
       checkPage(20);
       autoTable(pdf, {
-        startY: y, margin: { left: M, right: M }, theme: 'grid', styles: { ...baseStyles, fontSize: 6.5 }, headStyles: { ...headStyles, fontSize: 6 },
+        startY: y, margin: { left: M, right: M }, theme: 'grid',
+        styles: { ...baseStyles, fontSize: 6.5 }, headStyles: { ...headStyles, fontSize: 6 },
         head: [['CONSUMOS NOCIVOS', 'SI', 'NO', 'TIEMPO CONSUMO', 'CANTIDAD', 'EX CONSUMIDOR', 'TIEMPO ABSTINENCIA']],
-        body: ev.habitosToxicos.map((h: any) => [h.tipo.toUpperCase(), h.consume ? 'X' : '', h.consume ? '' : 'X', h.tiempoConsumo || '-', h.cantidad || '-', h.exConsumidor ? 'X' : '', h.tiempoAbstinencia || '-']),
+        body: ev.habitosToxicos.map((h: any) => [
+          h.tipo.toUpperCase(), h.consume ? 'X' : '', h.consume ? '' : 'X',
+          h.tiempoConsumo || '-', h.cantidad || '-', h.exConsumidor ? 'X' : '', h.tiempoAbstinencia || '-'
+        ]),
         columnStyles: { 1: { halign: 'center' }, 2: { halign: 'center' }, 5: { halign: 'center' } },
       });
       y = (pdf as any).lastAutoTable.finalY;
@@ -233,7 +205,8 @@ export default function DetalleTrabajador() {
 
     if (ev.estiloVida) {
       autoTable(pdf, {
-        startY: y, margin: { left: M, right: M }, theme: 'grid', styles: { ...baseStyles, fontSize: 6.5 }, headStyles: { ...headStyles, fontSize: 6 },
+        startY: y, margin: { left: M, right: M }, theme: 'grid',
+        styles: { ...baseStyles, fontSize: 6.5 }, headStyles: { ...headStyles, fontSize: 6 },
         head: [['ESTILO DE VIDA', 'SI', 'NO', '¿CUÁL?', 'TIEMPO / CANTIDAD']],
         body: [
           ['ACTIVIDAD FÍSICA', ev.estiloVida.actividadFisica ? 'X' : '', ev.estiloVida.actividadFisica ? '' : 'X', ev.estiloVida.tipoActividad || '-', ev.estiloVida.tiempoCantidad || '-'],
@@ -247,16 +220,24 @@ export default function DetalleTrabajador() {
 
     secHeader('INCIDENTES, ACCIDENTES Y ENFERMEDAD PROFESIONAL', colorTerciario);
     autoTable(pdf, {
-      startY: y, margin: { left: M, right: M }, theme: 'grid', styles: { ...baseStyles, fontSize: 6.5 }, headStyles: { ...headStyles, fillColor: colorTerciario },
-      head: [['INCIDENTES LABORALES REPORTADOS']], body: [[ev.incidentes || 'NINGUNO']],
+      startY: y, margin: { left: M, right: M }, theme: 'grid',
+      styles: { ...baseStyles, fontSize: 6.5 }, headStyles: { ...headStyles, fillColor: colorTerciario },
+      head: [['INCIDENTES LABORALES REPORTADOS']],
+      body: [[ev.incidentes || 'NINGUNO']],
     });
     y = (pdf as any).lastAutoTable.finalY;
 
     if (ev.accidentesTrabajo?.descripcion) {
       autoTable(pdf, {
-        startY: y, margin: { left: M, right: M }, theme: 'grid', styles: { ...baseStyles, fontSize: 6.5 }, headStyles: { ...headStyles, fillColor: colorTerciario },
+        startY: y, margin: { left: M, right: M }, theme: 'grid',
+        styles: { ...baseStyles, fontSize: 6.5 }, headStyles: { ...headStyles, fillColor: colorTerciario },
         head: [['DESCRIPCIÓN DEL ACCIDENTE DE TRABAJO', 'CALIFICADO IESS', 'ESPECIFICACIÓN', 'OBSERVACIONES']],
-        body: [[ev.accidentesTrabajo.descripcion, ev.accidentesTrabajo.calificado ? 'SÍ' : 'NO', ev.accidentesTrabajo.especificacion || '-', ev.accidentesTrabajo.observaciones || '-']],
+        body: [[
+          ev.accidentesTrabajo.descripcion, 
+          ev.accidentesTrabajo.calificado ? 'SÍ' : 'NO', 
+          ev.accidentesTrabajo.especificacion || '-', 
+          ev.accidentesTrabajo.observaciones || '-'
+        ]],
         columnStyles: { 1: { halign: 'center' } },
       });
       y = (pdf as any).lastAutoTable.finalY;
@@ -264,54 +245,80 @@ export default function DetalleTrabajador() {
 
     if (ev.enfermedadesProfesionales?.descripcion) {
       autoTable(pdf, {
-        startY: y, margin: { left: M, right: M }, theme: 'grid', styles: { ...baseStyles, fontSize: 6.5 }, headStyles: { ...headStyles, fillColor: colorTerciario },
+        startY: y, margin: { left: M, right: M }, theme: 'grid',
+        styles: { ...baseStyles, fontSize: 6.5 }, headStyles: { ...headStyles, fillColor: colorTerciario },
         head: [['DESCRIPCIÓN DE ENFERMEDAD PROFESIONAL', 'CALIFICADA IESS', 'ESPECIFICACIÓN', 'OBSERVACIONES']],
-        body: [[ev.enfermedadesProfesionales.descripcion, ev.enfermedadesProfesionales.calificada ? 'SÍ' : 'NO', ev.enfermedadesProfesionales.especificacion || '-', ev.enfermedadesProfesionales.observaciones || '-']],
+        body: [[
+          ev.enfermedadesProfesionales.descripcion, 
+          ev.enfermedadesProfesionales.calificada ? 'SÍ' : 'NO', 
+          ev.enfermedadesProfesionales.especificacion || '-', 
+          ev.enfermedadesProfesionales.observaciones || '-'
+        ]],
         columnStyles: { 1: { halign: 'center' } },
       });
       y = (pdf as any).lastAutoTable.finalY;
     }
     y += 2;
 
-    // --- D. ANTECEDENTES FAMILIARES ---
+    // --- MEJORA: D. ANTECEDENTES FAMILIARES CON FONDO #ccffff ---
     checkPage(30);
     secHeader('D. ANTECEDENTES FAMILIARES');
-    const dBody: any[][] = [];
+    const dBody: string[][] = [];
     for (let r = 0; r < 2; r++) {
-      const row: any[] = [];
+      const row: string[] = [];
       for (let c = 0; c < 4; c++) {
         const idx = r * 4 + c;
         const tipo = TIPOS_ANTECEDENTES_FAMILIARES[idx];
         const hasIt = ev.antecedentesFamiliares?.find((a:any) => a.tipo === tipo);
-        row.push({ content: `${idx + 1}. ${tipo}`, styles: { fillColor: colorTerciario } });
-        row.push({ content: hasIt ? 'X' : '', styles: { halign: 'center', fontStyle: 'bold', fillColor: '#ffffff' } });
+        row.push(`${idx + 1}. ${tipo} [${hasIt ? 'X' : ' '}]`);
       }
       dBody.push(row);
     }
     autoTable(pdf, {
-      startY: y, margin: { left: M, right: M }, theme: 'grid', styles: { ...baseStyles, fontSize: 5.5, cellPadding: 1 },
-      body: dBody, columnStyles: { 1: { cellWidth: 4 }, 3: { cellWidth: 4 }, 5: { cellWidth: 4 }, 7: { cellWidth: 4 } }
+      startY: y, margin: { left: M, right: M }, theme: 'grid',
+      styles: { ...baseStyles, fontSize: 5.5, cellPadding: 1, fillColor: colorTerciario }, // Fondo celeste
+      body: dBody
     });
     y = (pdf as any).lastAutoTable.finalY;
 
     if (ev.antecedentesFamiliares && ev.antecedentesFamiliares.length > 0) {
-      const lineasFam = ev.antecedentesFamiliares.map((af: any) => `${af.tipo} (${af.parentesco}): ${af.descripcion || '-'}`).join('; ');
-      textoLibre(lineasFam, 5); y += 1;
-    } else { textoLibre('No se refieren antecedentes familiares de importancia.', 5); y += 1; }
+      const lineasFam = ev.antecedentesFamiliares.map((af: any) =>
+        `${af.tipo} (${af.parentesco}): ${af.descripcion || '-'}`
+      ).join('; ');
+      textoLibre(lineasFam, 5);
+      y += 1;
+    } else {
+      textoLibre('No se refieren antecedentes familiares de importancia.', 5);
+      y += 1;
+    }
 
     // E. FACTORES DE RIESGO
     if (ev.factoresRiesgo) {
-      checkPage(25); secHeader('E. FACTORES DE RIESGOS DEL PUESTO DE TRABAJO');
+      checkPage(25);
+      secHeader('E. FACTORES DE RIESGOS DEL PUESTO DE TRABAJO');
       const fr = ev.factoresRiesgo;
-      autoTable(pdf, { startY: y, margin: { left: M, right: M }, theme: 'grid', styles: { ...baseStyles, fontSize: 6.5 }, headStyles: { ...headStyles, fontSize: 6 }, head: [['PUESTO DE TRABAJO / ÁREA', 'ACTIVIDADES', 'TIEMPO DE TRABAJO (MESES)']], body: [[fr.puestoArea || trabajador.puestoTrabajo, fr.actividades || '-', fr.tiempoTrabajoMeses || '-']] });
+      autoTable(pdf, {
+        startY: y, margin: { left: M, right: M }, theme: 'grid',
+        styles: { ...baseStyles, fontSize: 6.5 }, headStyles: { ...headStyles, fontSize: 6 },
+        head: [['PUESTO DE TRABAJO / ÁREA', 'ACTIVIDADES', 'TIEMPO DE TRABAJO (MESES)']],
+        body: [[fr.puestoArea || trabajador.puestoTrabajo, fr.actividades || '-', fr.tiempoTrabajoMeses || '-']],
+      });
       y = (pdf as any).lastAutoTable.finalY;
+
       const categorias = [
         { nombre: 'FÍSICO', items: fr.fisicos || [] }, { nombre: 'MECÁNICO', items: fr.mecanicos || [] },
         { nombre: 'QUÍMICO', items: fr.quimicos || [] }, { nombre: 'BIOLÓGICO', items: fr.biologicos || [] },
         { nombre: 'ERGONÓMICO', items: fr.ergonomicos || [] }, { nombre: 'PSICOSOCIAL', items: fr.psicosociales || [] },
       ].filter(c => c.items.length > 0);
+
       if (categorias.length > 0) {
-        autoTable(pdf, { startY: y, margin: { left: M, right: M }, theme: 'grid', styles: { ...baseStyles, fontSize: 6 }, headStyles: { ...headStyles, fontSize: 5.5 }, head: [['CATEGORÍA', 'FACTORES DE RIESGO IDENTIFICADOS']], body: categorias.map(c => [c.nombre, c.items.join(', ')]), columnStyles: { 0: { cellWidth: 25, fontStyle: 'bold' } } });
+        autoTable(pdf, {
+          startY: y, margin: { left: M, right: M }, theme: 'grid',
+          styles: { ...baseStyles, fontSize: 6 }, headStyles: { ...headStyles, fontSize: 5.5 },
+          head: [['CATEGORÍA', 'FACTORES DE RIESGO IDENTIFICADOS']],
+          body: categorias.map(c => [c.nombre, c.items.join(', ')]),
+          columnStyles: { 0: { cellWidth: 25, fontStyle: 'bold' } },
+        });
         y = (pdf as any).lastAutoTable.finalY;
       }
       y += 2;
@@ -319,156 +326,225 @@ export default function DetalleTrabajador() {
 
     // =============== PÁGINA 2 ===============
     pdf.addPage(); y = 7;
+
     autoTable(pdf, {
-      startY: y, margin: { left: M, right: M }, theme: 'grid', styles: { ...baseStyles, halign: 'center', fontSize: 8 }, columnStyles: { 0: { cellWidth: 42 }, 2: { cellWidth: 33 } },
+      startY: y, margin: { left: M, right: M }, theme: 'grid',
+      styles: { ...baseStyles, halign: 'center', fontSize: 8 },
+      columnStyles: { 0: { cellWidth: 42 }, 2: { cellWidth: 33 } },
       body: [
-        [{ content: 'CEM AUSTROGAS', rowSpan: 3, styles: { fontStyle: 'bold', fontSize: 11, valign: 'middle' } }, { content: 'HISTORIA CLÍNICA OCUPACIONAL:\nEVALUACIÓN PERIÓDICA', rowSpan: 2, styles: { fontStyle: 'bold', fontSize: 9, valign: 'middle' } }, { content: 'Código:   SO-RE-38', styles: { fontSize: 7, halign: 'left' } }],
+        [
+          { content: 'CEM AUSTROGAS', rowSpan: 3, styles: { fontStyle: 'bold', fontSize: 11, valign: 'middle' } },
+          { content: 'HISTORIA CLÍNICA OCUPACIONAL:\nEVALUACIÓN PERIÓDICA', rowSpan: 2, styles: { fontStyle: 'bold', fontSize: 9, valign: 'middle' } },
+          { content: 'Código:   SO-RE-38', styles: { fontSize: 7, halign: 'left' } }
+        ],
         [{ content: 'Revisión:  1', styles: { fontSize: 7, halign: 'left' } }],
-        [{ content: 'PROCESO: GESTIÓN DE SEGURIDAD INDUSTRIAL Y MEDICINA OCUPACIONAL', styles: { fontSize: 6, fontStyle: 'bold' } }, { content: 'Página:    2 de 2', styles: { fontSize: 7, halign: 'left' } }]
+        [
+          { content: 'PROCESO: GESTIÓN DE SEGURIDAD INDUSTRIAL Y MEDICINA OCUPACIONAL', styles: { fontSize: 6, fontStyle: 'bold' } },
+          { content: 'Página:    2 de 2', styles: { fontSize: 7, halign: 'left' } }
+        ]
       ],
     });
     y = (pdf as any).lastAutoTable.finalY + 2;
 
     secHeader('F. ENFERMEDAD ACTUAL');
-    textoLibre(ev.enfermedadActual || 'PACIENTE ASINTOMÁTICO AL MOMENTO DE LA VALORACIÓN.', 8); y += 1;
+    textoLibre(ev.enfermedadActual || 'PACIENTE ASINTOMÁTICO AL MOMENTO DE LA VALORACIÓN.', 8);
+    y += 1;
 
-    // --- G. REVISIÓN DE ÓRGANOS Y SISTEMAS ---
+    // --- MEJORA: G. REVISIÓN DE ÓRGANOS Y SISTEMAS CON FONDO #ccffff ---
     secHeader('G. REVISIÓN DE ÓRGANOS Y SISTEMAS');
-    const gBody: any[][] = [];
+    const gBody: string[][] = [];
     for (let r = 0; r < 2; r++) {
-      const row: any[] = [];
+      const row: string[] = [];
       for (let c = 0; c < 5; c++) {
         const idx = r * 5 + c;
         const sysName = SISTEMAS[idx];
         const isChecked = ev.revisionSistemasSeleccionados?.includes(sysName);
-        row.push({ content: `${idx + 1}. ${sysName}`, styles: { fillColor: colorTerciario } });
-        row.push({ content: isChecked ? 'X' : '', styles: { halign: 'center', fontStyle: 'bold', fillColor: '#ffffff' } });
+        row.push(`${idx + 1}. ${sysName} [${isChecked ? 'X' : ' '}]`);
       }
       gBody.push(row);
     }
     autoTable(pdf, {
-      startY: y, margin: { left: M, right: M }, theme: 'grid', styles: { ...baseStyles, fontSize: 5.5, cellPadding: 1 },
-      body: gBody, columnStyles: { 1: { cellWidth: 4 }, 3: { cellWidth: 4 }, 5: { cellWidth: 4 }, 7: { cellWidth: 4 }, 9: { cellWidth: 4 } }
+      startY: y, margin: { left: M, right: M }, theme: 'grid',
+      styles: { ...baseStyles, fontSize: 5.5, cellPadding: 1, fillColor: colorTerciario }, // Fondo celeste
+      body: gBody
     });
     y = (pdf as any).lastAutoTable.finalY;
 
     if (ev.revisionSistemasSeleccionados && ev.revisionSistemasSeleccionados.length > 0) {
       const nums = ev.revisionSistemasSeleccionados.map((s:string) => SISTEMAS.indexOf(s) + 1).sort((a:number, b:number) => a - b).join(', ');
+      // Se suprimen etiquetas innecesarias, solo numeral y texto.
       textoLibre(`${nums}: ${ev.revisionSistemasDescripcion || '-'}`, 8);
-    } else { textoLibre('Paciente no refiere síntomas adicionales.', 5); }
+    } else {
+      textoLibre('Paciente no refiere síntomas adicionales.', 5);
+    }
     y += 1;
 
     secHeader('H. CONSTANTES VITALES Y ANTROPOMETRÍA');
     const sv = ev.signosVitales || {};
     autoTable(pdf, {
-      startY: y, margin: { left: M, right: M }, theme: 'grid', styles: { ...baseStyles, halign: 'center', fontSize: 7 }, headStyles: { ...headStyles, fontSize: 5.5, halign: 'center' },
+      startY: y, margin: { left: M, right: M }, theme: 'grid',
+      styles: { ...baseStyles, halign: 'center', fontSize: 7 },
+      headStyles: { ...headStyles, fontSize: 5.5, halign: 'center' },
       head: [['PRESIÓN\nARTERIAL\n(mmHg)', 'TEMP.\n(°C)', 'FREC.\nCARDÍACA\n(Lat/min)', 'SAT. DE\nOXÍGENO\n(O₂%)', 'FREC.\nRESP.\n(fr/min)', 'PESO\n(Kg)', 'TALLA\n(cm)', 'IMC\n(Kg/m²)', 'PERÍM.\nABD.\n(cm)']],
-      body: [[`${sv.presionSistolica || '-'}/${sv.presionDiastolica || '-'}`, sv.temperatura || '-', sv.frecuenciaCardiaca || '-', sv.saturacion || '-', sv.frecuenciaRespiratoria || '-', sv.peso || '-', sv.talla || '-', sv.imc || '-', sv.perimetroAbdominal || '-']],
+      body: [[
+        `${sv.presionSistolica || '-'}/${sv.presionDiastolica || '-'}`,
+        sv.temperatura || '-', sv.frecuenciaCardiaca || '-', sv.saturacion || '-',
+        sv.frecuenciaRespiratoria || '-', sv.peso || '-', sv.talla || '-',
+        sv.imc || '-', sv.perimetroAbdominal || '-'
+      ]],
     });
     y = (pdf as any).lastAutoTable.finalY + 2;
 
-    // --- I. EXAMEN FÍSICO REGIONAL (15 Columnas, Rotación 90°) ---
+    // --- MEJORA: I. EXAMEN FÍSICO REGIONAL (14 Celdas horizontales, Identico al Excel) ---
     checkPage(60);
     secHeader('I. EXAMEN FÍSICO REGIONAL');
+    const iBody = exFisicoMatrix.map(row => row.map(cell => {
+      if(cell.s) return '';
+      if(cell.n) return cell.t;
+      if(cell.c) {
+        const checked = ev.examenFisicoHallazgos?.some((h:any)=>h.codigo===cell.c);
+        return `${cell.t} [${checked ? 'X' : ' '}]`;
+      }
+      return '';
+    }));
     
-    const pdfFisicoRows = FISICO_ROWS.map(row => {
-      return row.map(cell => {
-        if (cell.type === 'reg') return { content: '', textToRotate: cell.txt, rowSpan: cell.rs, styles: { fillColor: colorTerciario, halign: 'center', valign: 'middle' } };
-        if (cell.type === 'sub') return { content: cell.txt, styles: { fillColor: '#ffffff' } };
-        if (cell.type === 'chk') return { content: hasFisico(ev, cell.code as string) ? 'X' : '', styles: { halign: 'center', fontStyle: 'bold', fillColor: '#ffffff' } };
-        if (cell.type === 'empty') return { content: '', rowSpan: cell.rs || 1, colSpan: cell.cs || 1, styles: { fillColor: '#ffffff', lineWidth: 0 } };
-        return { content: '' };
-      });
-    });
+    // Agregamos la fila final de instrucción
+    iBody.push([{ content: 'SI EXISTE EVIDENCIA DE PATOLOGÍA MARCAR CON "X" Y DESCRIBIR EN LA SIGUIENTE SECCIÓN COLOCANDO EL NUMERAL', colSpan: 14, styles: { halign: 'center', fontStyle: 'bold', fillColor: '#ffffff', textColor: negro } } as any]);
 
     autoTable(pdf, {
       startY: y, margin: { left: M, right: M }, theme: 'grid',
-      styles: { ...baseStyles, fontSize: 5.5, cellPadding: 0.8 },
+      styles: { ...baseStyles, fontSize: 5.2, cellPadding: 0.8 },
       headStyles: { fillColor: colorTerciario, textColor: negro, fontSize: 6 },
       columnStyles: {
-        0: { cellWidth: 5 }, 1: { cellWidth: 26 }, 2: { cellWidth: 4, halign: 'center' },
-        3: { cellWidth: 5 }, 4: { cellWidth: 26 }, 5: { cellWidth: 4, halign: 'center' },
-        6: { cellWidth: 5 }, 7: { cellWidth: 26 }, 8: { cellWidth: 4, halign: 'center' },
-        9: { cellWidth: 5 }, 10: { cellWidth: 26 }, 11: { cellWidth: 4, halign: 'center' },
-        12: { cellWidth: 5 }, 13: { cellWidth: 26 }, 14: { cellWidth: 4, halign: 'center' }
+        0: { cellWidth: 12, fontStyle: 'bold' }, 1: { cellWidth: 26 },
+        2: { cellWidth: 1.5, fillColor: '#ffffff', lineWidth: 0 },
+        3: { cellWidth: 12, fontStyle: 'bold' }, 4: { cellWidth: 26 },
+        5: { cellWidth: 1.5, fillColor: '#ffffff', lineWidth: 0 },
+        6: { cellWidth: 12, fontStyle: 'bold' }, 7: { cellWidth: 26 },
+        8: { cellWidth: 1.5, fillColor: '#ffffff', lineWidth: 0 },
+        9: { cellWidth: 14, fontStyle: 'bold' }, 10: { cellWidth: 24 },
+        11: { cellWidth: 1.5, fillColor: '#ffffff', lineWidth: 0 },
+        12: { cellWidth: 14, fontStyle: 'bold' }, 13: { cellWidth: 24 }
       },
-      head: [[{ content: 'REGIONES', colSpan: 15, styles: { halign: 'left', fillColor: colorTerciario } }]],
-      body: pdfFisicoRows as any,
-      didDrawCell: function(data) {
-        const raw = data.cell.raw as any;
-        if (data.section === 'body' && raw && raw.textToRotate) {
-          pdf.setTextColor(0); pdf.setFontSize(5.5); pdf.setFont('helvetica', 'bold');
-          // Imprime el texto vertical centrado en la celda
-          const textX = data.cell.x + (data.cell.width / 2) + 1.5;
-          const textY = data.cell.y + (data.cell.height / 2);
-          pdf.text(String(raw.textToRotate), textX, textY, { angle: 90, align: 'center' });
-        }
-      }
+      head: [
+         [{ content: 'REGIONES', colSpan: 14, styles: { halign: 'left', fillColor: colorTerciario } }]
+      ],
+      body: iBody
     });
     y = (pdf as any).lastAutoTable.finalY;
 
-    pdf.setFillColor(248, 248, 248); pdf.setDrawColor(0);
-    pdf.rect(M, y, CW, 4, 'FD');
-    pdf.setFontSize(5); pdf.setFont('helvetica', 'bold');
-    pdf.text('SI EXISTE EVIDENCIA DE PATOLOGÍA MARCAR CON "X" Y DESCRIBIR EN LA SIGUIENTE SECCIÓN COLOCANDO EL NUMERAL', M + CW / 2, y + 2.5, { align: 'center' });
-    y += 5;
-
     if (ev.examenFisicoHallazgos && ev.examenFisicoHallazgos.length > 0) {
-      const lineasFisico = ev.examenFisicoHallazgos.map((h: any) => `${h.codigo}: ${h.descripcion || '-'}`).join('; ');
-      textoLibre(lineasFisico, 6); y += 1;
-    } else { textoLibre('Sin hallazgos patológicos al examen físico regional.', 5); y += 1; }
+      const lineasFisico = ev.examenFisicoHallazgos.map((h: any) => 
+        `${h.codigo}: ${h.descripcion || '-'}`
+      ).join('; ');
+      textoLibre(lineasFisico, 6);
+      y += 1;
+    } else {
+      textoLibre('Sin hallazgos patológicos al examen físico regional.', 5);
+      y += 1;
+    }
 
     // J. EXÁMENES COMPLEMENTARIOS
     if (ev.examenesComplementarios && ev.examenesComplementarios.length > 0) {
-      checkPage(15); secHeader('J. RESULTADOS DE EXÁMENES GENERALES Y ESPECÍFICOS');
-      autoTable(pdf, { startY: y, margin: { left: M, right: M }, theme: 'grid', styles: { ...baseStyles, fontSize: 6.5 }, headStyles: { ...headStyles, fontSize: 6 }, head: [['EXAMEN', 'FECHA\naaaa / mm / dd', 'RESULTADO']], body: ev.examenesComplementarios.map((ex: any) => [ex.nombre, ex.fecha, ex.resultado]) });
+      checkPage(15);
+      secHeader('J. RESULTADOS DE EXÁMENES GENERALES Y ESPECÍFICOS');
+      autoTable(pdf, {
+        startY: y, margin: { left: M, right: M }, theme: 'grid',
+        styles: { ...baseStyles, fontSize: 6.5 }, headStyles: { ...headStyles, fontSize: 6 },
+        head: [['EXAMEN', 'FECHA\naaaa / mm / dd', 'RESULTADO']],
+        body: ev.examenesComplementarios.map((ex: any) => [ex.nombre, ex.fecha, ex.resultado]),
+      });
       y = (pdf as any).lastAutoTable.finalY + 1;
     }
 
     // K. DIAGNÓSTICO
-    checkPage(20); secHeader('K. DIAGNÓSTICO                    PRE= PRESUNTIVO          DEF= DEFINITIVO');
+    checkPage(20);
+    secHeader('K. DIAGNÓSTICO                    PRE= PRESUNTIVO          DEF= DEFINITIVO');
     if (ev.diagnosticos && ev.diagnosticos.length > 0) {
       autoTable(pdf, {
-        startY: y, margin: { left: M, right: M }, theme: 'grid', styles: { ...baseStyles, fontSize: 6.5, halign: 'center' }, headStyles: { ...headStyles, fontSize: 6, halign: 'center' },
+        startY: y, margin: { left: M, right: M }, theme: 'grid',
+        styles: { ...baseStyles, fontSize: 6.5, halign: 'center' },
+        headStyles: { ...headStyles, fontSize: 6, halign: 'center' },
         head: [['N°', 'DESCRIPCIÓN', 'CIE', 'PRE', 'DEF']],
-        body: ev.diagnosticos.map((dx: any, i: number) => [`${i + 1}`, { content: dx.descripcion, styles: { halign: 'left' } }, dx.cie || '-', dx.tipo === 'presuntivo' ? 'X' : '', dx.tipo === 'definitivo' ? 'X' : '']),
+        body: ev.diagnosticos.map((dx: any, i: number) => [
+          `${i + 1}`,
+          { content: dx.descripcion, styles: { halign: 'left' } },
+          dx.cie || '-',
+          dx.tipo === 'presuntivo' ? 'X' : '',
+          dx.tipo === 'definitivo' ? 'X' : ''
+        ]),
         columnStyles: { 0: { cellWidth: 8 }, 3: { cellWidth: 10 }, 4: { cellWidth: 10 } },
       });
       y = (pdf as any).lastAutoTable.finalY + 1;
-    } else { textoLibre('PACIENTE SANO.', 5); y += 1; }
+    } else {
+      textoLibre('PACIENTE SANO.', 5);
+      y += 1;
+    }
 
     // L. APTITUD MÉDICA
-    checkPage(20); secHeader('L. APTITUD MÉDICA PARA EL TRABAJO');
+    checkPage(20);
+    secHeader('L. APTITUD MÉDICA PARA EL TRABAJO');
     autoTable(pdf, {
-      startY: y, margin: { left: M, right: M }, theme: 'grid', styles: { ...baseStyles, halign: 'center', fontSize: 7 }, headStyles: { ...headStyles, halign: 'center', fontSize: 6.5 },
+      startY: y, margin: { left: M, right: M }, theme: 'grid',
+      styles: { ...baseStyles, halign: 'center', fontSize: 7 },
+      headStyles: { ...headStyles, halign: 'center', fontSize: 6.5 },
       head: [['APTO', 'APTO EN OBSERVACIÓN', 'APTO CON LIMITACIONES', 'NO APTO']],
-      body: [[(!ev.aptitudMedica || ev.aptitudMedica === 'apto') ? 'X' : '', ev.aptitudMedica === 'aptoObservacion' ? 'X' : '', ev.aptitudMedica === 'aptoLimitaciones' ? 'X' : '', ev.aptitudMedica === 'noApto' ? 'X' : '']],
+      body: [[
+        (!ev.aptitudMedica || ev.aptitudMedica === 'apto') ? 'X' : '',
+        ev.aptitudMedica === 'aptoObservacion' ? 'X' : '',
+        ev.aptitudMedica === 'aptoLimitaciones' ? 'X' : '',
+        ev.aptitudMedica === 'noApto' ? 'X' : ''
+      ]],
     });
     y = (pdf as any).lastAutoTable.finalY;
-    autoTable(pdf, { startY: y, margin: { left: M, right: M }, theme: 'grid', styles: { ...baseStyles, fontSize: 6.5, halign: 'left' }, body: [[`Observación:  ${ev.aptitudObservacion || '-'}`], [`Limitación:   ${ev.aptitudLimitaciones || '-'}`]] });
+
+    autoTable(pdf, {
+      startY: y, margin: { left: M, right: M }, theme: 'grid',
+      styles: { ...baseStyles, fontSize: 6.5, halign: 'left' },
+      body: [
+        [`Observación:  ${ev.aptitudObservacion || '-'}`],
+        [`Limitación:   ${ev.aptitudLimitaciones || '-'}`]
+      ],
+    });
     y = (pdf as any).lastAutoTable.finalY + 1;
 
     // M. RECOMENDACIONES
     secHeader('M. RECOMENDACIONES Y/O TRATAMIENTO');
-    const recTexto = Array.isArray(ev.recomendaciones) ? ev.recomendaciones.join('; ') + (ev.recomendacionesOtras ? `; ${ev.recomendacionesOtras}` : '') : (ev.recomendaciones || 'Ninguna particular al momento.');
-    textoLibre(recTexto, 8); y += 2;
+    const recTexto = Array.isArray(ev.recomendaciones)
+      ? ev.recomendaciones.join('; ') + (ev.recomendacionesOtras ? `; ${ev.recomendacionesOtras}` : '')
+      : (ev.recomendaciones || 'Ninguna particular al momento.');
+    textoLibre(recTexto, 8);
+    y += 2;
 
     // CERTIFICADO LEGAL
     checkPage(15);
     pdf.setFillColor(248, 248, 248); pdf.setDrawColor(0);
     const certText = 'CERTIFICO QUE LO ANTERIORMENTE EXPRESADO EN RELACIÓN A MI ESTADO DE SALUD ES VERDAD. SE ME HA INFORMADO LAS MEDIDAS PREVENTIVAS A TOMAR PARA DISMINUIR O MITIGAR LOS RIESGOS RELACIONADOS CON MI ACTIVIDAD LABORAL.';
-    const certLines = pdf.splitTextToSize(certText, CW - 3); const certH = certLines.length * 3 + 3;
-    pdf.rect(M, y, CW, certH, 'FD'); pdf.setFontSize(6.5); pdf.setFont('helvetica', 'bold'); pdf.text(certLines, M + 1.5, y + 3); y += certH + 3;
+    const certLines = pdf.splitTextToSize(certText, CW - 3);
+    const certH = certLines.length * 3 + 3;
+    pdf.rect(M, y, CW, certH, 'FD');
+    pdf.setFontSize(6.5); pdf.setFont('helvetica', 'bold');
+    pdf.text(certLines, M + 1.5, y + 3);
+    y += certH + 3;
 
-    // N. DATOS DEL PROFESIONAL
-    checkPage(25); secHeader('N. DATOS DEL PROFESIONAL                                                                             O. FIRMA DEL USUARIO');
+    // N. DATOS DEL PROFESIONAL Y FIRMAS
+    checkPage(25);
+    secHeader('N. DATOS DEL PROFESIONAL                                                                             O. FIRMA DEL USUARIO');
     autoTable(pdf, {
-      startY: y, margin: { left: M, right: M }, theme: 'grid', styles: { ...baseStyles, fontSize: 6.5, halign: 'center' }, headStyles: { ...headStyles, fontSize: 6, halign: 'center' },
+      startY: y, margin: { left: M, right: M }, theme: 'grid',
+      styles: { ...baseStyles, fontSize: 6.5, halign: 'center' },
+      headStyles: { ...headStyles, fontSize: 6, halign: 'center' },
       head: [['FECHA\naaaa-mm-dd', 'HORA', 'NOMBRES Y APELLIDOS', 'CÓDIGO', 'FIRMA Y SELLO', 'FIRMA DEL USUARIO']],
-      body: [[fmtF(ev.fecha), fmtHora(ev.fecha), (ev.medicoNombre || 'MÉDICO OCUPACIONAL').toUpperCase(), ev.medicoCedula || '-', '', '']],
+      body: [[
+        fmtF(ev.fecha), fmtHora(ev.fecha),
+        (ev.medicoNombre || 'MÉDICO OCUPACIONAL').toUpperCase(),
+        ev.medicoCedula || '-', '', ''
+      ]],
       bodyStyles: { minCellHeight: 18, valign: 'bottom', halign: 'center' },
     });
-    pdf.save(`SO-RE-38_${trabajador.primerApellido}_${trabajador.primerNombre}_${fmtF(ev.fecha)}.pdf`);
+
+    const nombre = `SO-RE-38_${trabajador.primerApellido}_${trabajador.primerNombre}_${fmtF(ev.fecha)}`.replace(/[\s\/]/g, '_');
+    pdf.save(`${nombre}.pdf`);
   };
 
   const exportarExcel = () => {
@@ -495,18 +571,19 @@ export default function DetalleTrabajador() {
 
   if (cargando) return <div className="min-h-screen p-8 text-center text-slate-500 font-bold">Cargando expediente...</div>;
   if (!trabajador) return <div className="min-h-screen p-8 text-center text-red-500 font-bold">Trabajador no encontrado</div>;
+
   const ev: any = evaluaciones[pestanaActiva] || null;
 
   return (
     <div className="min-h-screen bg-slate-50 p-4 md:p-8">
       <div className="max-w-6xl mx-auto space-y-6">
 
-        {/* =========================================================
-            CABECERA WEB
-        ========================================================= */}
+        {/* Cabecera Web */}
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-slate-800">{trabajador.primerApellido} {trabajador.segundoApellido || ''} {trabajador.primerNombre} {trabajador.segundoNombre || ''}</h1>
+            <h1 className="text-2xl font-bold text-slate-800">
+              {trabajador.primerApellido} {trabajador.segundoApellido || ''} {trabajador.primerNombre} {trabajador.segundoNombre || ''}
+            </h1>
             <p className="text-slate-500 text-sm mt-1">CI: {trabajador.cedula} · Puesto: {trabajador.puestoTrabajo}</p>
           </div>
           <div className="flex gap-3">
@@ -516,12 +593,18 @@ export default function DetalleTrabajador() {
         </div>
 
         {evaluaciones.length === 0 ? (
-          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-12 text-center text-slate-500">Este trabajador no tiene evaluaciones registradas.</div>
+          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-12 text-center text-slate-500">
+            Este trabajador no tiene evaluaciones registradas.
+          </div>
         ) : (
           <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+            {/* Pestañas de evaluaciones */}
             <div className="flex border-b border-slate-200 overflow-x-auto bg-slate-50">
               {evaluaciones.map((item, idx) => (
-                <button key={item.id} onClick={() => setPestanaActiva(idx)} className={`px-6 py-4 font-semibold whitespace-nowrap transition-colors text-sm ${pestanaActiva === idx ? 'border-b-2 border-blue-600 text-blue-700 bg-white' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'}`}>
+                <button key={item.id} onClick={() => setPestanaActiva(idx)}
+                  className={`px-6 py-4 font-semibold whitespace-nowrap transition-colors text-sm ${
+                    pestanaActiva === idx ? 'border-b-2 border-blue-600 text-blue-700 bg-white' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'
+                  }`}>
                   {fmtF(item.fecha)}
                 </button>
               ))}
@@ -529,38 +612,50 @@ export default function DetalleTrabajador() {
 
             {ev && (
               <>
+                {/* Botones de exportación */}
                 <div className="p-4 bg-white border-b border-slate-100 flex justify-end gap-3">
-                  <button onClick={exportarExcel} className="px-4 py-2 bg-[#107c41] text-white font-semibold rounded-lg hover:bg-[#0c5c30] flex items-center gap-2 text-sm shadow-sm">📊 Exportar Excel</button>
-                  <button onClick={generarPDF} className="px-4 py-2 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 flex items-center gap-2 text-sm shadow-sm">📄 Exportar PDF (SO-RE-38)</button>
+                  <button onClick={exportarExcel} className="px-4 py-2 bg-[#107c41] text-white font-semibold rounded-lg hover:bg-[#0c5c30] flex items-center gap-2 text-sm shadow-sm">
+                    📊 Exportar Excel
+                  </button>
+                  <button onClick={generarPDF} className="px-4 py-2 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 flex items-center gap-2 text-sm shadow-sm">
+                    📄 Exportar PDF (SO-RE-38)
+                  </button>
                 </div>
 
-                {/* =========================================================
-                    VISTA WEB DE LA FICHA SO-RE-38
-                ========================================================= */}
+                {/* Vista Web de la Ficha en Pantalla */}
                 <div className="p-6 md:p-8 space-y-5">
+
                   <div className="text-center mb-4 pb-3 border-b-2 border-slate-300">
                     <h2 className="text-xl font-bold uppercase text-slate-800">CEM AUSTROGAS</h2>
                     <p className="text-sm font-semibold text-slate-600">HISTORIA CLÍNICA OCUPACIONAL: EVALUACIÓN PERIÓDICA (SO-RE-38)</p>
                     <div className="flex justify-center gap-8 mt-2 text-xs text-slate-500">
-                      <span>N° Historia: {ev.numeroHistoriaClinica}</span><span>N° Archivo: {ev.numeroArchivo}</span><span>Fecha: {fmtFH(ev.fecha)}</span>
+                      <span>N° Historia: {ev.numeroHistoriaClinica}</span>
+                      <span>N° Archivo: {ev.numeroArchivo}</span>
+                      <span>Fecha: {fmtFH(ev.fecha)}</span>
                     </div>
                   </div>
 
                   <Sec title="A. DATOS DEL ESTABLECIMIENTO Y USUARIO">
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
                       <KV k="Institución" v="CEM AUSTROGAS" /><KV k="RUC" v="190070301001" />
-                      <KV k="Nombres" v={`${trabajador.primerNombre} ${trabajador.segundoNombre || ''}`} /><KV k="Apellidos" v={`${trabajador.primerApellido} ${trabajador.segundoApellido || ''}`} />
+                      <KV k="Nombres" v={`${trabajador.primerNombre} ${trabajador.segundoNombre || ''}`} />
+                      <KV k="Apellidos" v={`${trabajador.primerApellido} ${trabajador.segundoApellido || ''}`} />
                       <KV k="Cédula" v={trabajador.cedula} /><KV k="Sexo" v={trabajador.sexo} /><KV k="Puesto" v={trabajador.puestoTrabajo} />
                     </div>
                   </Sec>
 
                   <Sec title="B. MOTIVO DE CONSULTA"><p className="text-xs uppercase">{ev.motivoConsulta || 'ACTUALIZACIÓN DE FICHA OCUPACIONAL'}</p></Sec>
-                  
+
                   <Sec title="C. ANTECEDENTES PERSONALES Y LABORALES">
                     <p className="text-xs mb-2"><span className="font-bold">Clínicos y Quirúrgicos:</span> {ev.antecedentesClinicosQuirurgicos || 'Sin registros'}</p>
                     {ev.habitosToxicos?.length > 0 && (
                       <div className="grid grid-cols-3 gap-2 mb-3">
-                        {ev.habitosToxicos.map((h: any, i: number) => <div key={i} className="bg-slate-50 p-2 rounded text-xs"><span className="font-semibold capitalize">{h.tipo}: </span>{h.consume ? `Consume (${h.tiempoConsumo || '?'}m)` : h.exConsumidor ? `Ex consumidor (${h.tiempoAbstinencia || '?'}m)` : 'No consume'}</div>)}
+                        {ev.habitosToxicos.map((h: any, i: number) => (
+                          <div key={i} className="bg-slate-50 p-2 rounded text-xs">
+                            <span className="font-semibold capitalize">{h.tipo}: </span>
+                            {h.consume ? `Consume (${h.tiempoConsumo || '?'}m)` : h.exConsumidor ? `Ex consumidor (${h.tiempoAbstinencia || '?'}m)` : 'No consume'}
+                          </div>
+                        ))}
                       </div>
                     )}
                     <div className="border-t border-slate-200 pt-2 mb-2">
@@ -571,6 +666,7 @@ export default function DetalleTrabajador() {
                     </div>
                   </Sec>
 
+                  {/* ANTECEDENTES FAMILIARES WEB */}
                   <Sec title="D. ANTECEDENTES FAMILIARES">
                     <div className="overflow-x-auto mb-2">
                       <table className="w-full text-[10px] border-collapse border border-slate-300">
@@ -581,12 +677,7 @@ export default function DetalleTrabajador() {
                                  const idx = r * 4 + c;
                                  const tipo = TIPOS_ANTECEDENTES_FAMILIARES[idx];
                                  const hasIt = ev.antecedentesFamiliares?.find((a:any) => a.tipo === tipo);
-                                 return (
-                                   <React.Fragment key={c}>
-                                    <td className="border border-slate-300 p-1.5 bg-[#ccffff]">{idx+1}. {tipo}</td>
-                                    <td className="border border-slate-300 p-1.5 text-center font-bold text-blue-700 bg-white w-6">{hasIt ? 'X' : ''}</td>
-                                   </React.Fragment>
-                                 )
+                                 return <td key={c} className={`border border-slate-300 p-1.5 ${hasIt?'font-bold text-blue-700':'text-slate-700'} bg-[#ccffff]`}>{idx+1}. {tipo} [{hasIt?'X':' '}]</td>
                               })}
                             </tr>
                           ))}
@@ -595,7 +686,9 @@ export default function DetalleTrabajador() {
                     </div>
                     {ev.antecedentesFamiliares?.length > 0 && (
                       <div className="text-xs space-y-1">
-                        {ev.antecedentesFamiliares.map((af: any, i: number) => <p key={i}><span className="font-semibold">{af.tipo} ({af.parentesco}):</span> {af.descripcion}</p>)}
+                        {ev.antecedentesFamiliares.map((af: any, i: number) => (
+                          <p key={i}><span className="font-semibold">{af.tipo} ({af.parentesco}):</span> {af.descripcion}</p>
+                        ))}
                       </div>
                     )}
                   </Sec>
@@ -612,6 +705,7 @@ export default function DetalleTrabajador() {
 
                   <Sec title="F. ENFERMEDAD ACTUAL"><p className="text-xs uppercase">{ev.enfermedadActual || 'PACIENTE ASINTOMÁTICO AL MOMENTO DE LA VALORACIÓN.'}</p></Sec>
 
+                  {/* REVISIÓN DE ÓRGANOS Y SISTEMAS WEB */}
                   <Sec title="G. REVISIÓN DE ÓRGANOS Y SISTEMAS">
                     <div className="overflow-x-auto mb-2">
                       <table className="w-full text-[10px] border-collapse border border-slate-300">
@@ -622,12 +716,7 @@ export default function DetalleTrabajador() {
                                  const idx = r * 5 + c;
                                  const sys = SISTEMAS[idx];
                                  const hasIt = ev.revisionSistemasSeleccionados?.includes(sys);
-                                 return (
-                                    <React.Fragment key={c}>
-                                      <td className="border border-slate-300 p-1.5 bg-[#ccffff]">{idx+1}. {sys}</td>
-                                      <td className="border border-slate-300 p-1.5 text-center font-bold text-blue-700 bg-white w-6">{hasIt ? 'X' : ''}</td>
-                                    </React.Fragment>
-                                 )
+                                 return <td key={c} className={`border border-slate-300 p-1.5 ${hasIt?'font-bold text-blue-700':'text-slate-700'} bg-[#ccffff]`}>{idx+1}. {sys} [{hasIt?'X':' '}]</td>
                               })}
                             </tr>
                           ))}
@@ -635,7 +724,9 @@ export default function DetalleTrabajador() {
                       </table>
                     </div>
                     {ev.revisionSistemasSeleccionados?.length > 0 ? (
-                      <p className="text-xs">{ev.revisionSistemasSeleccionados.map((s:string) => SISTEMAS.indexOf(s) + 1).sort((a:number,b:number)=>a-b).join(', ')}: {ev.revisionSistemasDescripcion}</p>
+                      <p className="text-xs">
+                        {ev.revisionSistemasSeleccionados.map((s:string) => SISTEMAS.indexOf(s) + 1).sort((a:number,b:number)=>a-b).join(', ')}: {ev.revisionSistemasDescripcion}
+                      </p>
                     ) : <p className="text-xs text-green-700">Paciente no refiere síntomas adicionales al momento de la consulta</p>}
                   </Sec>
 
@@ -651,47 +742,49 @@ export default function DetalleTrabajador() {
                         { l: 'Talla', v: `${ev.signosVitales?.talla || '-'} cm` },
                         { l: 'IMC', v: `${ev.signosVitales?.imc || '-'}`, hl: true },
                         { l: 'Perím.', v: `${ev.signosVitales?.perimetroAbdominal || '-'} cm` },
-                      ].map((s, i) => <div key={i} className={`p-2 rounded text-center ${(s as any).hl ? 'bg-blue-50 border border-blue-200' : 'bg-slate-50'}`}><p className="text-slate-500 text-[10px]">{s.l}</p><p className={`font-bold ${(s as any).hl ? 'text-blue-800' : ''}`}>{s.v}</p></div>)}
+                      ].map((s, i) => (
+                        <div key={i} className={`p-2 rounded text-center ${(s as any).hl ? 'bg-blue-50 border border-blue-200' : 'bg-slate-50'}`}>
+                          <p className="text-slate-500 text-[10px]">{s.l}</p>
+                          <p className={`font-bold ${(s as any).hl ? 'text-blue-800' : ''}`}>{s.v}</p>
+                        </div>
+                      ))}
                     </div>
                   </Sec>
 
-                  {/* MATRIZ I. EXAMEN FISICO REGIONAL */}
+                  {/* EXAMEN FÍSICO REGIONAL WEB (Matriz 14x10 calcada del Excel) */}
                   <Sec title="I. EXAMEN FÍSICO REGIONAL">
                     <div className="overflow-x-auto mb-2">
                       <table className="w-full text-[9px] border-collapse border border-slate-300">
                         <thead>
-                           <tr><th colSpan={15} className="bg-[#ccffff] border border-slate-300 p-1 text-left font-bold text-slate-800">REGIONES</th></tr>
+                           <tr>
+                             <th colSpan={14} className="bg-[#ccffff] border border-slate-300 p-1 text-left font-bold text-slate-800">REGIONES</th>
+                           </tr>
                         </thead>
                         <tbody>
-                          {FISICO_ROWS.map((row, i) => (
+                          {exFisicoMatrix.map((row, i) => (
                              <tr key={i}>
                                {row.map((cell, j) => {
-                                 // REGIONES COMBINADAS Y GIRADAS (-90deg) MEDIANTE POSITION ABSOLUTE
-                                 if(cell.type === 'reg') {
-                                    return (
-                                      <td key={j} rowSpan={cell.rs} className="bg-[#ccffff] border border-slate-300 relative w-6 min-w-[24px]">
-                                        <div className="absolute inset-0 flex items-center justify-center">
-                                          <span className="transform -rotate-90 whitespace-nowrap text-[8px] font-bold text-slate-800 tracking-widest">{cell.txt}</span>
-                                        </div>
-                                      </td>
-                                    );
+                                 if(cell.s) return <td key={j} className="w-1 border-none bg-white"></td>;
+                                 if(cell.n) return <td key={j} className="border border-slate-300 p-1 font-bold bg-slate-50">{cell.t}</td>;
+                                 if(cell.c) {
+                                   const checked = ev.examenFisicoHallazgos?.some((h:any)=>h.codigo===cell.c);
+                                   return <td key={j} className={`border border-slate-300 p-1 ${checked?'text-blue-700 font-bold':'text-slate-600'}`}>{cell.t} [{checked?'X':' '}]</td>;
                                  }
-                                 if(cell.type === 'sub') return <td key={j} className="border border-slate-300 p-1.5 bg-white text-slate-700">{cell.txt}</td>;
-                                 if(cell.type === 'chk') {
-                                   const checked = hasFisico(ev, cell.code as string);
-                                   return <td key={j} className="border border-slate-300 p-1 text-center font-bold text-blue-700 bg-white w-6 min-w-[24px]">{checked ? 'X' : ''}</td>;
-                                 }
-                                 if(cell.type === 'empty') return <td key={j} rowSpan={cell.rs||1} colSpan={cell.cs||1} className="border-none bg-white p-0"></td>;
+                                 return <td key={j} className="border border-slate-300 bg-white"></td>;
                                })}
                              </tr>
                           ))}
-                          <tr><td colSpan={15} className="border border-slate-300 p-1.5 text-center font-bold text-[8px] text-slate-500 bg-slate-50">SI EXISTE EVIDENCIA DE PATOLOGÍA MARCAR CON "X" Y DESCRIBIR EN LA SIGUIENTE SECCIÓN COLOCANDO EL NUMERAL</td></tr>
+                          <tr>
+                            <td colSpan={14} className="border border-slate-300 p-1.5 text-center font-bold text-[8px] text-slate-500 bg-slate-50">SI EXISTE EVIDENCIA DE PATOLOGÍA MARCAR CON "X" Y DESCRIBIR EN LA SIGUIENTE SECCIÓN COLOCANDO EL NUMERAL</td>
+                          </tr>
                         </tbody>
                       </table>
                     </div>
                     {ev.examenFisicoHallazgos?.length > 0 ? (
                       <div className="text-xs space-y-1">
-                        {ev.examenFisicoHallazgos.map((h: any, i: number) => <p key={i}><span className="font-bold text-blue-700">{h.codigo}:</span> {h.descripcion}</p>)}
+                        {ev.examenFisicoHallazgos.map((h: any, i: number) => (
+                          <p key={i}><span className="font-bold text-blue-700">{h.codigo}:</span> {h.descripcion}</p>
+                        ))}
                       </div>
                     ) : <p className="text-xs text-green-700">Sin hallazgos patológicos al examen físico regional.</p>}
                   </Sec>
@@ -699,33 +792,49 @@ export default function DetalleTrabajador() {
                   {ev.examenesComplementarios?.length > 0 && (
                     <Sec title="J. RESULTADOS DE EXÁMENES">
                       <table className="w-full text-xs"><thead><tr className="border-b text-left"><th className="pb-1 font-semibold">Examen</th><th className="pb-1 font-semibold">Fecha</th><th className="pb-1 font-semibold">Resultado</th></tr></thead><tbody>
-                        {ev.examenesComplementarios.map((ex: any, i: number) => <tr key={i} className="border-b border-slate-100"><td className="py-1">{ex.nombre}</td><td className="py-1">{ex.fecha}</td><td className="py-1">{ex.resultado}</td></tr>)}
+                        {ev.examenesComplementarios.map((ex: any, i: number) => (
+                          <tr key={i} className="border-b border-slate-100"><td className="py-1">{ex.nombre}</td><td className="py-1">{ex.fecha}</td><td className="py-1">{ex.resultado}</td></tr>
+                        ))}
                       </tbody></table>
                     </Sec>
                   )}
 
                   <Sec title="K. DIAGNÓSTICO">
                     {ev.diagnosticos?.length > 0 ? ev.diagnosticos.map((dx: any, i: number) => (
-                      <p key={i} className="text-xs"><span className="font-semibold">{i + 1}.</span> {dx.descripcion} {dx.cie && <span className="text-slate-500 ml-1">(CIE: {dx.cie})</span>}
-                        <span className={`ml-2 inline-flex px-1.5 py-0.5 rounded text-[10px] font-semibold ${dx.tipo === 'definitivo' ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700'}`}>{dx.tipo === 'definitivo' ? 'DEF' : 'PRE'}</span>
+                      <p key={i} className="text-xs">
+                        <span className="font-semibold">{i + 1}.</span> {dx.descripcion}
+                        {dx.cie && <span className="text-slate-500 ml-1">(CIE: {dx.cie})</span>}
+                        <span className={`ml-2 inline-flex px-1.5 py-0.5 rounded text-[10px] font-semibold ${dx.tipo === 'definitivo' ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700'}`}>
+                          {dx.tipo === 'definitivo' ? 'DEF' : 'PRE'}
+                        </span>
                       </p>
                     )) : <p className="text-xs text-slate-500">PACIENTE SANO.</p>}
                   </Sec>
 
                   <Sec title="L. APTITUD MÉDICA PARA EL TRABAJO">
-                    <span className={`inline-flex px-3 py-1 rounded-full text-xs font-bold ${ev.aptitudMedica === 'apto' ? 'bg-green-100 text-green-800' : ev.aptitudMedica === 'aptoObservacion' ? 'bg-amber-100 text-amber-800' : ev.aptitudMedica === 'aptoLimitaciones' ? 'bg-orange-100 text-orange-800' : 'bg-red-100 text-red-800'}`}>
+                    <span className={`inline-flex px-3 py-1 rounded-full text-xs font-bold ${
+                      ev.aptitudMedica === 'apto' ? 'bg-green-100 text-green-800' :
+                      ev.aptitudMedica === 'aptoObservacion' ? 'bg-amber-100 text-amber-800' :
+                      ev.aptitudMedica === 'aptoLimitaciones' ? 'bg-orange-100 text-orange-800' : 'bg-red-100 text-red-800'
+                    }`}>
                       {ev.aptitudMedica === 'apto' ? 'APTO' : ev.aptitudMedica === 'aptoObservacion' ? 'APTO EN OBSERVACIÓN' : ev.aptitudMedica === 'aptoLimitaciones' ? 'APTO CON LIMITACIONES' : 'NO APTO'}
                     </span>
-                    {ev.aptitudObservacion && <p className="text-xs mt-1">Obs: {ev.aptitudObservacion}</p>}{ev.aptitudLimitaciones && <p className="text-xs mt-1">Limitación: {ev.aptitudLimitaciones}</p>}
+                    {ev.aptitudObservacion && <p className="text-xs mt-1">Obs: {ev.aptitudObservacion}</p>}
+                    {ev.aptitudLimitaciones && <p className="text-xs mt-1">Limitación: {ev.aptitudLimitaciones}</p>}
                   </Sec>
+
                   <Sec title="M. RECOMENDACIONES Y/O TRATAMIENTO">
                     <p className="text-xs">{Array.isArray(ev.recomendaciones) ? ev.recomendaciones.join('; ') : (ev.recomendaciones || 'Ninguna')}{ev.recomendacionesOtras ? `; ${ev.recomendacionesOtras}` : ''}</p>
                   </Sec>
+
                   <Sec title="N. DATOS DEL PROFESIONAL">
                     <div className="grid grid-cols-3 gap-4 text-xs text-center pt-2">
-                      <div><span className="font-semibold block mb-1">MÉDICO EXAMINADOR</span> {ev.medicoNombre || '-'}</div><div><span className="font-semibold block mb-1">CÓDIGO MÉDICO</span> {ev.medicoCedula || '-'}</div><div><span className="font-semibold block mb-1">FECHA DE ATENCIÓN</span> {fmtFH(ev.fecha)}</div>
+                      <div><span className="font-semibold block mb-1">MÉDICO EXAMINADOR</span> {ev.medicoNombre || '-'}</div>
+                      <div><span className="font-semibold block mb-1">CÓDIGO MÉDICO</span> {ev.medicoCedula || '-'}</div>
+                      <div><span className="font-semibold block mb-1">FECHA DE ATENCIÓN</span> {fmtFH(ev.fecha)}</div>
                     </div>
                   </Sec>
+
                 </div>
               </>
             )}
@@ -736,6 +845,7 @@ export default function DetalleTrabajador() {
   );
 }
 
+// Componentes auxiliares
 function Sec({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section>
@@ -744,4 +854,7 @@ function Sec({ title, children }: { title: string; children: React.ReactNode }) 
     </section>
   );
 }
-function KV({ k, v }: { k: string; v: string }) { return <div><span className="font-semibold block text-slate-500 text-[10px] uppercase">{k}</span> {v}</div>; }
+
+function KV({ k, v }: { k: string; v: string }) {
+  return <div><span className="font-semibold block text-slate-500 text-[10px] uppercase">{k}</span> {v}</div>;
+}
