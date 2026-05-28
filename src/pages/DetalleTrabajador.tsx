@@ -397,11 +397,11 @@ export default function DetalleTrabajador() {
       bodyStyles: { minCellHeight: 7 }, // <-- Esta línea soluciona la altura
       headStyles: { fillColor: colorTerciario, textColor: negro, fontSize: 6 },
       columnStyles: {
-        0: { cellWidth: 5 }, 1: { cellWidth: 26 }, 2: { cellWidth: 4, halign: 'center' },
-        3: { cellWidth: 5 }, 4: { cellWidth: 26 }, 5: { cellWidth: 4, halign: 'center' },
-        6: { cellWidth: 5 }, 7: { cellWidth: 26 }, 8: { cellWidth: 4, halign: 'center' },
-        9: { cellWidth: 5 }, 10: { cellWidth: 26 }, 11: { cellWidth: 4, halign: 'center' },
-        12: { cellWidth: 5 }, 13: { cellWidth: 26 }, 14: { cellWidth: 4, halign: 'center' }
+        0: { cellWidth: 8 }, 1: { cellWidth: 26 }, 2: { cellWidth: 4, halign: 'center' },
+        3: { cellWidth: 8 }, 4: { cellWidth: 26 }, 5: { cellWidth: 4, halign: 'center' },
+        6: { cellWidth: 8 }, 7: { cellWidth: 26 }, 8: { cellWidth: 4, halign: 'center' },
+        9: { cellWidth: 8 }, 10: { cellWidth: 26 }, 11: { cellWidth: 4, halign: 'center' },
+        12: { cellWidth: 8 }, 13: { cellWidth: 26 }, 14: { cellWidth: 4, halign: 'center' }
       },
       head: [[{ content: 'REGIONES', colSpan: 15, styles: { halign: 'left', fillColor: colorTerciario } }]],
       body: pdfFisicoRows as any,
