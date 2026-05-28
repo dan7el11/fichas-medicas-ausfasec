@@ -405,7 +405,7 @@ export default function DetalleTrabajador() {
       },
       head: [[{ content: 'REGIONES', colSpan: 15, styles: { halign: 'left', fillColor: colorTerciario } }]],
       body: pdfFisicoRows as any,
-      didDrawCell: function(data) {
+     didDrawCell: function(data) {
         const raw = data.cell.raw as any;
         if (data.section === 'body' && raw && raw.textToRotate) {
           pdf.setTextColor(0); 
@@ -414,23 +414,26 @@ export default function DetalleTrabajador() {
           
           const str = String(raw.textToRotate);
           
-          // EL TRUCO: Cortar el texto en varias líneas si excede la ALTURA de la celda
-          // (Usamos la altura porque el texto está girado)
+          // TU TRUCO: Cortar el texto si excede la altura
           const lineasAjustadas = pdf.splitTextToSize(str, data.cell.height - 2);
           
-          // Coordenadas del centro exacto de la celda
-          const textX = data.cell.x + (data.cell.width / 2); 
+          // El centro vertical (Y) siempre es el mismo para ambas líneas
           const textY = data.cell.y + (data.cell.height / 2);
           
-          // Al enviarle un array de líneas, jsPDF lo dibuja ajustado como en Excel
-          pdf.text(lineasAjustadas, textX, textY, { 
-            angle: 90, 
-            align: 'center', 
-            baseline: 'middle' 
-          });
+          if (lineasAjustadas.length === 1) {
+            // Si cabe en un solo renglón, va al centro exacto
+            const textX = data.cell.x + (data.cell.width / 2) + 0.8; 
+            pdf.text(lineasAjustadas[0], textX, textY, { angle: 90, align: 'center', baseline: 'middle' });
+          } else {
+            // Si son dos renglones, desplazamos las 'X' para que no se encimen
+            const textX_Linea1 = data.cell.x + (data.cell.width / 2) + 1.8; // Renglón de arriba (visualmente a la derecha)
+            const textX_Linea2 = data.cell.x + (data.cell.width / 2) - 0.4; // Renglón de abajo (visualmente a la izquierda)
+            
+            pdf.text(lineasAjustadas[0], textX_Linea1, textY, { angle: 90, align: 'center', baseline: 'middle' });
+            pdf.text(lineasAjustadas[1], textX_Linea2, textY, { angle: 90, align: 'center', baseline: 'middle' });
+          }
         }
       }
-    y = (pdf as any).lastAutoTable.finalY;
 
     if (ev.examenFisicoHallazgos && ev.examenFisicoHallazgos.length > 0) {
       const lineasFisico = ev.examenFisicoHallazgos
