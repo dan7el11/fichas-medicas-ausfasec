@@ -20,8 +20,7 @@ const SISTEMAS = [
   'DIGESTIVO', 'GENITO - URINARIO', 'MÚSCULO ESQUELÉTICO', 'ENDOCRINO', 'HEMO LINFÁTICO', 'NERVIOSO'
 ];
 
-// Matriz Exacta (9 Filas x 15 Columnas). 
-// La última fila comparte la Instrucción (12 cols) + Neurológico (3 cols)
+// Matriz de Examen Físico: 9 Filas x 15 Columnas
 const FISICO_ROWS = [
   [
     { type: 'reg', rs: 3, txt: '1. PIEL' }, { type: 'sub', txt: 'a. Cicatrices' }, { type: 'chk', code: '1a' },
@@ -46,7 +45,7 @@ const FISICO_ROWS = [
   ],
   [
     { type: 'reg', rs: 5, txt: '2. OJOS' }, { type: 'sub', txt: 'a. Párpados' }, { type: 'chk', code: '2a' },
-    { type: 'reg', rs: 5, txt: '4. OROFARINGE' }, { type: 'sub', txt: 'a. Labios' }, { type: 'chk', code: '4a' },
+    { type: 'reg', rs: 5, txt: '4. OROFAR.' }, { type: 'sub', txt: 'a. Labios' }, { type: 'chk', code: '4a' },
     { type: 'sub', txt: 'd. Senos paran.' }, { type: 'chk', code: '5d' },
     { type: 'sub', txt: 'b. Pared abdom.' }, { type: 'chk', code: '9b' },
     { type: 'sub', txt: 'b. Miembros sup.' }, { type: 'chk', code: '12b' }
@@ -80,6 +79,7 @@ const FISICO_ROWS = [
     { type: 'sub', txt: 'c. Marcha' }, { type: 'chk', code: '13c' }
   ],
   [
+    // Fila 9: La instrucción abarca las primeras 12 columnas. Luego sigue Reflejos
     { type: 'instr', cs: 12, txt: 'SI EXISTE EVIDENCIA DE PATOLOGÍA MARCAR CON "X" Y DESCRIBIR EN LA SIGUIENTE SECCIÓN COLOCANDO EL NUMERAL' },
     { type: 'sub', txt: 'd. Reflejos' }, { type: 'chk', code: '13d' }
   ]
@@ -371,7 +371,7 @@ export default function DetalleTrabajador() {
     });
     y = (pdf as any).lastAutoTable.finalY + 2;
 
-    // --- I. EXAMEN FÍSICO REGIONAL (15 Columnas, Matemáticamente exacta) ---
+    // --- I. EXAMEN FÍSICO REGIONAL (Con texto rotado arreglado y celda unida al final) ---
     checkPage(60);
     secHeader('I. EXAMEN FÍSICO REGIONAL');
     
@@ -399,19 +399,6 @@ export default function DetalleTrabajador() {
       },
       head: [[{ content: 'REGIONES', colSpan: 15, styles: { halign: 'left', fillColor: colorTerciario } }]],
       body: pdfFisicoRows as any,
-     autoTable(pdf, {
-      startY: y, margin: { left: M, right: M }, theme: 'grid',
-      styles: { ...baseStyles, fontSize: 5.5, cellPadding: 0.8 },
-      headStyles: { fillColor: colorTerciario, textColor: negro, fontSize: 6 },
-      columnStyles: {
-        0: { cellWidth: 5 }, 1: { cellWidth: 26 }, 2: { cellWidth: 4, halign: 'center' },
-        3: { cellWidth: 5 }, 4: { cellWidth: 26 }, 5: { cellWidth: 4, halign: 'center' },
-        6: { cellWidth: 5 }, 7: { cellWidth: 26 }, 8: { cellWidth: 4, halign: 'center' },
-        9: { cellWidth: 5 }, 10: { cellWidth: 26 }, 11: { cellWidth: 4, halign: 'center' },
-        12: { cellWidth: 5 }, 13: { cellWidth: 26 }, 14: { cellWidth: 4, halign: 'center' }
-      },
-      head: [[{ content: 'REGIONES', colSpan: 15, styles: { halign: 'left', fillColor: colorTerciario } }]],
-      body: pdfFisicoRows as any,
       didDrawCell: function(data) {
         const raw = data.cell.raw as any;
         if (data.section === 'body' && raw && raw.textToRotate) {
@@ -422,10 +409,10 @@ export default function DetalleTrabajador() {
           const str = String(raw.textToRotate);
           const textWidth = pdf.getTextWidth(str);
           
-          // X: Centro de la celda ajustado a la derecha para compensar el giro
+          // X: Centro exacto de la celda + 1mm a la derecha
           const textX = data.cell.x + (data.cell.width / 2) + 1; 
           
-          // Y: Centro de la celda ajustado hacia abajo usando el ancho de la palabra
+          // Y: Mitad de la celda + la mitad del ancho de la palabra (Para que empiece abajo y termine arriba)
           const textY = data.cell.y + (data.cell.height / 2) + (textWidth / 2);
           
           pdf.text(str, textX, textY, { angle: 90 });
@@ -433,6 +420,7 @@ export default function DetalleTrabajador() {
       }
     });
     y = (pdf as any).lastAutoTable.finalY;
+
     if (ev.examenFisicoHallazgos && ev.examenFisicoHallazgos.length > 0) {
       const lineasFisico = ev.examenFisicoHallazgos.map((h: any) => `${h.codigo}: ${h.descripcion || '-'}`).join('; ');
       textoLibre(lineasFisico, 6); y += 1;
@@ -735,7 +723,6 @@ export default function DetalleTrabajador() {
                     </div>
                   </Sec>
 
-                  {/* MATRIZ I. EXAMEN FISICO REGIONAL (SIN POSITION ABSOLUTE, 15 COLUMNAS, INSTRUCCIÓN AL FINAL) */}
                   <Sec title="I. EXAMEN FÍSICO REGIONAL">
                     <div className="overflow-x-auto mb-2">
                       <table className="w-full text-[9px] border-collapse border border-slate-300">
@@ -746,13 +733,13 @@ export default function DetalleTrabajador() {
                           {FISICO_ROWS.map((row, i) => (
                              <tr key={i}>
                                {row.map((cell, j) => {
-                                 // TEXTO VERTICAL CONFINADO
+                                 // TEXTO VERTICAL (Controlado estrictamente con writing-mode)
                                  if(cell.type === 'reg') {
                                     return (
                                       <td key={j} rowSpan={cell.rs} className="bg-[#ccffff] border border-slate-300 align-middle text-center p-1 w-6">
-                                        <span style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }} className="inline-block text-[10px] font-bold text-slate-800 tracking-widest whitespace-nowrap">
+                                        <div style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)', display: 'inline-block' }} className="text-[10px] font-bold text-slate-800 tracking-widest whitespace-nowrap">
                                           {cell.txt}
-                                        </span>
+                                        </div>
                                       </td>
                                     );
                                  }
