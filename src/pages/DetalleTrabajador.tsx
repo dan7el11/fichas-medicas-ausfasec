@@ -413,37 +413,34 @@ export default function DetalleTrabajador() {
           pdf.setFont('helvetica', 'bold');
           
           const str = String(raw.textToRotate);
-          const lineasAjustadas = pdf.splitTextToSize(str, data.cell.height - 2);
           
-          // Centro horizontal exacto de la celda
+          // EL SECRETO: Calculamos la altura real multiplicando 6.5mm por la cantidad de celdas combinadas
+          const realHeight = 6.5 * (raw.rowSpan || 1);
+          
+          const textWidth = pdf.getTextWidth(str);
+          
+          // Calculamos el centro exacto de la celda grande
           const centroX = data.cell.x + (data.cell.width / 2);
-          // Centro vertical exacto de la celda
-          const centroY = data.cell.y + (data.cell.height / 2);
-
-          // Escribimos el texto usando posiciones manuales (sin usar align: 'center')
-          if (lineasAjustadas.length === 1) {
-            const txt = lineasAjustadas[0];
-            const textWidth = pdf.getTextWidth(txt);
-            
-            // X: Centro + 1mm (compensa la altura de la fuente para centrar)
-            const textX = centroX + 1; 
-            // Y: Centro + mitad de la palabra (para que empiece abajo y termine arriba)
-            const textY = centroY + (textWidth / 2);
-            
-            pdf.text(txt, textX, textY, { angle: 90 });
+          const centroY = data.cell.y + (realHeight / 2);
+          
+          // Si el texto es increíblemente largo, lo divide en 2 renglones como en Excel
+          if (textWidth > realHeight - 2) {
+             const lineas = pdf.splitTextToSize(str, realHeight - 2);
+             
+             // Primer renglón (derecha visualmente)
+             const w1 = pdf.getTextWidth(lineas[0]);
+             pdf.text(lineas[0], centroX + 1.5, centroY + (w1 / 2), { angle: 90 });
+             
+             // Segundo renglón (izquierda visualmente)
+             if (lineas[1]) {
+               const w2 = pdf.getTextWidth(lineas[1]);
+               pdf.text(lineas[1], centroX - 0.5, centroY + (w2 / 2), { angle: 90 });
+             }
           } else {
-            // Si son dos renglones, calculamos cada uno por separado
-            const txt1 = lineasAjustadas[0];
-            const w1 = pdf.getTextWidth(txt1);
-            const textX_Linea1 = centroX + 2.2; // Renglón derecho (arriba visualmente)
-            const textY_Linea1 = centroY + (w1 / 2);
-            pdf.text(txt1, textX_Linea1, textY_Linea1, { angle: 90 });
-
-            const txt2 = lineasAjustadas[1];
-            const w2 = pdf.getTextWidth(txt2);
-            const textX_Linea2 = centroX - 0.2; // Renglón izquierdo (abajo visualmente)
-            const textY_Linea2 = centroY + (w2 / 2);
-            pdf.text(txt2, textX_Linea2, textY_Linea2, { angle: 90 });
+             // Texto en un solo renglón, anclado milimétricamente al centro
+             const textX = centroX + 0.8; 
+             const textY = centroY + (textWidth / 2);
+             pdf.text(str, textX, textY, { angle: 90 });
           }
         }
       }
