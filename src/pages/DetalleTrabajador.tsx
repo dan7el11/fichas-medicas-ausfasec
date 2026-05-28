@@ -439,7 +439,7 @@ export default function DetalleTrabajador() {
       body: iBody,
       didParseCell: function(data) {
         if (data.column.index === 0 && data.section === 'body') {
-          data.cell.styles.textColor = colorTerciario; // Oculta el texto horizontal haciéndolo del mismo color que el fondo
+          data.cell.styles.textColor = colorTerciario; // Oculta el texto horizontal
         }
       },
       didDrawCell: function(data) {
@@ -448,7 +448,8 @@ export default function DetalleTrabajador() {
           pdf.setTextColor(0);
           pdf.setFontSize(5);
           pdf.setFont('helvetica', 'bold');
-          pdf.text(data.cell.raw, data.cell.x + 4.5, data.cell.y + data.cell.height - 2, { angle: 90 });
+          // CORRECCIÓN: Envolvemos en String() para que TypeScript no bloquee la compilación
+          pdf.text(String(data.cell.raw), data.cell.x + 4.5, data.cell.y + data.cell.height - 2, { angle: 90 });
         }
       }
     });
