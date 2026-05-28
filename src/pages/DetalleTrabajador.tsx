@@ -6,6 +6,36 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import type { Trabajador, EvaluacionMedica } from '../types';
 
+// ============================================================================
+// CONSTANTES DE CATÁLOGOS PARA LAS TABLAS DEL PDF
+// ============================================================================
+const TIPOS_ANTECEDENTES_FAMILIARES = [
+  'Enfermedad Cardio-Vascular', 'Enfermedad Metabólica', 'Enfermedad Neurológica',
+  'Enfermedad Oncológica', 'Enfermedad Infecciosa', 'Enfermedad Hereditaria / Congénita',
+  'Discapacidades', 'Otros'
+];
+
+const SISTEMAS = [
+  'PIEL - ANEXOS', 'ÓRGANOS DE LOS SENTIDOS', 'RESPIRATORIO', 'CARDIO-VASCULAR',
+  'DIGESTIVO', 'GENITO - URINARIO', 'MÚSCULO ESQUELÉTICO', 'ENDOCRINO', 'HEMO LINFÁTICO', 'NERVIOSO'
+];
+
+const REGIONES_FISICO = [
+  { n: 1, r: 'Piel', s: ['a. Cicatrices', 'b. Tatuajes', 'c. Piel y faneras'] },
+  { n: 2, r: 'Ojos', s: ['a. Párpados', 'b. Conjuntivas', 'c. Pupilas', 'd. Córnea', 'e. Motilidad'] },
+  { n: 3, r: 'Oído', s: ['a. C. auditivo externo', 'b. Pabellón', 'c. Tímpanos'] },
+  { n: 4, r: 'Oro faringe', s: ['a. Labios', 'b. Lengua', 'c. Faringe', 'd. Amígdalas', 'e. Dentadura'] },
+  { n: 5, r: 'Nariz', s: ['a. Tabique', 'b. Cornetes', 'c. Mucosas', 'd. Senos paranasales'] },
+  { n: 6, r: 'Cuello', s: ['a. Tiroides / masas', 'b. Movilidad'] },
+  { n: 7, r: 'Tórax (Corazón)', s: ['a. Mamas', 'b. Corazón'] },
+  { n: 8, r: 'Tórax (Pulmones)', s: ['a. Pulmones', 'b. Parrilla costal'] },
+  { n: 9, r: 'Abdomen', s: ['a. Vísceras', 'b. Pared abdominal'] },
+  { n: 10, r: 'Columna', s: ['a. Flexibilidad', 'b. Desviación', 'c. Dolor'] },
+  { n: 11, r: 'Pelvis', s: ['a. Pelvis', 'b. Genitales'] },
+  { n: 12, r: 'Extremidades', s: ['a. Vascular', 'b. Miembros superiores', 'c. Miembros inferiores'] },
+  { n: 13, r: 'Neurológico', s: ['a. Fuerza', 'b. Sensibilidad', 'c. Marcha', 'd. Reflejos'] }
+];
+
 export default function DetalleTrabajador() {
   const { trabajadorId } = useParams();
   const navigate = useNavigate();
@@ -65,7 +95,7 @@ export default function DetalleTrabajador() {
   };
 
   // ============================================================
-  //  GENERADOR PDF — Fase 1: Colores, Textos Agrupados y Firmas
+  //  GENERADOR PDF
   // ============================================================
   const generarPDF = () => {
     const ev: any = evaluaciones[pestanaActiva];
@@ -77,13 +107,11 @@ export default function DetalleTrabajador() {
     const CW = W - M * 2;
     let y = 7;
 
-    // COLORES DE FASE 1: Extraídos directamente del formato original
-    const colorPrimario = '#ccffcc';   // Verde claro: Para secciones principales (A, B, C...)
-    const colorSecundario = '#ccccff'; // Azul/lila claro: Para cabeceras de tablas internas
-    const colorTerciario = '#ccffff';  // Celeste claro: Para sub-secciones especiales (Incidentes)
+    const colorPrimario = '#ccffcc';   // Verde
+    const colorSecundario = '#ccccff'; // Lila
+    const colorTerciario = '#ccffff';  // Celeste
     const negro: [number, number, number] = [0, 0, 0];
 
-    // Estilos base para autoTable
     const baseStyles = {
       lineColor: negro, lineWidth: 0.25,
       fontSize: 7, cellPadding: 1.2, textColor: negro,
@@ -93,12 +121,10 @@ export default function DetalleTrabajador() {
       fontSize: 6.5, lineColor: negro, lineWidth: 0.25, cellPadding: 1.2,
     };
 
-    // Helper: salto de página seguro
     const checkPage = (needed: number) => {
       if (y + needed > 285) { pdf.addPage(); y = 7; }
     };
 
-    // Helper: cabecera de sección (franja de color con borde negro)
     const secHeader = (texto: string, bgColor = colorPrimario) => {
       checkPage(10);
       pdf.setFillColor(bgColor);
@@ -109,7 +135,6 @@ export default function DetalleTrabajador() {
       y += 5;
     };
 
-    // Helper: texto libre en recuadro con borde (Acepta saltos de línea \n)
     const textoLibre = (texto: string, minH = 8) => {
       pdf.setDrawColor(0); pdf.setFontSize(7); pdf.setFont('helvetica', 'normal');
       const lines = pdf.splitTextToSize(texto || '-', CW - 3);
@@ -122,7 +147,6 @@ export default function DetalleTrabajador() {
 
     // =============== PÁGINA 1 ===============
 
-    // ENCABEZADO CORPORATIVO
     autoTable(pdf, {
       startY: y, margin: { left: M, right: M }, theme: 'grid',
       styles: { ...baseStyles, halign: 'center', fontSize: 8 },
@@ -159,12 +183,12 @@ export default function DetalleTrabajador() {
     });
     y = (pdf as any).lastAutoTable.finalY + 2;
 
-    // B. MOTIVO DE CONSULTA
+    // B. MOTIVO
     secHeader('B. MOTIVO DE CONSULTA');
     textoLibre((ev.motivoConsulta || 'ACTUALIZACIÓN DE FICHA OCUPACIONAL').toUpperCase(), 6);
     y += 1;
 
-    // C. ANTECEDENTES PERSONALES Y LABORALES
+    // C. ANTECEDENTES PERSONALES
     secHeader('C. ANTECEDENTES PERSONALES');
 
     pdf.setFontSize(6.5); pdf.setFont('helvetica', 'bold');
@@ -202,10 +226,7 @@ export default function DetalleTrabajador() {
     }
     y += 1;
 
-    // --- MEJORA: INCIDENTES Y ACCIDENTES DELIMITADOS ---
     secHeader('INCIDENTES, ACCIDENTES Y ENFERMEDAD PROFESIONAL', colorTerciario);
-    
-    // Incidentes simples
     autoTable(pdf, {
       startY: y, margin: { left: M, right: M }, theme: 'grid',
       styles: { ...baseStyles, fontSize: 6.5 }, headStyles: { ...headStyles, fillColor: colorTerciario },
@@ -214,7 +235,6 @@ export default function DetalleTrabajador() {
     });
     y = (pdf as any).lastAutoTable.finalY;
 
-    // Accidentes
     if (ev.accidentesTrabajo?.descripcion) {
       autoTable(pdf, {
         startY: y, margin: { left: M, right: M }, theme: 'grid',
@@ -231,7 +251,6 @@ export default function DetalleTrabajador() {
       y = (pdf as any).lastAutoTable.finalY;
     }
 
-    // Enfermedad Profesional
     if (ev.enfermedadesProfesionales?.descripcion) {
       autoTable(pdf, {
         startY: y, margin: { left: M, right: M }, theme: 'grid',
@@ -249,23 +268,30 @@ export default function DetalleTrabajador() {
     }
     y += 2;
 
-    // D. ANTECEDENTES FAMILIARES
-    checkPage(15);
+    // --- MEJORA: TABLA COMPLETA DE ANTECEDENTES FAMILIARES ---
+    checkPage(40);
     secHeader('D. ANTECEDENTES FAMILIARES (DETALLAR EL PARENTESCO)');
-    if (ev.antecedentesFamiliares && ev.antecedentesFamiliares.length > 0) {
-      autoTable(pdf, {
-        startY: y, margin: { left: M, right: M }, theme: 'grid',
-        styles: { ...baseStyles, fontSize: 6.5 }, headStyles: { ...headStyles, fontSize: 6 },
-        head: [['N°', 'TIPO', 'PARENTESCO', 'DESCRIPCIÓN']],
-        body: ev.antecedentesFamiliares.map((af: any, i: number) => [`${i + 1}`, af.tipo, af.parentesco || '-', af.descripcion || '-']),
-      });
-      y = (pdf as any).lastAutoTable.finalY + 1;
-    } else {
-      textoLibre('No se refieren antecedentes familiares de importancia.', 5);
-      y += 1;
-    }
+    const antFamRows = TIPOS_ANTECEDENTES_FAMILIARES.map((tipo, idx) => {
+      const found = ev.antecedentesFamiliares?.find((a:any) => a.tipo === tipo);
+      return [
+        `${idx + 1}. ${tipo}`,
+        found ? 'X' : '',
+        found ? '' : 'X',
+        found ? (found.parentesco || '-') : '-',
+        found ? (found.descripcion || '-') : '-'
+      ];
+    });
+    
+    autoTable(pdf, {
+      startY: y, margin: { left: M, right: M }, theme: 'grid',
+      styles: { ...baseStyles, fontSize: 6.5 }, headStyles: { ...headStyles, fontSize: 6 },
+      head: [['ENFERMEDADES', 'SI', 'NO', 'PARENTESCO', 'DESCRIPCIÓN']],
+      body: antFamRows,
+      columnStyles: { 1: { halign: 'center', cellWidth: 10 }, 2: { halign: 'center', cellWidth: 10 } }
+    });
+    y = (pdf as any).lastAutoTable.finalY + 2;
 
-    // E. FACTORES DE RIESGO DEL PUESTO
+    // E. FACTORES DE RIESGO
     if (ev.factoresRiesgo) {
       checkPage(25);
       secHeader('E. FACTORES DE RIESGOS DEL PUESTO DE TRABAJO');
@@ -339,11 +365,30 @@ export default function DetalleTrabajador() {
     textoLibre(ev.enfermedadActual || 'PACIENTE ASINTOMÁTICO AL MOMENTO DE LA VALORACIÓN.', 8);
     y += 1;
 
-    // --- MEJORA: REVISIÓN DE ÓRGANOS AGRUPADOS EN LÍNEA DE TEXTO ---
+    // --- MEJORA: TABLA DE ÓRGANOS Y SISTEMAS CON MARCADORES ---
     secHeader('G. REVISIÓN DE ÓRGANOS Y SISTEMAS');
+    const gBody = [];
+    for (let r = 0; r < 2; r++) {
+      const row = [];
+      for (let c = 0; c < 5; c++) {
+        const idx = c * 2 + r;
+        const sysName = SISTEMAS[idx];
+        const isChecked = ev.revisionSistemasSeleccionados?.includes(sysName);
+        row.push(`${idx + 1}. ${sysName} [${isChecked ? 'X' : ' '}]`);
+      }
+      gBody.push(row);
+    }
+    autoTable(pdf, {
+      startY: y, margin: { left: M, right: M }, theme: 'grid',
+      styles: { ...baseStyles, fontSize: 5.5, cellPadding: 1 },
+      body: gBody
+    });
+    y = (pdf as any).lastAutoTable.finalY;
+
     if (ev.revisionSistemasSeleccionados && ev.revisionSistemasSeleccionados.length > 0) {
-      const textoOrganos = `Sistemas afectados: ${ev.revisionSistemasSeleccionados.join(', ')}.\nObservación: ${ev.revisionSistemasDescripcion || '-'}`;
-      textoLibre(textoOrganos, 8);
+      // Extrae solo los números de los sistemas afectados
+      const nums = ev.revisionSistemasSeleccionados.map((s:string) => SISTEMAS.indexOf(s) + 1).sort((a:number, b:number) => a - b).join(', ');
+      textoLibre(`Numerales afectados: ${nums}\nDescripción: ${ev.revisionSistemasDescripcion || '-'}`, 8);
     } else {
       textoLibre('Paciente no refiere síntomas adicionales o relevantes al momento de la consulta.', 5);
     }
@@ -366,14 +411,32 @@ export default function DetalleTrabajador() {
     });
     y = (pdf as any).lastAutoTable.finalY + 2;
 
-    // --- MEJORA: EXAMEN FÍSICO AGRUPADO EN LÍNEAS DE TEXTO ---
+    // --- MEJORA: TABLA COMPLETA DE EXAMEN FÍSICO ---
+    checkPage(60);
     secHeader('I. EXAMEN FÍSICO REGIONAL');
+    const iBody = REGIONES_FISICO.map(reg => {
+      const subsMarcados = reg.s.map(subName => {
+        const codeMatch = subName.match(/^([a-z])\./);
+        const fullCode = `${reg.n}${codeMatch ? codeMatch[1] : ''}`;
+        const isSelected = ev.examenFisicoHallazgos?.some((h:any) => h.codigo === fullCode);
+        return `${subName} [${isSelected ? 'X' : ' '}]`;
+      }).join('   ');
+      return [`${reg.n}. ${reg.r}`, subsMarcados];
+    });
+
+    autoTable(pdf, {
+      startY: y, margin: { left: M, right: M }, theme: 'grid',
+      styles: { ...baseStyles, fontSize: 6 },
+      columnStyles: { 0: { cellWidth: 35, fontStyle: 'bold' } },
+      body: iBody
+    });
+    y = (pdf as any).lastAutoTable.finalY;
+
     if (ev.examenFisicoHallazgos && ev.examenFisicoHallazgos.length > 0) {
-      // Creamos un string con saltos de línea (\n) para cada hallazgo
       const lineasFisico = ev.examenFisicoHallazgos.map((h: any) => 
         `${h.codigo}. ${h.region}, ${h.subregion}: ${h.descripcion || '-'}`
       ).join('\n');
-      textoLibre(lineasFisico, 5);
+      textoLibre(`Observaciones:\n${lineasFisico}`, 8);
       y += 1;
     } else {
       textoLibre('Sin hallazgos patológicos al examen físico regional.', 5);
@@ -463,12 +526,12 @@ export default function DetalleTrabajador() {
     pdf.text(certLines, M + 1.5, y + 3);
     y += certH + 3;
 
-    // --- MEJORA: CENTRADO DE N. DATOS DEL PROFESIONAL Y FIRMAS ---
+    // N. DATOS DEL PROFESIONAL Y FIRMAS
     checkPage(25);
     secHeader('N. DATOS DEL PROFESIONAL                                                                             O. FIRMA DEL USUARIO');
     autoTable(pdf, {
       startY: y, margin: { left: M, right: M }, theme: 'grid',
-      styles: { ...baseStyles, fontSize: 6.5, halign: 'center' }, // halign: center centra toda la tabla
+      styles: { ...baseStyles, fontSize: 6.5, halign: 'center' },
       headStyles: { ...headStyles, fontSize: 6, halign: 'center' },
       head: [['FECHA\naaaa-mm-dd', 'HORA', 'NOMBRES Y APELLIDOS', 'CÓDIGO', 'FIRMA Y SELLO', 'FIRMA DEL USUARIO']],
       body: [[
@@ -476,7 +539,7 @@ export default function DetalleTrabajador() {
         (ev.medicoNombre || 'MÉDICO OCUPACIONAL').toUpperCase(),
         ev.medicoCedula || '-', '', ''
       ]],
-      bodyStyles: { minCellHeight: 18, valign: 'bottom', halign: 'center' }, // Firmas y contenido centrados al fondo
+      bodyStyles: { minCellHeight: 18, valign: 'bottom', halign: 'center' },
     });
 
     const nombre = `SO-RE-38_${trabajador.primerApellido}_${trabajador.primerNombre}_${fmtF(ev.fecha)}`.replace(/[\s\/]/g, '_');
@@ -558,7 +621,7 @@ export default function DetalleTrabajador() {
                   </button>
                 </div>
 
-                {/* Vista en pantalla */}
+                {/* Vista Web de la Ficha en Pantalla */}
                 <div className="p-6 md:p-8 space-y-5">
 
                   <div className="text-center mb-4 pb-3 border-b-2 border-slate-300">
@@ -580,29 +643,49 @@ export default function DetalleTrabajador() {
                     </div>
                   </Sec>
 
-                  <Sec title="B. MOTIVO DE CONSULTA"><p className="text-xs">{ev.motivoConsulta || 'No especificado'}</p></Sec>
+                  <Sec title="B. MOTIVO DE CONSULTA"><p className="text-xs uppercase">{ev.motivoConsulta || 'ACTUALIZACIÓN DE FICHA OCUPACIONAL'}</p></Sec>
 
-                  <Sec title="C. ANTECEDENTES PERSONALES">
+                  <Sec title="C. ANTECEDENTES PERSONALES Y LABORALES">
                     <p className="text-xs mb-2"><span className="font-bold">Clínicos y Quirúrgicos:</span> {ev.antecedentesClinicosQuirurgicos || 'Sin registros'}</p>
                     {ev.habitosToxicos?.length > 0 && (
-                      <div className="grid grid-cols-3 gap-2 mb-2">
+                      <div className="grid grid-cols-3 gap-2 mb-3">
                         {ev.habitosToxicos.map((h: any, i: number) => (
                           <div key={i} className="bg-slate-50 p-2 rounded text-xs">
                             <span className="font-semibold capitalize">{h.tipo}: </span>
-                            {h.consume ? `Consume (${h.tiempoConsumo || '?'}m)` : h.exConsumidor ? 'Ex consumidor' : 'No consume'}
+                            {h.consume ? `Consume (${h.tiempoConsumo || '?'}m)` : h.exConsumidor ? `Ex consumidor (${h.tiempoAbstinencia || '?'}m)` : 'No consume'}
                           </div>
                         ))}
                       </div>
                     )}
+                    <div className="border-t border-slate-200 pt-2 mb-2">
+                      <p className="text-xs font-bold mb-1">Incidentes y Accidentes:</p>
+                      <p className="text-xs mb-1"><span className="font-semibold">Incidentes:</span> {ev.incidentes || 'NINGUNO'}</p>
+                      {ev.accidentesTrabajo?.descripcion && <p className="text-xs"><span className="font-semibold">Accidente Trabajo:</span> {ev.accidentesTrabajo.descripcion} (IESS: {ev.accidentesTrabajo.calificado ? 'SÍ' : 'NO'})</p>}
+                      {ev.enfermedadesProfesionales?.descripcion && <p className="text-xs"><span className="font-semibold">Enf. Profesional:</span> {ev.enfermedadesProfesionales.descripcion} (IESS: {ev.enfermedadesProfesionales.calificada ? 'SÍ' : 'NO'})</p>}
+                    </div>
                   </Sec>
 
-                  {ev.antecedentesFamiliares?.length > 0 && (
-                    <Sec title="D. ANTECEDENTES FAMILIARES">
-                      {ev.antecedentesFamiliares.map((af: any, i: number) => (
-                        <p key={i} className="text-xs"><span className="font-semibold">{af.tipo}:</span> {af.parentesco} — {af.descripcion}</p>
-                      ))}
-                    </Sec>
-                  )}
+                  <Sec title="D. ANTECEDENTES FAMILIARES">
+                    <table className="w-full text-[10px] border-collapse border border-slate-300">
+                      <thead className="bg-slate-100">
+                        <tr><th className="border border-slate-300 p-1 text-left">ENFERMEDADES</th><th className="border border-slate-300 p-1">SI</th><th className="border border-slate-300 p-1">NO</th><th className="border border-slate-300 p-1 text-left">PARENTESCO</th><th className="border border-slate-300 p-1 text-left">DESCRIPCIÓN</th></tr>
+                      </thead>
+                      <tbody>
+                        {TIPOS_ANTECEDENTES_FAMILIARES.map((tipo, idx) => {
+                          const af = ev.antecedentesFamiliares?.find((a:any) => a.tipo === tipo);
+                          return (
+                            <tr key={idx}>
+                              <td className="border border-slate-300 p-1">{idx+1}. {tipo}</td>
+                              <td className="border border-slate-300 p-1 text-center font-bold">{af ? 'X' : ''}</td>
+                              <td className="border border-slate-300 p-1 text-center font-bold">{af ? '' : 'X'}</td>
+                              <td className="border border-slate-300 p-1">{af ? af.parentesco : '-'}</td>
+                              <td className="border border-slate-300 p-1">{af ? af.descripcion : '-'}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </Sec>
 
                   {ev.factoresRiesgo && (
                     <Sec title="E. FACTORES DE RIESGO DEL PUESTO">
@@ -623,18 +706,33 @@ export default function DetalleTrabajador() {
                     </Sec>
                   )}
 
-                  <Sec title="F. ENFERMEDAD ACTUAL"><p className="text-xs">{ev.enfermedadActual || 'Sin novedad'}</p></Sec>
+                  <Sec title="F. ENFERMEDAD ACTUAL"><p className="text-xs uppercase">{ev.enfermedadActual || 'PACIENTE ASINTOMÁTICO AL MOMENTO DE LA VALORACIÓN.'}</p></Sec>
 
                   <Sec title="G. REVISIÓN DE ÓRGANOS Y SISTEMAS">
+                    <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-[10px] mb-3">
+                      {SISTEMAS.map((sys, idx) => {
+                        const checked = ev.revisionSistemasSeleccionados?.includes(sys);
+                        return (
+                          <div key={idx} className={`p-1.5 border rounded flex items-center justify-between ${checked ? 'bg-blue-50 border-blue-300 font-bold' : 'bg-slate-50 text-slate-600'}`}>
+                             <span>{idx+1}. {sys}</span>
+                             <span className={checked ? 'text-blue-700' : 'text-slate-400'}>[{checked ? 'X' : ' '}]</span>
+                          </div>
+                        )
+                      })}
+                    </div>
                     {ev.revisionSistemasSeleccionados?.length > 0 ? (
-                      <><p className="text-xs font-semibold mb-1">Afectados: {ev.revisionSistemasSeleccionados.join(', ')}</p><p className="text-xs">{ev.revisionSistemasDescripcion}</p></>
+                      <p className="text-xs">
+                        <span className="font-semibold">Numerales afectados: </span> 
+                        {ev.revisionSistemasSeleccionados.map((s:string) => SISTEMAS.indexOf(s) + 1).sort((a:number,b:number)=>a-b).join(', ')}<br/>
+                        <span className="font-semibold">Descripción: </span> {ev.revisionSistemasDescripcion}
+                      </p>
                     ) : <p className="text-xs text-green-700">Paciente no refiere síntomas adicionales al momento de la consulta</p>}
                   </Sec>
 
                   <Sec title="H. CONSTANTES VITALES Y ANTROPOMETRÍA">
                     <div className="grid grid-cols-3 md:grid-cols-5 gap-3 text-xs">
                       {[
-                        { l: 'P.A.', v: `${ev.signosVitales?.presionSistolica || '-'}/${ev.signosVitales?.presionDiastolica || '-'} mmHg` },
+                        { l: 'P.A.', v: `${ev.signosVitales?.presionSistolica || ev.signosVitales?.presionArterial || '-'}/${ev.signosVitales?.presionDiastolica || '-'} mmHg` },
                         { l: 'Temp', v: `${ev.signosVitales?.temperatura || '-'} °C` },
                         { l: 'F.C.', v: `${ev.signosVitales?.frecuenciaCardiaca || '-'} lpm` },
                         { l: 'SAT O₂', v: `${ev.signosVitales?.saturacion || '-'} %` },
@@ -653,9 +751,33 @@ export default function DetalleTrabajador() {
                   </Sec>
 
                   <Sec title="I. EXAMEN FÍSICO REGIONAL">
-                    {ev.examenFisicoHallazgos?.length > 0 ? ev.examenFisicoHallazgos.map((h: any, i: number) => (
-                      <p key={i} className="text-xs"><span className="font-bold text-blue-700">{h.codigo}:</span> {h.region} — {h.subregion}: {h.descripcion}</p>
-                    )) : <p className="text-xs text-green-700">Sin signos relevantes al momento de la consulta</p>}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-[10px] mb-4">
+                      {REGIONES_FISICO.map(reg => (
+                        <div key={reg.n} className="border border-slate-200 rounded p-2 bg-slate-50 flex flex-col">
+                          <span className="font-bold mb-1.5">{reg.n}. {reg.r}</span>
+                          <div className="flex flex-wrap gap-x-4 gap-y-1">
+                            {reg.s.map(sub => {
+                              const codeMatch = sub.match(/^([a-z])\./);
+                              const fullCode = `${reg.n}${codeMatch ? codeMatch[1] : ''}`;
+                              const checked = ev.examenFisicoHallazgos?.some((h:any) => h.codigo === fullCode);
+                              return (
+                                <span key={sub} className={checked ? 'text-blue-700 font-bold' : 'text-slate-600'}>
+                                  {sub} <span className="font-bold">[{checked ? 'X' : ' '}]</span>
+                                </span>
+                              )
+                            })}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    {ev.examenFisicoHallazgos?.length > 0 ? (
+                      <div className="text-xs">
+                        <span className="font-semibold block mb-1">Observaciones:</span>
+                        {ev.examenFisicoHallazgos.map((h: any, i: number) => (
+                          <div key={i} className="mb-1"><span className="font-bold text-blue-700">{h.codigo}.</span> {h.region}, {h.subregion}: {h.descripcion}</div>
+                        ))}
+                      </div>
+                    ) : <p className="text-xs text-green-700">Sin hallazgos patológicos al examen físico regional.</p>}
                   </Sec>
 
                   {ev.examenesComplementarios?.length > 0 && (
@@ -677,7 +799,7 @@ export default function DetalleTrabajador() {
                           {dx.tipo === 'definitivo' ? 'DEF' : 'PRE'}
                         </span>
                       </p>
-                    )) : <p className="text-xs text-slate-500">Paciente sano</p>}
+                    )) : <p className="text-xs text-slate-500">PACIENTE SANO.</p>}
                   </Sec>
 
                   <Sec title="L. APTITUD MÉDICA PARA EL TRABAJO">
@@ -697,10 +819,10 @@ export default function DetalleTrabajador() {
                   </Sec>
 
                   <Sec title="N. DATOS DEL PROFESIONAL">
-                    <div className="grid grid-cols-3 gap-4 text-xs">
-                      <div><span className="font-semibold">Nombre:</span> {ev.medicoNombre || '-'}</div>
-                      <div><span className="font-semibold">Código:</span> {ev.medicoCedula || '-'}</div>
-                      <div><span className="font-semibold">Fecha:</span> {fmtFH(ev.fecha)}</div>
+                    <div className="grid grid-cols-3 gap-4 text-xs text-center pt-2">
+                      <div><span className="font-semibold block mb-1">MÉDICO EXAMINADOR</span> {ev.medicoNombre || '-'}</div>
+                      <div><span className="font-semibold block mb-1">CÓDIGO MÉDICO</span> {ev.medicoCedula || '-'}</div>
+                      <div><span className="font-semibold block mb-1">FECHA DE ATENCIÓN</span> {fmtFH(ev.fecha)}</div>
                     </div>
                   </Sec>
 
@@ -719,11 +841,11 @@ function Sec({ title, children }: { title: string; children: React.ReactNode }) 
   return (
     <section>
       <h3 className="text-xs font-bold text-white bg-slate-700 px-3 py-1.5 rounded-t">{title}</h3>
-      <div className="border border-slate-300 border-t-0 rounded-b p-3">{children}</div>
+      <div className="border border-slate-300 border-t-0 rounded-b p-3 bg-white">{children}</div>
     </section>
   );
 }
 
 function KV({ k, v }: { k: string; v: string }) {
-  return <div><span className="font-semibold">{k}:</span> {v}</div>;
+  return <div><span className="font-semibold block text-slate-500 text-[10px] uppercase">{k}</span> {v}</div>;
 }
