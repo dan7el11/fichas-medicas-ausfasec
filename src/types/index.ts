@@ -16,6 +16,7 @@ export interface Trabajador {
   cedula: string;
   sexo: 'M' | 'F';
   puestoTrabajo: string;
+  departamento?: string;
   evaluaciones: string[];
   createdAt: Date;
   updatedAt: Date;
@@ -78,10 +79,10 @@ export interface AntecedenteFamiliar {
 }
 
 export interface ExamenFisicoHallazgo {
-  codigo: string;      // Ej: "9a"
-  region: string;      // Ej: "Abdomen"
-  subregion: string;   // Ej: "Vísceras"
-  descripcion: string; // Lo que escribe el médico
+  codigo: string;
+  region: string;
+  subregion: string;
+  descripcion: string;
 }
 
 export interface ExamenComplementario {
@@ -96,13 +97,26 @@ export interface Diagnostico {
   tipo: 'presuntivo' | 'definitivo';
 }
 
+export interface FactorRiesgoPuesto {
+  puestoArea: string;
+  actividades: string;
+  tiempoTrabajoMeses: string;
+  fisicos: string[];
+  mecanicos: string[];
+  quimicos: string[];
+  biologicos: string[];
+  ergonomicos: string[];
+  psicosociales: string[];
+  medidasPreventivas: string;
+}
+
 export interface EvaluacionMedica {
   id?: string;
   trabajadorId: string;
   medicoId: string;
   medicoNombre: string;
   medicoCedula: string;
-  fecha: Date;
+  fecha: any;
   numeroHistoriaClinica: string;
   numeroArchivo: string;
 
@@ -119,6 +133,9 @@ export interface EvaluacionMedica {
 
   // D. Antecedentes familiares
   antecedentesFamiliares: AntecedenteFamiliar[];
+
+  // E. Factores de riesgo del puesto de trabajo
+  factoresRiesgo?: FactorRiesgoPuesto;
 
   // F. Enfermedad actual
   enfermedadActual: string;
@@ -148,5 +165,5 @@ export interface EvaluacionMedica {
   recomendaciones: string[];
   recomendacionesOtras: string;
 
-  createdAt: Date;
+  createdAt: any;
 }
