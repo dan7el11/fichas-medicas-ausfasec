@@ -20,7 +20,8 @@ const SISTEMAS = [
   'DIGESTIVO', 'GENITO - URINARIO', 'MÚSCULO ESQUELÉTICO', 'ENDOCRINO', 'HEMO LINFÁTICO', 'NERVIOSO'
 ];
 
-// Matriz de Examen Físico: 10 filas (0 a 9) x 15 columnas (5 bloques)
+// Matriz Exacta (9 Filas x 15 Columnas). 
+// La última fila comparte la Instrucción (12 cols) + Neurológico (3 cols)
 const FISICO_ROWS = [
   [
     { type: 'reg', rs: 3, txt: '1. PIEL' }, { type: 'sub', txt: 'a. Cicatrices' }, { type: 'chk', code: '1a' },
@@ -45,7 +46,7 @@ const FISICO_ROWS = [
   ],
   [
     { type: 'reg', rs: 5, txt: '2. OJOS' }, { type: 'sub', txt: 'a. Párpados' }, { type: 'chk', code: '2a' },
-    { type: 'reg', rs: 5, txt: '4. OROFAR.' }, { type: 'sub', txt: 'a. Labios' }, { type: 'chk', code: '4a' },
+    { type: 'reg', rs: 5, txt: '4. OROFARINGE' }, { type: 'sub', txt: 'a. Labios' }, { type: 'chk', code: '4a' },
     { type: 'sub', txt: 'd. Senos paran.' }, { type: 'chk', code: '5d' },
     { type: 'sub', txt: 'b. Pared abdom.' }, { type: 'chk', code: '9b' },
     { type: 'sub', txt: 'b. Miembros sup.' }, { type: 'chk', code: '12b' }
@@ -67,7 +68,7 @@ const FISICO_ROWS = [
   [
     { type: 'sub', txt: 'd. Córnea' }, { type: 'chk', code: '2d' },
     { type: 'sub', txt: 'd. Amígdalas' }, { type: 'chk', code: '4d' },
-    { type: 'reg', rs: 2, txt: '7. TÓRAX' }, { type: 'sub', txt: 'a. Mamas' }, { type: 'chk', code: '7a' },
+    { type: 'reg', rs: 2, txt: '7. TÓRAX (Cor)' }, { type: 'sub', txt: 'a. Mamas' }, { type: 'chk', code: '7a' },
     { type: 'sub', txt: 'c. Dolor' }, { type: 'chk', code: '10c' },
     { type: 'sub', txt: 'b. Sensibilidad' }, { type: 'chk', code: '13b' }
   ],
@@ -370,7 +371,7 @@ export default function DetalleTrabajador() {
     });
     y = (pdf as any).lastAutoTable.finalY + 2;
 
-    // --- I. EXAMEN FÍSICO REGIONAL (15 Columnas, Rotación 90°) ---
+    // --- I. EXAMEN FÍSICO REGIONAL (15 Columnas, Matemáticamente exacta) ---
     checkPage(60);
     secHeader('I. EXAMEN FÍSICO REGIONAL');
     
@@ -402,7 +403,7 @@ export default function DetalleTrabajador() {
         const raw = data.cell.raw as any;
         if (data.section === 'body' && raw && raw.textToRotate) {
           pdf.setTextColor(0); pdf.setFontSize(5.5); pdf.setFont('helvetica', 'bold');
-          // Cálculo exacto del centro para que no se salga de la celda
+          // Cálculo exacto del centro para que el texto nunca se salga de su celda
           const textX = data.cell.x + (data.cell.width / 2);
           const textY = data.cell.y + (data.cell.height / 2);
           pdf.text(String(raw.textToRotate), textX, textY, { angle: 90, align: 'center', baseline: 'middle' });
@@ -517,6 +518,7 @@ export default function DetalleTrabajador() {
           <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-12 text-center text-slate-500">Este trabajador no tiene evaluaciones registradas.</div>
         ) : (
           <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+            {/* Pestañas de evaluaciones */}
             <div className="flex border-b border-slate-200 overflow-x-auto bg-slate-50">
               {evaluaciones.map((item, idx) => (
                 <button key={item.id} onClick={() => setPestanaActiva(idx)} className={`px-6 py-4 font-semibold whitespace-nowrap transition-colors text-sm ${pestanaActiva === idx ? 'border-b-2 border-blue-600 text-blue-700 bg-white' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'}`}>
@@ -712,21 +714,21 @@ export default function DetalleTrabajador() {
                     </div>
                   </Sec>
 
-                  {/* MATRIZ I. EXAMEN FISICO REGIONAL */}
+                  {/* MATRIZ I. EXAMEN FISICO REGIONAL (SIN POSITION ABSOLUTE, 15 COLUMNAS, INSTRUCCIÓN AL FINAL) */}
                   <Sec title="I. EXAMEN FÍSICO REGIONAL">
                     <div className="overflow-x-auto mb-2">
                       <table className="w-full text-[9px] border-collapse border border-slate-300">
                         <thead>
                            <tr><th colSpan={15} className="bg-[#ccffff] border border-slate-300 p-1 text-left font-bold text-slate-800">REGIONES</th></tr>
                         </thead>
-                       <tbody>
+                        <tbody>
                           {FISICO_ROWS.map((row, i) => (
                              <tr key={i}>
                                {row.map((cell, j) => {
-                                 // Alineación vertical estricta con inline-block para evitar que se desborde
+                                 // TEXTO VERTICAL CONFINADO
                                  if(cell.type === 'reg') {
                                     return (
-                                      <td key={j} rowSpan={cell.rs} className="bg-[#ccffff] border border-slate-300 align-middle text-center w-6 p-1">
+                                      <td key={j} rowSpan={cell.rs} className="bg-[#ccffff] border border-slate-300 align-middle text-center p-1 w-6">
                                         <span style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }} className="inline-block text-[10px] font-bold text-slate-800 tracking-widest whitespace-nowrap">
                                           {cell.txt}
                                         </span>
