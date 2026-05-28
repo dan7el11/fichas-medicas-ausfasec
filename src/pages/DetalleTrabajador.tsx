@@ -121,7 +121,8 @@ export default function DetalleTrabajador() {
         if (evalIdParam) {
           const idx = evals.findIndex(e => e.id === evalIdParam);
           if (idx !== -1) setPestanaActiva(idx);
-          try {
+        }
+        try {
           const exQ = query(
             collection(db, 'examenes'),
             where('trabajadorId', '==', trabajadorId),
@@ -130,7 +131,6 @@ export default function DetalleTrabajador() {
           const exSnap = await getDocs(exQ);
           setTotalPatologicos(exSnap.size);
         } catch { /* índice no creado aún, ignorar */ }
-        }
       } catch (error) { console.error("Error:", error); }
       finally { setCargando(false); }
     };
@@ -617,34 +617,24 @@ export default function DetalleTrabajador() {
                 evaluaciones={evaluaciones}
               />
             </div>
-          ) : evaluaciones.length === 0 ? (
-            <div className="p-12 text-center text-slate-500">
-              Este trabajador no tiene evaluaciones registradas.
+         <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+          <div className="flex border-b border-slate-200 bg-slate-50">
+            <button onClick={() => setTabPrincipal('evaluaciones')} className={"px-6 py-3.5 font-semibold text-sm flex items-center gap-2 transition-colors " + (tabPrincipal === 'evaluaciones' ? 'border-b-2 border-blue-600 text-blue-700 bg-white' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100')}>
+              📋 Evaluaciones <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700 font-bold">{evaluaciones.length}</span>
+            </button>
+            <button onClick={() => setTabPrincipal('examenes')} className={"px-6 py-3.5 font-semibold text-sm flex items-center gap-2 transition-colors " + (tabPrincipal === 'examenes' ? 'border-b-2 border-blue-600 text-blue-700 bg-white' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100')}>
+              🔬 Exámenes Complementarios
+              {totalPatologicos > 0 && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-red-500 text-white font-bold animate-pulse">{totalPatologicos} ⚠</span>}
+            </button>
+          </div>
+          {tabPrincipal === 'examenes' ? (
+            <div className="p-6">
+              <ExamenesPanel trabajadorId={trabajadorId || ''} trabajadorNombre={trabajador.primerApellido + ' ' + trabajador.primerNombre} evaluaciones={evaluaciones} />
             </div>
+          ) : evaluaciones.length === 0 ? (
+            <div className="p-12 text-center text-slate-500">Este trabajador no tiene evaluaciones registradas.</div>
           ) : (
             <>
-              {/* === AQUÍ VA TODO TU CÓDIGO EXISTENTE DE EVALUACIONES === */}
-              {/* Las sub-pestañas por fecha, los botones de exportar, */}
-              {/* la vista web completa, el PDF, todo intacto */}
- 
-              {/* Pestañas de evaluaciones por fecha */}
-              <div className="flex border-b border-slate-200 overflow-x-auto bg-slate-50">
-                {evaluaciones.map((item, idx) => (
-                  <button key={item.id} onClick={() => setPestanaActiva(idx)}
-                    className={`px-6 py-4 font-semibold whitespace-nowrap transition-colors text-sm ${
-                      pestanaActiva === idx ? 'border-b-2 border-blue-600 text-blue-700 bg-white' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'
-                    }`}>
-                    {fmtF(item.fecha)}
-                  </button>
-                ))}
-              </div>
- 
-              {/* ... TODO el resto de tu ev && (<> ... </>) sigue EXACTAMENTE igual ... */}
- 
-            </>
-          )}
-        </div>
-        {/* ====== FIN DEL CONTENEDOR CON PESTAÑAS ====== */}
  
 
                 {/* =========================================================
