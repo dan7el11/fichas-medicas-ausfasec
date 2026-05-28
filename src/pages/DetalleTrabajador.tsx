@@ -630,7 +630,7 @@ export default function DetalleTrabajador() {
                   <Sec title="H. CONSTANTES VITALES Y ANTROPOMETRÍA">
                     <div className="grid grid-cols-3 md:grid-cols-5 gap-3 text-xs">
                       {[
-                        { l: 'P.A.', v: `${ev.signosVitales?.presionSistolica || '-'}/${sv?.presionDiastolica || '-'} mmHg` },
+                        { l: 'P.A.', v: `${ev.signosVitales?.presionSistolica || '-'}/${ev.signosVitales?.presionDiastolica || '-'} mmHg` },
                         { l: 'Temp', v: `${ev.signosVitales?.temperatura || '-'} °C` },
                         { l: 'F.C.', v: `${ev.signosVitales?.frecuenciaCardiaca || '-'} lpm` },
                         { l: 'SAT O₂', v: `${ev.signosVitales?.saturacion || '-'} %` },
