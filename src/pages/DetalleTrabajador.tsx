@@ -394,14 +394,14 @@ export default function DetalleTrabajador() {
     autoTable(pdf, {
       startY: y, margin: { left: M, right: M }, theme: 'grid',
       styles: { ...baseStyles, fontSize: 5.5, cellPadding: 0.8 },
-      bodyStyles: { minCellHeight: 7 }, // <-- Esta línea soluciona la altura
+      bodyStyles: { minCellHeight: 6.5 }, // <-- Esta línea soluciona la altura
       headStyles: { fillColor: colorTerciario, textColor: negro, fontSize: 6 },
       columnStyles: {
-        0: { cellWidth: 8 }, 1: { cellWidth: 26 }, 2: { cellWidth: 4, halign: 'center' },
-        3: { cellWidth: 8 }, 4: { cellWidth: 26 }, 5: { cellWidth: 4, halign: 'center' },
-        6: { cellWidth: 8 }, 7: { cellWidth: 26 }, 8: { cellWidth: 4, halign: 'center' },
-        9: { cellWidth: 8 }, 10: { cellWidth: 26 }, 11: { cellWidth: 4, halign: 'center' },
-        12: { cellWidth: 8 }, 13: { cellWidth: 26 }, 14: { cellWidth: 4, halign: 'center' }
+        0: { cellWidth: 9 }, 1: { cellWidth: 23 }, 2: { cellWidth: 4, halign: 'center' },
+        3: { cellWidth: 9 }, 4: { cellWidth: 23 }, 5: { cellWidth: 4, halign: 'center' },
+        6: { cellWidth: 9 }, 7: { cellWidth: 23 }, 8: { cellWidth: 4, halign: 'center' },
+        9: { cellWidth: 9 }, 10: { cellWidth: 23 }, 11: { cellWidth: 4, halign: 'center' },
+        12: { cellWidth: 9 }, 13: { cellWidth: 23 }, 14: { cellWidth: 4, halign: 'center' }
       },
       head: [[{ content: 'REGIONES', colSpan: 15, styles: { halign: 'left', fillColor: colorTerciario } }]],
       body: pdfFisicoRows as any,
@@ -413,18 +413,23 @@ export default function DetalleTrabajador() {
           pdf.setFont('helvetica', 'bold');
           
           const str = String(raw.textToRotate);
-          const textWidth = pdf.getTextWidth(str);
           
-          // X: Centro exacto de la celda + 1mm a la derecha
-          const textX = data.cell.x + (data.cell.width / 2) + 1; 
+          // EL TRUCO: Cortar el texto en varias líneas si excede la ALTURA de la celda
+          // (Usamos la altura porque el texto está girado)
+          const lineasAjustadas = pdf.splitTextToSize(str, data.cell.height - 2);
           
-          // Y: Mitad de la celda + la mitad del ancho de la palabra (Para que empiece abajo y termine arriba)
-          const textY = data.cell.y + (data.cell.height / 2) + (textWidth / 2);
+          // Coordenadas del centro exacto de la celda
+          const textX = data.cell.x + (data.cell.width / 2); 
+          const textY = data.cell.y + (data.cell.height / 2);
           
-          pdf.text(str, textX, textY, { angle: 90 });
+          // Al enviarle un array de líneas, jsPDF lo dibuja ajustado como en Excel
+          pdf.text(lineasAjustadas, textX, textY, { 
+            angle: 90, 
+            align: 'center', 
+            baseline: 'middle' 
+          });
         }
       }
-    });
     y = (pdf as any).lastAutoTable.finalY;
 
     if (ev.examenFisicoHallazgos && ev.examenFisicoHallazgos.length > 0) {
