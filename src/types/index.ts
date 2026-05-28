@@ -110,6 +110,87 @@ export interface FactorRiesgoPuesto {
   medidasPreventivas: string;
 }
 
+// ====================================================================
+// SISTEMA DE EXÁMENES COMPLEMENTARIOS CON ARCHIVOS
+// ====================================================================
+
+export const TIPOS_EXAMEN = [
+  'Laboratorio',
+  'Imagen',
+  'Audiometría',
+  'Espirometría',
+  'Electrocardiograma',
+  'Oftalmología',
+  'Optometría',
+  'Psicología',
+  'Otro',
+] as const;
+export type TipoExamen = (typeof TIPOS_EXAMEN)[number];
+
+export const GRUPOS_EXAMEN = [
+  'Ingreso',
+  'Periódico',
+  'Particular',
+  'Salida',
+] as const;
+export type GrupoExamen = (typeof GRUPOS_EXAMEN)[number];
+
+export const NOMBRES_EXAMEN_COMUNES = [
+  'Biometría hemática',
+  'Química sanguínea',
+  'Perfil lipídico',
+  'Perfil hepático',
+  'Perfil tiroideo',
+  'EMO (Orina)',
+  'Coproparasitario',
+  'Glucosa en ayunas',
+  'Hemoglobina glicosilada',
+  'Creatinina',
+  'Ácido úrico',
+  'PSA (Antígeno prostático)',
+  'Rx Tórax',
+  'Rx Columna lumbar',
+  'Rx Columna cervical',
+  'Ecografía abdominal',
+  'Audiometría tonal',
+  'Espirometría basal',
+  'Electrocardiograma',
+  'Optometría / Agudeza visual',
+  'Valoración psicológica',
+  'Test de drogas',
+] as const;
+
+/** Documento de examen complementario almacenado en Firestore (colección `examenes`) */
+export interface ExamenComplementarioDoc {
+  id?: string;
+  trabajadorId: string;
+  evaluacionId?: string; // enlace bidireccional a la evaluación
+
+  // Clasificación
+  tipoExamen: TipoExamen;
+  nombreExamen: string;
+  grupoExamen: GrupoExamen;
+
+  // Datos clínicos
+  fecha: any;
+  resultado: string;
+  estado: 'normal' | 'patologico';
+  observacion: string; // obligatorio si estado === 'patologico'
+
+  // Archivo adjunto (Firebase Storage)
+  archivoUrl: string;
+  archivoNombre: string;
+  archivoTipo: string; // 'application/pdf' | 'image/jpeg' | 'image/png'
+  archivoPath: string; // ruta en Storage para poder eliminarlo
+
+  // Metadatos
+  medicoId: string;
+  medicoNombre: string;
+  createdAt: any;
+}
+
+// ====================================================================
+
 export interface EvaluacionMedica {
   id?: string;
   trabajadorId: string;
@@ -120,50 +201,30 @@ export interface EvaluacionMedica {
   numeroHistoriaClinica: string;
   numeroArchivo: string;
 
-  // B. Motivo de consulta
   motivoConsulta: string;
-
-  // C. Antecedentes personales
   antecedentesClinicosQuirurgicos: string;
   habitosToxicos: HabitoToxico[];
   estiloVida: EstiloVida;
   incidentes: string;
   accidentesTrabajo: AccidenteTrabajo;
   enfermedadesProfesionales: EnfermedadProfesional;
-
-  // D. Antecedentes familiares
   antecedentesFamiliares: AntecedenteFamiliar[];
-
-  // E. Factores de riesgo del puesto de trabajo
   factoresRiesgo?: FactorRiesgoPuesto;
-
-  // F. Enfermedad actual
   enfermedadActual: string;
-
-  // G. Revisión de órganos y sistemas
   revisionSistemasSeleccionados: string[];
   revisionSistemasDescripcion: string;
-
-  // H. Signos vitales
   signosVitales: SignosVitales;
-
-  // I. Examen físico regional
   examenFisicoHallazgos: ExamenFisicoHallazgo[];
-
-  // J. Exámenes complementarios
   examenesComplementarios: ExamenComplementario[];
-
-  // K. Diagnósticos
   diagnosticos: Diagnostico[];
-
-  // L. Aptitud médica
   aptitudMedica: 'apto' | 'aptoObservacion' | 'aptoLimitaciones' | 'noApto';
   aptitudObservacion: string;
   aptitudLimitaciones: string;
-
-  // M. Recomendaciones
   recomendaciones: string[];
   recomendacionesOtras: string;
+
+  /** IDs de exámenes vinculados desde la colección `examenes` */
+  examenesVinculados?: string[];
 
   createdAt: any;
 }
