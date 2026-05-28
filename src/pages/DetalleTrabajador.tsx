@@ -132,6 +132,12 @@ export default function DetalleTrabajador() {
     if (fecha instanceof Date) return fecha.toLocaleDateString('es-EC');
     return String(fecha);
   };
+  
+  const fmtFH = (fecha: any): string => {
+    if (!fecha) return '-';
+    const d = fecha.seconds ? new Date(fecha.seconds * 1000) : fecha instanceof Date ? fecha : null;
+    return d ? d.toLocaleString('es-EC') : String(fecha);
+  };
 
   const fmtHora = (fecha: any): string => {
     if (!fecha) return '-';
