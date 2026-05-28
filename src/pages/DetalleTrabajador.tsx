@@ -94,6 +94,11 @@ export default function DetalleTrabajador() {
     return d ? d.toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' }) : '-';
   };
 
+  // Helper para generar el texto vertical del Examen Físico
+  const makeVert = (num: number, text: string) => {
+    return `${num}\n.\n\n` + text.toUpperCase().replace(/ /g, '').split('').join('\n');
+  };
+
   // ============================================================
   //  GENERADOR PDF
   // ============================================================
@@ -166,7 +171,6 @@ export default function DetalleTrabajador() {
     });
     y = (pdf as any).lastAutoTable.finalY + 2;
 
-    // A. DATOS DEL ESTABLECIMIENTO
     secHeader('A. DATOS DEL ESTABLECIMIENTO - EMPRESA Y USUARIO');
     autoTable(pdf, {
       startY: y, margin: { left: M, right: M }, theme: 'grid',
@@ -183,14 +187,11 @@ export default function DetalleTrabajador() {
     });
     y = (pdf as any).lastAutoTable.finalY + 2;
 
-    // B. MOTIVO
     secHeader('B. MOTIVO DE CONSULTA');
     textoLibre((ev.motivoConsulta || 'ACTUALIZACIÓN DE FICHA OCUPACIONAL').toUpperCase(), 6);
     y += 1;
 
-    // C. ANTECEDENTES PERSONALES
     secHeader('C. ANTECEDENTES PERSONALES');
-
     pdf.setFontSize(6.5); pdf.setFont('helvetica', 'bold');
     pdf.setDrawColor(0); pdf.rect(M, y, CW, 4, 'S');
     pdf.text('ANTECEDENTES CLÍNICOS Y QUIRÚRGICOS', M + 1.5, y + 3); y += 4;
@@ -268,28 +269,37 @@ export default function DetalleTrabajador() {
     }
     y += 2;
 
-    // --- MEJORA: TABLA COMPLETA DE ANTECEDENTES FAMILIARES ---
-    checkPage(40);
-    secHeader('D. ANTECEDENTES FAMILIARES (DETALLAR EL PARENTESCO)');
-    const antFamRows = TIPOS_ANTECEDENTES_FAMILIARES.map((tipo, idx) => {
-      const found = ev.antecedentesFamiliares?.find((a:any) => a.tipo === tipo);
-      return [
-        `${idx + 1}. ${tipo}`,
-        found ? 'X' : '',
-        found ? '' : 'X',
-        found ? (found.parentesco || '-') : '-',
-        found ? (found.descripcion || '-') : '-'
-      ];
-    });
-    
+    // --- MEJORA HORIZONTAL: ANTECEDENTES FAMILIARES (Sección D) ---
+    checkPage(30);
+    secHeader('D. ANTECEDENTES FAMILIARES');
+    const dBody: string[][] = [];
+    for (let r = 0; r < 2; r++) {
+      const row: string[] = [];
+      for (let c = 0; c < 4; c++) {
+        const idx = c * 2 + r; // Orden de lectura: abajo y derecha
+        const tipo = TIPOS_ANTECEDENTES_FAMILIARES[idx];
+        const hasIt = ev.antecedentesFamiliares?.find((a:any) => a.tipo === tipo);
+        row.push(`${idx + 1}. ${tipo} [${hasIt ? 'X' : ' '}]`);
+      }
+      dBody.push(row);
+    }
     autoTable(pdf, {
       startY: y, margin: { left: M, right: M }, theme: 'grid',
-      styles: { ...baseStyles, fontSize: 6.5 }, headStyles: { ...headStyles, fontSize: 6 },
-      head: [['ENFERMEDADES', 'SI', 'NO', 'PARENTESCO', 'DESCRIPCIÓN']],
-      body: antFamRows,
-      columnStyles: { 1: { halign: 'center', cellWidth: 10 }, 2: { halign: 'center', cellWidth: 10 } }
+      styles: { ...baseStyles, fontSize: 5.5, cellPadding: 1 },
+      body: dBody
     });
-    y = (pdf as any).lastAutoTable.finalY + 2;
+    y = (pdf as any).lastAutoTable.finalY;
+
+    if (ev.antecedentesFamiliares && ev.antecedentesFamiliares.length > 0) {
+      const lineasFam = ev.antecedentesFamiliares.map((af: any) =>
+        `${af.tipo} (${af.parentesco}): ${af.descripcion || '-'}`
+      ).join('; ');
+      textoLibre(lineasFam, 5);
+      y += 1;
+    } else {
+      textoLibre('No se refieren antecedentes familiares de importancia.', 5);
+      y += 1;
+    }
 
     // E. FACTORES DE RIESGO
     if (ev.factoresRiesgo) {
@@ -360,16 +370,15 @@ export default function DetalleTrabajador() {
     });
     y = (pdf as any).lastAutoTable.finalY + 2;
 
-    // F. ENFERMEDAD ACTUAL
     secHeader('F. ENFERMEDAD ACTUAL');
     textoLibre(ev.enfermedadActual || 'PACIENTE ASINTOMÁTICO AL MOMENTO DE LA VALORACIÓN.', 8);
     y += 1;
 
-    // --- MEJORA: TABLA DE ÓRGANOS Y SISTEMAS CON MARCADORES ---
+    // --- MEJORA: REVISIÓN DE ÓRGANOS Y SISTEMAS (Sin etiquetas y horizontal) ---
     secHeader('G. REVISIÓN DE ÓRGANOS Y SISTEMAS');
-    const gBody: string[][] = []; // <-- Se añadió el tipo string[][]
+    const gBody: string[][] = [];
     for (let r = 0; r < 2; r++) {
-      const row: string[] = [];   // <-- Se añadió el tipo string[]
+      const row: string[] = [];
       for (let c = 0; c < 5; c++) {
         const idx = c * 2 + r;
         const sysName = SISTEMAS[idx];
@@ -386,56 +395,85 @@ export default function DetalleTrabajador() {
     y = (pdf as any).lastAutoTable.finalY;
 
     if (ev.revisionSistemasSeleccionados && ev.revisionSistemasSeleccionados.length > 0) {
-      // Extrae solo los números de los sistemas afectados
       const nums = ev.revisionSistemasSeleccionados.map((s:string) => SISTEMAS.indexOf(s) + 1).sort((a:number, b:number) => a - b).join(', ');
-      textoLibre(`Numerales afectados: ${nums}\nDescripción: ${ev.revisionSistemasDescripcion || '-'}`, 8);
+      // Eliminadas las etiquetas de Numerales y Descripción
+      textoLibre(`${nums}: ${ev.revisionSistemasDescripcion || '-'}`, 8);
     } else {
       textoLibre('Paciente no refiere síntomas adicionales o relevantes al momento de la consulta.', 5);
     }
     y += 1;
+
     // H. CONSTANTES VITALES
     secHeader('H. CONSTANTES VITALES Y ANTROPOMETRÍA');
-    const sv = ev.signosVitales || {};
     autoTable(pdf, {
       startY: y, margin: { left: M, right: M }, theme: 'grid',
       styles: { ...baseStyles, halign: 'center', fontSize: 7 },
       headStyles: { ...headStyles, fontSize: 5.5, halign: 'center' },
       head: [['PRESIÓN\nARTERIAL\n(mmHg)', 'TEMP.\n(°C)', 'FREC.\nCARDÍACA\n(Lat/min)', 'SAT. DE\nOXÍGENO\n(O₂%)', 'FREC.\nRESP.\n(fr/min)', 'PESO\n(Kg)', 'TALLA\n(cm)', 'IMC\n(Kg/m²)', 'PERÍM.\nABD.\n(cm)']],
       body: [[
-        `${sv.presionSistolica || '-'}/${sv.presionDiastolica || '-'}`,
-        sv.temperatura || '-', sv.frecuenciaCardiaca || '-', sv.saturacion || '-',
-        sv.frecuenciaRespiratoria || '-', sv.peso || '-', sv.talla || '-',
-        sv.imc || '-', sv.perimetroAbdominal || '-'
+        `${ev.signosVitales?.presionSistolica || ev.signosVitales?.presionArterial || '-'}/${ev.signosVitales?.presionDiastolica || '-'}`,
+        ev.signosVitales?.temperatura || '-', ev.signosVitales?.frecuenciaCardiaca || '-', ev.signosVitales?.saturacion || '-',
+        ev.signosVitales?.frecuenciaRespiratoria || '-', ev.signosVitales?.peso || '-', ev.signosVitales?.talla || '-',
+        ev.signosVitales?.imc || '-', ev.signosVitales?.perimetroAbdominal || '-'
       ]],
     });
     y = (pdf as any).lastAutoTable.finalY + 2;
 
-    // --- MEJORA: TABLA COMPLETA DE EXAMEN FÍSICO ---
+    // --- MEJORA: EXAMEN FÍSICO AGRUPADO EN LÍNEAS DE TEXTO Y VERTICAL ---
     checkPage(60);
     secHeader('I. EXAMEN FÍSICO REGIONAL');
-    const iBody = REGIONES_FISICO.map(reg => {
-      const subsMarcados = reg.s.map(subName => {
-        const codeMatch = subName.match(/^([a-z])\./);
-        const fullCode = `${reg.n}${codeMatch ? codeMatch[1] : ''}`;
-        const isSelected = ev.examenFisicoHallazgos?.some((h:any) => h.codigo === fullCode);
-        return `${subName} [${isSelected ? 'X' : ' '}]`;
-      }).join('   ');
-      return [`${reg.n}. ${reg.r}`, subsMarcados];
-    });
+    const iBody: any[] = [];
+    for(let i=0; i<7; i++){
+       const row: any[] = [];
+       // Izquierda (1 al 7)
+       const rLeft = REGIONES_FISICO[i];
+       if(rLeft) {
+          row.push({ content: makeVert(rLeft.n, rLeft.r), styles: { halign: 'center', valign: 'middle' } });
+          const subs = rLeft.s.map(s => {
+             const codeMatch = s.match(/^([a-z])\./);
+             const fullCode = `${rLeft.n}${codeMatch ? codeMatch[1] : ''}`;
+             const isChecked = ev.examenFisicoHallazgos?.some((h:any) => h.codigo === fullCode);
+             return `${s} [${isChecked ? 'X' : ' '}]`;
+          }).join('   ');
+          row.push(subs);
+       } else {
+          row.push(''); row.push('');
+       }
+       // Derecha (8 al 13)
+       const rRight = REGIONES_FISICO[i+7];
+       if(rRight) {
+          row.push({ content: makeVert(rRight.n, rRight.r), styles: { halign: 'center', valign: 'middle' } });
+          const subs = rRight.s.map(s => {
+             const codeMatch = s.match(/^([a-z])\./);
+             const fullCode = `${rRight.n}${codeMatch ? codeMatch[1] : ''}`;
+             const isChecked = ev.examenFisicoHallazgos?.some((h:any) => h.codigo === fullCode);
+             return `${s} [${isChecked ? 'X' : ' '}]`;
+          }).join('   ');
+          row.push(subs);
+       } else {
+          row.push(''); row.push('');
+       }
+       iBody.push(row);
+    }
 
     autoTable(pdf, {
       startY: y, margin: { left: M, right: M }, theme: 'grid',
-      styles: { ...baseStyles, fontSize: 6 },
-      columnStyles: { 0: { cellWidth: 35, fontStyle: 'bold' } },
+      styles: { ...baseStyles, fontSize: 6, cellPadding: 1, valign: 'middle' },
+      columnStyles: {
+        0: { cellWidth: 8, halign: 'center', fontStyle: 'bold', fillColor: '#f1f5f9' },
+        1: { cellWidth: 90 },
+        2: { cellWidth: 8, halign: 'center', fontStyle: 'bold', fillColor: '#f1f5f9' },
+        3: { cellWidth: 90 }
+      },
       body: iBody
     });
     y = (pdf as any).lastAutoTable.finalY;
 
     if (ev.examenFisicoHallazgos && ev.examenFisicoHallazgos.length > 0) {
       const lineasFisico = ev.examenFisicoHallazgos.map((h: any) => 
-        `${h.codigo}. ${h.region}, ${h.subregion}: ${h.descripcion || '-'}`
-      ).join('\n');
-      textoLibre(`Observaciones:\n${lineasFisico}`, 8);
+        `(${h.codigo}) ${h.region}, ${h.subregion}: ${h.descripcion || '-'}`
+      ).join('; ');
+      textoLibre(lineasFisico, 6);
       y += 1;
     } else {
       textoLibre('Sin hallazgos patológicos al examen físico regional.', 5);
@@ -665,25 +703,24 @@ export default function DetalleTrabajador() {
                   </Sec>
 
                   <Sec title="D. ANTECEDENTES FAMILIARES">
-                    <table className="w-full text-[10px] border-collapse border border-slate-300">
-                      <thead className="bg-slate-100">
-                        <tr><th className="border border-slate-300 p-1 text-left">ENFERMEDADES</th><th className="border border-slate-300 p-1">SI</th><th className="border border-slate-300 p-1">NO</th><th className="border border-slate-300 p-1 text-left">PARENTESCO</th><th className="border border-slate-300 p-1 text-left">DESCRIPCIÓN</th></tr>
-                      </thead>
-                      <tbody>
-                        {TIPOS_ANTECEDENTES_FAMILIARES.map((tipo, idx) => {
-                          const af = ev.antecedentesFamiliares?.find((a:any) => a.tipo === tipo);
-                          return (
-                            <tr key={idx}>
-                              <td className="border border-slate-300 p-1">{idx+1}. {tipo}</td>
-                              <td className="border border-slate-300 p-1 text-center font-bold">{af ? 'X' : ''}</td>
-                              <td className="border border-slate-300 p-1 text-center font-bold">{af ? '' : 'X'}</td>
-                              <td className="border border-slate-300 p-1">{af ? af.parentesco : '-'}</td>
-                              <td className="border border-slate-300 p-1">{af ? af.descripcion : '-'}</td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-[10px] mb-3">
+                      {TIPOS_ANTECEDENTES_FAMILIARES.map((tipo, idx) => {
+                        const af = ev.antecedentesFamiliares?.find((a:any) => a.tipo === tipo);
+                        return (
+                          <div key={idx} className={`p-1.5 border rounded flex items-center justify-between ${af ? 'bg-blue-50 border-blue-300 font-bold' : 'bg-slate-50 text-slate-600'}`}>
+                             <span>{idx+1}. {tipo}</span>
+                             <span className={af ? 'text-blue-700' : 'text-slate-400'}>[{af ? 'X' : ' '}]</span>
+                          </div>
+                        )
+                      })}
+                    </div>
+                    {ev.antecedentesFamiliares?.length > 0 && (
+                      <div className="text-xs space-y-1 border-t border-slate-200 pt-2">
+                        {ev.antecedentesFamiliares.map((af: any, i: number) => (
+                          <p key={i}><span className="font-semibold">{af.tipo} ({af.parentesco}):</span> {af.descripcion}</p>
+                        ))}
+                      </div>
+                    )}
                   </Sec>
 
                   {ev.factoresRiesgo && (
@@ -721,9 +758,7 @@ export default function DetalleTrabajador() {
                     </div>
                     {ev.revisionSistemasSeleccionados?.length > 0 ? (
                       <p className="text-xs">
-                        <span className="font-semibold">Numerales afectados: </span> 
-                        {ev.revisionSistemasSeleccionados.map((s:string) => SISTEMAS.indexOf(s) + 1).sort((a:number,b:number)=>a-b).join(', ')}<br/>
-                        <span className="font-semibold">Descripción: </span> {ev.revisionSistemasDescripcion}
+                        {ev.revisionSistemasSeleccionados.map((s:string) => SISTEMAS.indexOf(s) + 1).sort((a:number,b:number)=>a-b).join(', ')}: {ev.revisionSistemasDescripcion}
                       </p>
                     ) : <p className="text-xs text-green-700">Paciente no refiere síntomas adicionales al momento de la consulta</p>}
                   </Sec>
@@ -750,30 +785,32 @@ export default function DetalleTrabajador() {
                   </Sec>
 
                   <Sec title="I. EXAMEN FÍSICO REGIONAL">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-[10px] mb-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-[10px] mb-3">
                       {REGIONES_FISICO.map(reg => (
-                        <div key={reg.n} className="border border-slate-200 rounded p-2 bg-slate-50 flex flex-col">
-                          <span className="font-bold mb-1.5">{reg.n}. {reg.r}</span>
-                          <div className="flex flex-wrap gap-x-4 gap-y-1">
+                        <div key={reg.n} className="flex border border-slate-200 rounded overflow-hidden">
+                          <div className="bg-slate-100 text-slate-700 font-bold p-1.5 flex flex-col justify-center items-center text-center w-6 border-r border-slate-200">
+                            <span className="mb-1">{reg.n}.</span>
+                            {reg.r.toUpperCase().replace(/ /g, '').split('').map((char, i) => <span key={i} className="text-[8px] leading-[1.1]">{char}</span>)}
+                          </div>
+                          <div className="p-2 flex-1 flex flex-wrap content-center gap-x-3 gap-y-1 bg-white">
                             {reg.s.map(sub => {
-                              const codeMatch = sub.match(/^([a-z])\./);
-                              const fullCode = `${reg.n}${codeMatch ? codeMatch[1] : ''}`;
-                              const checked = ev.examenFisicoHallazgos?.some((h:any) => h.codigo === fullCode);
-                              return (
-                                <span key={sub} className={checked ? 'text-blue-700 font-bold' : 'text-slate-600'}>
-                                  {sub} <span className="font-bold">[{checked ? 'X' : ' '}]</span>
-                                </span>
-                              )
+                                const codeMatch = sub.match(/^([a-z])\./);
+                                const fullCode = `${reg.n}${codeMatch ? codeMatch[1] : ''}`;
+                                const checked = ev.examenFisicoHallazgos?.some((h:any) => h.codigo === fullCode);
+                                return (
+                                  <span key={sub} className={`flex items-center gap-1 ${checked ? 'text-blue-700 font-bold' : 'text-slate-600'}`}>
+                                    {sub} <span className="font-bold">[{checked ? 'X' : ' '}]</span>
+                                  </span>
+                                )
                             })}
                           </div>
                         </div>
                       ))}
                     </div>
                     {ev.examenFisicoHallazgos?.length > 0 ? (
-                      <div className="text-xs">
-                        <span className="font-semibold block mb-1">Observaciones:</span>
+                      <div className="text-xs space-y-1 border-t border-slate-200 pt-2">
                         {ev.examenFisicoHallazgos.map((h: any, i: number) => (
-                          <div key={i} className="mb-1"><span className="font-bold text-blue-700">{h.codigo}.</span> {h.region}, {h.subregion}: {h.descripcion}</div>
+                          <p key={i}><span className="font-bold text-blue-700">({h.codigo})</span> {h.region}, {h.subregion}: {h.descripcion}</p>
                         ))}
                       </div>
                     ) : <p className="text-xs text-green-700">Sin hallazgos patológicos al examen físico regional.</p>}
