@@ -844,13 +844,13 @@ export default function DetalleTrabajador() {
                       <div><span className="font-semibold block mb-1">MÉDICO EXAMINADOR</span> {ev.medicoNombre || '-'}</div><div><span className="font-semibold block mb-1">CÓDIGO MÉDICO</span> {ev.medicoCedula || '-'}</div><div><span className="font-semibold block mb-1">FECHA DE ATENCIÓN</span> {fmtFH(ev.fecha)}</div>
                     </div>
                   </Sec>
-                </>
-            )}
-          </>
-            )}
-            </>
+                </div>
+              </>
           )}
         </div>
+      </div>
+    </div>
+  );
 }
 
 function Sec({ title, children }: { title: string; children: React.ReactNode }) {
