@@ -592,6 +592,26 @@ export default function DetalleTrabajador() {
             <div className="p-12 text-center text-slate-500">Este trabajador no tiene evaluaciones registradas.</div>
           ) : (
             <>
+              {/* Pestañas de fechas de evaluaciones (Recuperadas) */}
+              <div className="flex border-b border-slate-200 overflow-x-auto bg-slate-50">
+                {evaluaciones.map((item, idx) => (
+                  <button key={item.id} onClick={() => setPestanaActiva(idx)} className={`px-6 py-4 font-semibold whitespace-nowrap transition-colors text-sm ${pestanaActiva === idx ? 'border-b-2 border-blue-600 text-blue-700 bg-white' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'}`}>
+                    {fmtF(item.fecha)}
+                  </button>
+                ))}
+              </div>
+
+              {/* Botones de Exportar PDF y Excel (Recuperados) */}
+              {ev && (
+                <div className="p-4 bg-white border-b border-slate-100 flex justify-end gap-3">
+                  <button onClick={exportarExcel} className="px-4 py-2 bg-[#107c41] text-white font-semibold rounded-lg hover:bg-[#0c5c30] flex items-center gap-2 text-sm shadow-sm">📊 Exportar Excel</button>
+                  <button onClick={generarPDF} className="px-4 py-2 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 flex items-center gap-2 text-sm shadow-sm">📄 Exportar PDF (SO-RE-38)</button>
+                </div>
+              )}
+
+              {/* =========================================================
+                  VISTA WEB DE LA FICHA SO-RE-38
+              ========================================================= */}
  
 
                 {/* =========================================================
