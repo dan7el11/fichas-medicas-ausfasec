@@ -20,11 +20,11 @@ const SISTEMAS = [
   'DIGESTIVO', 'GENITO - URINARIO', 'MÚSCULO ESQUELÉTICO', 'ENDOCRINO', 'HEMO LINFÁTICO', 'NERVIOSO'
 ];
 
-// Matriz horizontal de 9 filas x 15 columnas (5 bloques de: Región, Subregión, Celda X)
+// Matriz de Examen Físico: 10 filas (0 a 9) x 15 columnas (5 bloques)
 const FISICO_ROWS = [
   [
     { type: 'reg', rs: 3, txt: '1. PIEL' }, { type: 'sub', txt: 'a. Cicatrices' }, { type: 'chk', code: '1a' },
-    { type: 'reg', rs: 3, txt: '3. OÍDO' }, { type: 'sub', txt: 'a. C. auditivo ext.' }, { type: 'chk', code: '3a' },
+    { type: 'reg', rs: 3, txt: '3. OÍDO' }, { type: 'sub', txt: 'a. C. aud ext' }, { type: 'chk', code: '3a' },
     { type: 'reg', rs: 4, txt: '5. NARIZ' }, { type: 'sub', txt: 'a. Tabique' }, { type: 'chk', code: '5a' },
     { type: 'reg', rs: 2, txt: '8. TÓRAX' }, { type: 'sub', txt: 'a. Pulmones' }, { type: 'chk', code: '8a' },
     { type: 'reg', rs: 2, txt: '11. PELVIS' }, { type: 'sub', txt: 'a. Pelvis' }, { type: 'chk', code: '11a' }
@@ -37,7 +37,7 @@ const FISICO_ROWS = [
     { type: 'sub', txt: 'b. Genitales' }, { type: 'chk', code: '11b' }
   ],
   [
-    { type: 'sub', txt: 'c. Piel y faneras' }, { type: 'chk', code: '1c' },
+    { type: 'sub', txt: 'c. Piel faneras' }, { type: 'chk', code: '1c' },
     { type: 'sub', txt: 'c. Tímpanos' }, { type: 'chk', code: '3c' },
     { type: 'sub', txt: 'c. Mucosas' }, { type: 'chk', code: '5c' },
     { type: 'reg', rs: 2, txt: '9. ABDOMEN' }, { type: 'sub', txt: 'a. Vísceras' }, { type: 'chk', code: '9a' },
@@ -45,7 +45,7 @@ const FISICO_ROWS = [
   ],
   [
     { type: 'reg', rs: 5, txt: '2. OJOS' }, { type: 'sub', txt: 'a. Párpados' }, { type: 'chk', code: '2a' },
-    { type: 'reg', rs: 5, txt: '4. OROFARINGE' }, { type: 'sub', txt: 'a. Labios' }, { type: 'chk', code: '4a' },
+    { type: 'reg', rs: 5, txt: '4. OROFAR.' }, { type: 'sub', txt: 'a. Labios' }, { type: 'chk', code: '4a' },
     { type: 'sub', txt: 'd. Senos paran.' }, { type: 'chk', code: '5d' },
     { type: 'sub', txt: 'b. Pared abdom.' }, { type: 'chk', code: '9b' },
     { type: 'sub', txt: 'b. Miembros sup.' }, { type: 'chk', code: '12b' }
@@ -84,6 +84,10 @@ const FISICO_ROWS = [
     { type: 'empty', cs: 3 },
     { type: 'empty', cs: 3 },
     { type: 'sub', txt: 'd. Reflejos' }, { type: 'chk', code: '13d' }
+  ],
+  // Fila final conjunta en la base de la tabla
+  [
+    { type: 'instr', cs: 15, txt: 'SI EXISTE EVIDENCIA DE PATOLOGÍA MARCAR CON "X" Y DESCRIBIR EN LA SIGUIENTE SECCIÓN COLOCANDO EL NUMERAL' }
   ]
 ];
 
@@ -132,7 +136,7 @@ export default function DetalleTrabajador() {
     if (fecha instanceof Date) return fecha.toLocaleDateString('es-EC');
     return String(fecha);
   };
-  
+
   const fmtFH = (fecha: any): string => {
     if (!fecha) return '-';
     const d = fecha.seconds ? new Date(fecha.seconds * 1000) : fecha instanceof Date ? fecha : null;
@@ -383,6 +387,7 @@ export default function DetalleTrabajador() {
         if (cell.type === 'sub') return { content: cell.txt, styles: { fillColor: '#ffffff' } };
         if (cell.type === 'chk') return { content: hasFisico(ev, cell.code as string) ? 'X' : '', styles: { halign: 'center', fontStyle: 'bold', fillColor: '#ffffff' } };
         if (cell.type === 'empty') return { content: '', rowSpan: cell.rs || 1, colSpan: cell.cs || 1, styles: { fillColor: '#ffffff', lineWidth: 0 } };
+        if (cell.type === 'instr') return { content: cell.txt, colSpan: cell.cs, styles: { fillColor: '#f8f8f8', textColor: negro, halign: 'center', valign: 'middle', fontStyle: 'bold', fontSize: 5.5 } };
         return { content: '' };
       });
     });
@@ -401,23 +406,17 @@ export default function DetalleTrabajador() {
       head: [[{ content: 'REGIONES', colSpan: 15, styles: { halign: 'left', fillColor: colorTerciario } }]],
       body: pdfFisicoRows as any,
       didDrawCell: function(data) {
+        // Redibuja el texto vertical usando cálculo exacto al medio de la celda
         const raw = data.cell.raw as any;
         if (data.section === 'body' && raw && raw.textToRotate) {
           pdf.setTextColor(0); pdf.setFontSize(5.5); pdf.setFont('helvetica', 'bold');
-          // Imprime el texto vertical centrado en la celda
-          const textX = data.cell.x + (data.cell.width / 2) + 1.5;
+          const textX = data.cell.x + (data.cell.width / 2);
           const textY = data.cell.y + (data.cell.height / 2);
-          pdf.text(String(raw.textToRotate), textX, textY, { angle: 90, align: 'center' });
+          pdf.text(String(raw.textToRotate), textX, textY, { angle: 90, align: 'center', baseline: 'middle' });
         }
       }
     });
     y = (pdf as any).lastAutoTable.finalY;
-
-    pdf.setFillColor(248, 248, 248); pdf.setDrawColor(0);
-    pdf.rect(M, y, CW, 4, 'FD');
-    pdf.setFontSize(5); pdf.setFont('helvetica', 'bold');
-    pdf.text('SI EXISTE EVIDENCIA DE PATOLOGÍA MARCAR CON "X" Y DESCRIBIR EN LA SIGUIENTE SECCIÓN COLOCANDO EL NUMERAL', M + CW / 2, y + 2.5, { align: 'center' });
-    y += 5;
 
     if (ev.examenFisicoHallazgos && ev.examenFisicoHallazgos.length > 0) {
       const lineasFisico = ev.examenFisicoHallazgos.map((h: any) => `${h.codigo}: ${h.descripcion || '-'}`).join('; ');
@@ -525,7 +524,6 @@ export default function DetalleTrabajador() {
           <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-12 text-center text-slate-500">Este trabajador no tiene evaluaciones registradas.</div>
         ) : (
           <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-            {/* Pestañas de evaluaciones */}
             <div className="flex border-b border-slate-200 overflow-x-auto bg-slate-50">
               {evaluaciones.map((item, idx) => (
                 <button key={item.id} onClick={() => setPestanaActiva(idx)} className={`px-6 py-4 font-semibold whitespace-nowrap transition-colors text-sm ${pestanaActiva === idx ? 'border-b-2 border-blue-600 text-blue-700 bg-white' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'}`}>
@@ -563,16 +561,13 @@ export default function DetalleTrabajador() {
 
                   <Sec title="B. MOTIVO DE CONSULTA"><p className="text-xs uppercase">{ev.motivoConsulta || 'ACTUALIZACIÓN DE FICHA OCUPACIONAL'}</p></Sec>
                   
-                  {/* RESTAURADO: C. ANTECEDENTES PERSONALES (Campos completos) */}
                   <Sec title="C. ANTECEDENTES PERSONALES Y LABORALES">
                     <div className="space-y-4">
-                      {/* Clínicos y quirúrgicos */}
                       <div>
                         <p className="text-xs font-bold text-slate-700 mb-1">Antecedentes Clínicos y Quirúrgicos:</p>
                         <p className="text-xs p-2 bg-slate-50 rounded border border-slate-100">{ev.antecedentesClinicosQuirurgicos || 'Sin registros'}</p>
                       </div>
 
-                      {/* Hábitos Tóxicos */}
                       {ev.habitosToxicos?.length > 0 && (
                         <div>
                           <p className="text-xs font-bold text-slate-700 mb-1">Hábitos Tóxicos:</p>
@@ -587,7 +582,6 @@ export default function DetalleTrabajador() {
                         </div>
                       )}
 
-                      {/* Estilo de Vida (RESTAURADO) */}
                       {ev.estiloVida && (
                         <div>
                           <p className="text-xs font-bold text-slate-700 mb-1">Estilo de Vida:</p>
@@ -598,7 +592,6 @@ export default function DetalleTrabajador() {
                         </div>
                       )}
 
-                      {/* Incidentes y Accidentes */}
                       <div className="border-t border-slate-200 pt-3">
                         <p className="text-xs font-bold text-slate-700 mb-2">Incidentes, Accidentes y Enfermedad Profesional:</p>
                         <div className="space-y-2">
@@ -645,7 +638,7 @@ export default function DetalleTrabajador() {
                                  const hasIt = ev.antecedentesFamiliares?.find((a:any) => a.tipo === tipo);
                                  return (
                                    <React.Fragment key={c}>
-                                    <td className="border border-slate-300 p-1.5 bg-[#ccffff]">{idx+1}. {tipo}</td>
+                                    <td className="border border-slate-300 p-1.5 bg-[#ccffff] text-slate-800">{idx+1}. {tipo}</td>
                                     <td className="border border-slate-300 p-1.5 text-center font-bold text-blue-700 bg-white w-6">{hasIt ? 'X' : ''}</td>
                                    </React.Fragment>
                                  )
@@ -695,7 +688,7 @@ export default function DetalleTrabajador() {
                                  const hasIt = ev.revisionSistemasSeleccionados?.includes(sys);
                                  return (
                                     <React.Fragment key={c}>
-                                      <td className="border border-slate-300 p-1.5 bg-[#ccffff]">{idx+1}. {sys}</td>
+                                      <td className="border border-slate-300 p-1.5 bg-[#ccffff] text-slate-800">{idx+1}. {sys}</td>
                                       <td className="border border-slate-300 p-1.5 text-center font-bold text-blue-700 bg-white w-6">{hasIt ? 'X' : ''}</td>
                                     </React.Fragment>
                                  )
@@ -726,7 +719,7 @@ export default function DetalleTrabajador() {
                     </div>
                   </Sec>
 
-                  {/* MATRIZ I. EXAMEN FISICO REGIONAL (CORREGIDA SIN POSITION ABSOLUTE) */}
+                  {/* MATRIZ I. EXAMEN FISICO REGIONAL */}
                   <Sec title="I. EXAMEN FÍSICO REGIONAL">
                     <div className="overflow-x-auto mb-2">
                       <table className="w-full text-[9px] border-collapse border border-slate-300">
@@ -737,12 +730,14 @@ export default function DetalleTrabajador() {
                           {FISICO_ROWS.map((row, i) => (
                              <tr key={i}>
                                {row.map((cell, j) => {
-                                 // TEXTO VERTICAL CORREGIDO: Se usa standard CSS writing-mode sin absolute
+                                 // TEXTO VERTICAL (Controlado estrictamente con writing-mode para evitar que se desborde la celda)
                                  if(cell.type === 'reg') {
                                     return (
-                                      <td key={j} rowSpan={cell.rs} className="bg-[#ccffff] border border-slate-300 p-1 align-middle text-center w-8">
-                                        <div style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }} className="text-[10px] font-bold text-slate-800 mx-auto tracking-widest whitespace-nowrap">
-                                          {cell.txt}
+                                      <td key={j} rowSpan={cell.rs} className="bg-[#ccffff] border border-slate-300 p-0 w-6">
+                                        <div className="flex items-center justify-center h-full w-full py-2">
+                                          <span style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }} className="text-[10px] font-bold text-slate-800 tracking-widest whitespace-nowrap">
+                                            {cell.txt}
+                                          </span>
                                         </div>
                                       </td>
                                     );
@@ -753,10 +748,10 @@ export default function DetalleTrabajador() {
                                    return <td key={j} className="border border-slate-300 p-1 text-center font-bold text-blue-700 bg-white w-6 min-w-[24px]">{checked ? 'X' : ''}</td>;
                                  }
                                  if(cell.type === 'empty') return <td key={j} rowSpan={cell.rs||1} colSpan={cell.cs||1} className="border-none bg-white p-0"></td>;
+                                 if(cell.type === 'instr') return <td key={j} colSpan={cell.cs} className="border border-slate-300 p-1.5 text-center font-bold text-[8px] text-slate-500 bg-slate-50">{cell.txt}</td>;
                                })}
                              </tr>
                           ))}
-                          <tr><td colSpan={15} className="border border-slate-300 p-1.5 text-center font-bold text-[8px] text-slate-500 bg-slate-50">SI EXISTE EVIDENCIA DE PATOLOGÍA MARCAR CON "X" Y DESCRIBIR EN LA SIGUIENTE SECCIÓN COLOCANDO EL NUMERAL</td></tr>
                         </tbody>
                       </table>
                     </div>
