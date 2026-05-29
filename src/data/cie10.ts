@@ -1,18 +1,27 @@
+
+import datosCIE10 from './cie10.json';
+
 export interface DiagnosticoCIE10 {
   codigo: string;
   descripcion: string;
 }
 
-export const catalogoCIE10: DiagnosticoCIE10[] = [
-  { codigo: 'Z00.0', descripcion: 'Examen médico general' },
-  { codigo: 'Z01.0', descripcion: 'Examen de ojos y de la visión' },
-  { codigo: 'Z10.0', descripcion: 'Examen de salud ocupacional' },
-  { codigo: 'J00', descripcion: 'Rinofaringitis aguda [resfriado común]' },
-  { codigo: 'J03.9', descripcion: 'Amigdalitis aguda, no especificada' },
-  { codigo: 'M54.5', descripcion: 'Lumbago no especificado' },
-  { codigo: 'M54.2', descripcion: 'Cervicalgia' },
-  { codigo: 'H10.9', descripcion: 'Conjuntivitis, no especificada' },
-  { codigo: 'E11.9', descripcion: 'Diabetes mellitus tipo 2 sin complicaciones' },
-  { codigo: 'I10', descripcion: 'Hipertensión esencial (primaria)' },
-  { codigo: 'R51', descripcion: 'Cefalea' },
-];
+
+export const catalogoCIE10: DiagnosticoCIE10[] = datosCIE10.map((item: any) => {
+  // 1. Buscamos el código. Si no tiene el de 4 caracteres, usamos el de 3
+  const codigoCrudo = item.COD_4 || item.COD_3 || '';
+  
+  // 2. ¡Magia extra! Como tus códigos no tienen punto (ej. A000), se lo inyectamos automáticamente aquí para la base de datos (A00.0)
+  const codigoFormateado = codigoCrudo.length === 4 
+    ? `${codigoCrudo.slice(0, 3)}.${codigoCrudo.slice(3)}` 
+    : codigoCrudo;
+
+  // 3. Buscamos la descripción (respetando los nombres exactos y el error ortográfico de tu archivo original)
+  const texto = item["DESCRIPCION CODIGOS DE CUATRO CARACTERES"] || item["DESRIPCION CATEGORIAS DE TRES CARACTERES"] || '';
+
+  return {
+    codigo: codigoFormateado,
+    // 4. Estética: Convertimos "COLERA DEBIDO A..." en "Colera debido a..." para que no se vea todo en mayúsculas gritando
+    descripcion: texto.charAt(0).toUpperCase() + texto.slice(1).toLowerCase()
+  };
+});
