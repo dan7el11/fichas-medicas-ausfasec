@@ -608,6 +608,16 @@ export default function DetalleTrabajador() {
                   <button onClick={generarPDF} className="px-4 py-2 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 flex items-center gap-2 text-sm shadow-sm">📄 Exportar PDF (SO-RE-38)</button>
                 </div>
               )}
+              {/* Botones de Exportar PDF, Excel y Editar */}
+              {ev && (
+                <div className="p-4 bg-white border-b border-slate-100 flex justify-end gap-3">
+                  <button onClick={() => navigate(`/trabajador/${trabajadorId}/nueva-evaluacion?editId=${ev.id}`)} className="px-4 py-2 bg-amber-500 text-white font-semibold rounded-lg hover:bg-amber-600 flex items-center gap-2 text-sm shadow-sm">
+                    ✏️ Editar Consulta
+                  </button>
+                  <button onClick={exportarExcel} className="px-4 py-2 bg-[#107c41] text-white font-semibold rounded-lg hover:bg-[#0c5c30] flex items-center gap-2 text-sm shadow-sm">📊 Exportar Excel</button>
+                  <button onClick={generarPDF} className="px-4 py-2 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 flex items-center gap-2 text-sm shadow-sm">📄 Exportar PDF (SO-RE-38)</button>
+                </div>
+              )}
 
               {/* =========================================================
                   VISTA WEB DE LA FICHA SO-RE-38
