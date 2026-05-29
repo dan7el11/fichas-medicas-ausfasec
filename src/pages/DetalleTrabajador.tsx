@@ -189,7 +189,7 @@ export default function DetalleTrabajador() {
 
     const secHeader = (texto: string, bgColor = colorPrimario) => {
       checkPage(10);
-      pdf.addImage(LOGO_EMPRESA, 'PNG', 5, 10, 40, 15);
+      pdf.addImage(LOGO_EMPRESA, 'PNG', 8, 8, 40, 15);
       pdf.setFillColor(bgColor); pdf.setDrawColor(0);
       pdf.rect(M, y, CW, 5, 'FD');
       pdf.setFontSize(7); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(0);
