@@ -374,15 +374,7 @@ export default function NuevaEvaluacion() {
     });
   };
 
-  // ===== GUARDAR EVALUACIÓN =====
-
- // ===== GUARDAR EVALUACIÓN =====
-
-  const handleGuardar = async () => {
-    if (!trabajadorId || !user || !trabajador) return;
-    setGuardando(true);
-
-   // ===== GUARDAR EVALUACIÓN =====
+// ===== GUARDAR EVALUACIÓN =====
 
   const handleGuardar = async () => {
     if (!trabajadorId || !user || !trabajador) return;
@@ -480,127 +472,6 @@ export default function NuevaEvaluacion() {
       // 4. Actualizar el trabajador
       await updateDoc(doc(db, 'trabajadores', trabajadorId), {
         evaluaciones: arrayUnion(evaluacionIdGenerado),
-        updatedAt: hoy
-      });
-
-      alert('Evaluación guardada exitosamente');
-      navigate('/');
-    } catch (error) {
-      console.error('Error al guardar:', error);
-      alert('Hubo un error al guardar la evaluación.');
-    } finally {
-      setGuardando(false);
-    }
-  };
-
-      // 1. Guardar la evaluación y obtener su referencia explícitamente
-      const evaluacionesRef = collection(db, 'evaluaciones');
-      const docRef = await addDoc(evaluacionesRef, evaluacion);
-      const evaluacionIdGenerado = docRef.id;
-
-      // 2. Subir exámenes adjuntos y vincularlos al ID explícito
-      const examenesIds: string[] = [];
-      
-      if (examenesAdjuntos && examenesAdjuntos.length > 0) {
-          for (const item of examenesAdjuntos) {
-            if (!item.nombreExamen.trim()) continue;
-            if (item.estado === 'patologico' && !item.observacion.trim()) continue;
-
-            // Subir archivo a Storage
-            const ext = item.file.name.split('.').pop() || 'pdf';
-            const storagePath = `examenes/${trabajadorId}/${Date.now()}_${item.nombreExamen.replace(/\s+/g, '_')}.${ext}`;
-            const storageRef = ref(storage, storagePath);
-            await uploadBytes(storageRef, item.file);
-            const url = await getDownloadURL(storageRef);
-
-            // Crear documento en Firestore usando el ID seguro
-            const exDoc = await addDoc(collection(db, 'examenes'), {
-              trabajadorId,
-              evaluacionId: evaluacionIdGenerado, // <-- AHORA USAMOS LA VARIABLE SEGURA
-              tipoExamen: item.tipoExamen,
-              nombreExamen: item.nombreExamen,
-              grupoExamen: item.grupoExamen,
-              fecha: new Date(item.fecha),
-              resultado: item.resultado,
-              estado: item.estado,
-              observacion: item.observacion,
-              archivoUrl: url,
-              archivoNombre: item.file.name,
-              archivoTipo: item.file.type,
-              archivoPath: storagePath,
-              medicoId: user.uid,
-              medicoNombre: medicoData?.nombreCompleto || '',
-              createdAt: hoy,
-            });
-            examenesIds.push(exDoc.id);
-          }
-
-          // 3. Actualizar la evaluación con los IDs de los exámenes
-          if (examenesIds.length > 0) {
-            await updateDoc(doc(db, 'evaluaciones', evaluacionIdGenerado), { 
-              examenesVinculados: examenesIds 
-            });
-          }
-      }
-
-      // 4. Actualizar el trabajador
-      await updateDoc(doc(db, 'trabajadores', trabajadorId), {
-        evaluaciones: arrayUnion(evaluacionIdGenerado),
-        updatedAt: hoy
-      });
-
-      alert('Evaluación guardada exitosamente');
-      navigate('/');
-    } catch (error) {
-      console.error('Error al guardar:', error);
-      alert('Hubo un error al guardar la evaluación.');
-    } finally {
-      setGuardando(false);
-    }
-
-      const evalRef = await addDoc(collection(db, 'evaluaciones'), evaluacion);
-      // Subir exámenes adjuntos y vincularlos a la evaluación
-      const examenesIds: string[] = [];
-      for (const item of examenesAdjuntos) {
-        if (!item.nombreExamen.trim()) continue;
-        if (item.estado === 'patologico' && !item.observacion.trim()) continue;
-
-        // Subir archivo a Storage
-        const ext = item.file.name.split('.').pop() || 'pdf';
-        const storagePath = `examenes/${trabajadorId}/${Date.now()}_${item.nombreExamen.replace(/\s+/g, '_')}.${ext}`;
-        const storageRef = ref(storage, storagePath);
-        await uploadBytes(storageRef, item.file);
-        const url = await getDownloadURL(storageRef);
-
-        // Crear documento en Firestore
-        const exDoc = await addDoc(collection(db, 'examenes'), {
-          trabajadorId,
-          evaluacionId: evalRef.id,
-          tipoExamen: item.tipoExamen,
-          nombreExamen: item.nombreExamen,
-          grupoExamen: item.grupoExamen,
-          fecha: new Date(item.fecha),
-          resultado: item.resultado,
-          estado: item.estado,
-          observacion: item.observacion,
-          archivoUrl: url,
-          archivoNombre: item.file.name,
-          archivoTipo: item.file.type,
-          archivoPath: storagePath,
-          medicoId: user.uid,
-          medicoNombre: medicoData?.nombreCompleto || '',
-          createdAt: hoy,
-        });
-        examenesIds.push(exDoc.id);
-      }
-
-      // Actualizar evaluación con los IDs de exámenes vinculados
-      if (examenesIds.length > 0) {
-        await updateDoc(evalRef, { examenesVinculados: examenesIds });
-      }
-
-      await updateDoc(doc(db, 'trabajadores', trabajadorId), {
-        evaluaciones: arrayUnion(evalRef.id),
         updatedAt: hoy
       });
 
