@@ -1,4 +1,3 @@
-
 import datosCIE10 from './cie10.json';
 
 export interface DiagnosticoCIE10 {
