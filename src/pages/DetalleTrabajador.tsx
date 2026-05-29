@@ -189,9 +189,7 @@ export default function DetalleTrabajador() {
 
     const secHeader = (texto: string, bgColor = colorPrimario) => {
       checkPage(10);
-      // 🎨 Inyectar el logo de la empresa
-    // Sintaxis: addImage(variable, formato, posición X, posición Y, ancho, alto)
-      pdf.addImage(LOGO_EMPRESA, 'PNG', 15, 10, 40, 15);
+      pdf.addImage(LOGO_EMPRESA, 'PNG', 12, 10, 40, 15);
       pdf.setFillColor(bgColor); pdf.setDrawColor(0);
       pdf.rect(M, y, CW, 5, 'FD');
       pdf.setFontSize(7); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(0);
@@ -213,7 +211,7 @@ export default function DetalleTrabajador() {
     autoTable(pdf, {
       startY: y, margin: { left: M, right: M }, theme: 'grid', styles: { ...baseStyles, halign: 'center', fontSize: 8 }, columnStyles: { 0: { cellWidth: 42 }, 2: { cellWidth: 33 } },
       body: [
-        [{ content: 'CEM AUSTROGAS', rowSpan: 3, styles: { fontStyle: 'bold', fontSize: 11, valign: 'middle' } }, { content: 'HISTORIA CLÍNICA OCUPACIONAL:\nEVALUACIÓN PERIÓDICA', rowSpan: 2, styles: { fontStyle: 'bold', fontSize: 9, valign: 'middle' } }, { content: 'Código:   SO-RE-38', styles: { fontSize: 7, halign: 'left' } }],
+        [{ content: '', rowSpan: 3, styles: { fontStyle: 'bold', fontSize: 11, valign: 'middle' } }, { content: 'HISTORIA CLÍNICA OCUPACIONAL:\nEVALUACIÓN PERIÓDICA', rowSpan: 2, styles: { fontStyle: 'bold', fontSize: 9, valign: 'middle' } }, { content: 'Código:   SO-RE-38', styles: { fontSize: 7, halign: 'left' } }],
         [{ content: 'Revisión:  1', styles: { fontSize: 7, halign: 'left' } }],
         [{ content: 'MACROPROCESO: PLANIFICACIÓN, SEGURIDAD Y AMBIENTE', styles: { fontSize: 6, fontStyle: 'bold' } }, { content: 'Página:    1 de 2', styles: { fontSize: 7, halign: 'left' } }]
       ],
