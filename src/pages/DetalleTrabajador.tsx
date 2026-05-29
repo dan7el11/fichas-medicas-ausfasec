@@ -354,32 +354,38 @@ export default function DetalleTrabajador() {
       const lineasFam = Object.entries(famPorTipo).map(([tipo, entries]) => `${tipo}: ${entries.join(', ')}`).join('\n');
       textoLibre(lineasFam, 5); y += 1;
     } else { textoLibre('No se refieren antecedentes familiares de importancia.', 5); y += 1; }
-
+    
     // E. FACTORES DE RIESGO
     if (ev.factoresRiesgo) {
-      checkPage(25); secHeader('E. FACTORES DE RIESGOS DEL PUESTO DE TRABAJO');
+      checkPage(25); secHeader('E. FACTORES DE RIESGOS DEL PUESTO DE TRABAJO', colorSecundario);
       const fr = ev.factoresRiesgo;
-      autoTable(pdf, { 
-  startY: y, 
-  margin: { left: M, right: M }, 
-  theme: 'grid', 
-  styles: { ...baseStyles, fontSize: 6 }, 
-  headStyles: { ...headStyles, fontSize: 5.5 }, 
-  head: [['CATEGORÍA', 'FACTORES DE RIESGO IDENTIFICADOS']], 
-  body: [
-    ...categorias.map(c => [c.nombre, c.items.join(', ')]),
-    ['MEDIDAS PREVENTIVAS', fr.medidasPreventivas || 'Ninguna descrita']
-  ], 
-  columnStyles: { 0: { cellWidth: 25, fontStyle: 'bold' } } 
-});
+      
+      // Primera tabla: Puesto y tiempo
+      autoTable(pdf, { startY: y, margin: { left: M, right: M }, theme: 'grid', styles: { ...baseStyles, fontSize: 6.5 }, headStyles: { ...headStyles, fontSize: 6 }, head: [['PUESTO DE TRABAJO / ÁREA', 'ACTIVIDADES', 'TIEMPO DE TRABAJO (MESES)']], body: [[fr.puestoArea || trabajador.puestoTrabajo, fr.actividades || '-', fr.tiempoTrabajoMeses || '-']] });
       y = (pdf as any).lastAutoTable.finalY;
+      
+      // Aquí se declaran las categorías ANTES de usarlas
       const categorias = [
         { nombre: 'FÍSICO', items: fr.fisicos || [] }, { nombre: 'MECÁNICO', items: fr.mecanicos || [] },
         { nombre: 'QUÍMICO', items: fr.quimicos || [] }, { nombre: 'BIOLÓGICO', items: fr.biologicos || [] },
         { nombre: 'ERGONÓMICO', items: fr.ergonomicos || [] }, { nombre: 'PSICOSOCIAL', items: fr.psicosociales || [] },
       ].filter(c => c.items.length > 0);
+      
+      // Segunda tabla: Categorías y Medidas Preventivas
       if (categorias.length > 0) {
-        autoTable(pdf, { startY: y, margin: { left: M, right: M }, theme: 'grid', styles: { ...baseStyles, fontSize: 6 }, headStyles: { ...headStyles, fontSize: 5.5 }, head: [['CATEGORÍA', 'FACTORES DE RIESGO IDENTIFICADOS']], body: categorias.map(c => [c.nombre, c.items.join(', ')]), columnStyles: { 0: { cellWidth: 25, fontStyle: 'bold' } } });
+        autoTable(pdf, { 
+          startY: y, 
+          margin: { left: M, right: M }, 
+          theme: 'grid', 
+          styles: { ...baseStyles, fontSize: 6 }, 
+          headStyles: { ...headStyles, fontSize: 5.5 }, 
+          head: [['CATEGORÍA', 'FACTORES DE RIESGO IDENTIFICADOS']], 
+          body: [
+            ...categorias.map(c => [c.nombre, c.items.join(', ')]),
+            ['MEDIDAS PREVENTIVAS', fr.medidasPreventivas || 'Ninguna descrita']
+          ], 
+          columnStyles: { 0: { cellWidth: 25, fontStyle: 'bold' } } 
+        });
         y = (pdf as any).lastAutoTable.finalY;
       }
       y += 2;
