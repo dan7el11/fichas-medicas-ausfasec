@@ -844,8 +844,7 @@ export default function DetalleTrabajador() {
                     ) : <p className="text-xs text-green-700">Sin hallazgos patológicos al examen físico regional.</p>}
                   </Sec>
 
-                  {ev.examenesComplementarios?.length > 0 && (
-                    <Sec title="J. RESULTADOS DE EXÁMENES">
+                  <Sec title="J. RESULTADOS DE EXÁMENES">
                     <table className="w-full text-xs">
                       <thead>
                         <tr className="border-b text-left">
