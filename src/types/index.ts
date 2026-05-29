@@ -52,6 +52,13 @@ export interface EstiloVida {
   medicacionCantidad: string;
 }
 
+export interface MedicacionHabitual {
+  nombre: string;
+  dosis: string;
+  frecuencia: string;
+  horario: string;
+}
+
 export interface AccidenteTrabajo {
   descripcion: string;
   calificado: boolean;
@@ -247,7 +254,9 @@ export interface EvaluacionMedica {
   factoresRiesgo?: FactorRiesgoPuesto;
   enfermedadActual: string;
   revisionSistemasSeleccionados: string[];
-  revisionSistemasDescripcion: string;
+  revisionSistemasDescripcion?: string;
+  revisionSistemasDescripciones?: Record<string, string>;
+  medicacionesHabituales?: MedicacionHabitual[];
   signosVitales: SignosVitales;
   examenFisicoHallazgos: ExamenFisicoHallazgo[];
   examenesComplementarios: ExamenComplementario[];
