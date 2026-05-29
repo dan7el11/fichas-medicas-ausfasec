@@ -261,13 +261,11 @@ export default function DetalleTrabajador() {
       y = (pdf as any).lastAutoTable.finalY;
     }
     y += 1;
-
-   secHeader('INCIDENTES, ACCIDENTES Y ENFERMEDAD PROFESIONAL', colorSecundario);
     
     // 1. Incidentes
     autoTable(pdf, {
-      startY: y, margin: { left: M, right: M }, theme: 'grid', styles: { ...baseStyles, fontSize: 6.5 }, headStyles: { ...headStyles, fillColor: colorTerciario },
-      head: [['INCIDENTES LABORALES REPORTADOS']], 
+      startY: y, margin: { left: M, right: M }, theme: 'grid', styles: { ...baseStyles, fontSize: 6.5 }, headStyles: { ...headStyles, fillColor: colorSecundario },
+      head: [['INCIDENTES LABORALES']], 
       body: [[ev.incidentes || 'NINGUNO']],
     });
     y = (pdf as any).lastAutoTable.finalY;
@@ -277,7 +275,7 @@ export default function DetalleTrabajador() {
     const califAccidente = ev.accidentesTrabajo?.descripcion ? (ev.accidentesTrabajo.calificado ? 'SÍ' : 'NO') : '-';
     autoTable(pdf, {
       startY: y, margin: { left: M, right: M }, theme: 'grid', styles: { ...baseStyles, fontSize: 6.5 }, headStyles: { ...headStyles, fillColor: colorSecundario },
-      head: [['DESCRIPCIÓN DEL ACCIDENTE DE TRABAJO', 'CALIFICADO IESS', 'ESPECIFICACIÓN', 'OBSERVACIONES']],
+      head: [['ACCIDENTES DE TRABAJO', 'CALIFICADO IESS', 'ESPECIFICACIÓN', 'OBSERVACIONES']],
       body: [[descAccidente, califAccidente, ev.accidentesTrabajo?.especificacion || '-', ev.accidentesTrabajo?.observaciones || '-']],
       columnStyles: { 1: { halign: 'center' } },
     });
@@ -288,7 +286,7 @@ export default function DetalleTrabajador() {
     const califEnfermedad = ev.enfermedadesProfesionales?.descripcion ? (ev.enfermedadesProfesionales.calificada ? 'SÍ' : 'NO') : '-';
     autoTable(pdf, {
       startY: y, margin: { left: M, right: M }, theme: 'grid', styles: { ...baseStyles, fontSize: 6.5 }, headStyles: { ...headStyles, fillColor: colorSecundario },
-      head: [['DESCRIPCIÓN DE ENFERMEDAD PROFESIONAL', 'CALIFICADA IESS', 'ESPECIFICACIÓN', 'OBSERVACIONES']],
+      head: [['ENFERMEDAD PROFESIONAL', 'CALIFICADA IESS', 'ESPECIFICACIÓN', 'OBSERVACIONES']],
       body: [[descEnfermedad, califEnfermedad, ev.enfermedadesProfesionales?.especificacion || '-', ev.enfermedadesProfesionales?.observaciones || '-']],
       columnStyles: { 1: { halign: 'center' } },
     });
