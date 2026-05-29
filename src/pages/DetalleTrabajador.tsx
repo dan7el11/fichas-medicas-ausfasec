@@ -232,9 +232,13 @@ export default function DetalleTrabajador() {
     y += 1;
 
     secHeader('C. ANTECEDENTES PERSONALES');
-    pdf.setFontSize(6.5); pdf.setFont('helvetica', 'bold');
-    pdf.setDrawColor(0); pdf.rect(M, y, CW, 4, 'S');
-    pdf.text('ANTECEDENTES CLÍNICOS Y QUIRÚRGICOS', M + 1.5, y + 3, colorSecundario); y += 4;
+    pdf.setFontSize(6.5); 
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFillColor(204, 255, 204);
+    pdf.setDrawColor(0); 
+    pdf.rect(M, y, CW, 4, 'FD'); 
+    pdf.text('ANTECEDENTES CLÍNICOS Y QUIRÚRGICOS', M + 1.5, y + 3); 
+    y += 4;
     // Render structured antecedentes if available, fall back to legacy string
     if (ev.antecedentesClinicosQ === true && ev.antecedentesClinicosLista?.length > 0) {
       const lineasClin = ev.antecedentesClinicosLista.map((ac: any, i: number) => {
