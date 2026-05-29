@@ -235,7 +235,33 @@ export default function DetalleTrabajador() {
     pdf.setFontSize(6.5); pdf.setFont('helvetica', 'bold');
     pdf.setDrawColor(0); pdf.rect(M, y, CW, 4, 'S');
     pdf.text('ANTECEDENTES CLÍNICOS Y QUIRÚRGICOS', M + 1.5, y + 3); y += 4;
-    textoLibre(ev.antecedentesClinicosQuirurgicos || 'Sin antecedentes relevantes reportados.', 5);
+    // Render structured antecedentes if available, fall back to legacy string
+    if (ev.antecedentesClinicosQ === true && ev.antecedentesClinicosLista?.length > 0) {
+      const lineasClin = ev.antecedentesClinicosLista.map((ac: any, i: number) => {
+        let linea = `${i + 1}. ${ac.enfermedad || '?'}`;
+        if (ac.desdeCuando) linea += ` (desde ${ac.desdeCuando})`;
+        if (ac.tomaMedicacion && ac.medicacionNombre) linea += ` — Medicación: ${ac.medicacionNombre}${ac.medicacionDosis ? ' ' + ac.medicacionDosis : ''}${ac.medicacionFrecuencia ? ' ' + ac.medicacionFrecuencia : ''}`;
+        if (ac.complicaciones) linea += ` — Comp: ${ac.complicaciones}`;
+        return linea;
+      }).join('\n');
+      const lineasQ = ev.antecedentesQuirurgicosQ === true && ev.antecedentesQuirurgicosLista?.length > 0
+        ? '\nQx: ' + ev.antecedentesQuirurgicosLista.map((aq: any) => `${aq.procedimiento || '?'} (${aq.fechaAproximada || '?'})${aq.secuelas ? ', secuelas: ' + aq.secuelas : ''}`).join('; ')
+        : '';
+      const lineasAl = ev.alergiasTiene === true && ev.alergias?.length > 0
+        ? '\nAlergias: ' + ev.alergias.map((al: any) => `${al.alergeno || '?'} — ${al.intensidadReaccion || '?'}`).join('; ')
+        : '';
+      textoLibre((lineasClin + lineasQ + lineasAl) || 'Sin antecedentes relevantes.', 5);
+    } else if (ev.antecedentesClinicosQ === false) {
+      const lineasQ = ev.antecedentesQuirurgicosQ === true && ev.antecedentesQuirurgicosLista?.length > 0
+        ? 'Qx: ' + ev.antecedentesQuirurgicosLista.map((aq: any) => `${aq.procedimiento || '?'} (${aq.fechaAproximada || '?'})`).join('; ')
+        : '';
+      const lineasAl = ev.alergiasTiene === true && ev.alergias?.length > 0
+        ? '\nAlergias: ' + ev.alergias.map((al: any) => `${al.alergeno || '?'} — ${al.intensidadReaccion || '?'}`).join('; ')
+        : '';
+      textoLibre(('Sin antecedentes clínicos. ' + lineasQ + lineasAl) || 'Sin antecedentes relevantes reportados.', 5);
+    } else {
+      textoLibre(ev.antecedentesClinicosQuirurgicos || 'Sin antecedentes relevantes reportados.', 5);
+    }
 
     if (ev.habitosToxicos && ev.habitosToxicos.length > 0) {
       checkPage(20);
@@ -249,23 +275,29 @@ export default function DetalleTrabajador() {
     }
 
     if (ev.estiloVida) {
+      const tieneMedicacion = (ev.medicacionesHabituales?.length > 0) || !!ev.estiloVida.medicacionHabitual;
+      const medTexto = ev.medicacionesHabituales?.length > 0
+        ? ev.medicacionesHabituales.map((m: any) => `${m.nombre}${m.dosis ? ' ' + m.dosis : ''}${m.frecuencia ? ' ' + m.frecuencia : ''}${m.horario ? ' (' + m.horario + ')' : ''}`).join('; ')
+        : ev.estiloVida.medicacionHabitual || '-';
       autoTable(pdf, {
         startY: y, margin: { left: M, right: M }, theme: 'grid', styles: { ...baseStyles, fontSize: 6.5 }, headStyles: { ...headStyles, fontSize: 6 },
         head: [['ESTILO DE VIDA', 'SI', 'NO', '¿CUÁL?', 'TIEMPO / CANTIDAD']],
         body: [
           ['ACTIVIDAD FÍSICA', ev.estiloVida.actividadFisica ? 'X' : '', ev.estiloVida.actividadFisica ? '' : 'X', ev.estiloVida.tipoActividad || '-', ev.estiloVida.tiempoCantidad || '-'],
-          ['MEDICACIÓN HABITUAL', ev.estiloVida.medicacionHabitual ? 'X' : '', ev.estiloVida.medicacionHabitual ? '' : 'X', ev.estiloVida.medicacionHabitual || '-', ev.estiloVida.medicacionCantidad || '-']
+          ['MEDICACIÓN HABITUAL', tieneMedicacion ? 'X' : '', tieneMedicacion ? '' : 'X', medTexto, '-']
         ],
         columnStyles: { 1: { halign: 'center' }, 2: { halign: 'center' } },
       });
       y = (pdf as any).lastAutoTable.finalY;
     }
     y += 1;
+
+   secHeader('INCIDENTES, ACCIDENTES Y ENFERMEDAD PROFESIONAL', colorSecundario);
     
     // 1. Incidentes
     autoTable(pdf, {
-      startY: y, margin: { left: M, right: M }, theme: 'grid', styles: { ...baseStyles, fontSize: 6.5 }, headStyles: { ...headStyles, fillColor: colorSecundario },
-      head: [['INCIDENTES LABORALES']], 
+      startY: y, margin: { left: M, right: M }, theme: 'grid', styles: { ...baseStyles, fontSize: 6.5 }, headStyles: { ...headStyles, fillColor: colorTerciario },
+      head: [['INCIDENTES LABORALES REPORTADOS']], 
       body: [[ev.incidentes || 'NINGUNO']],
     });
     y = (pdf as any).lastAutoTable.finalY;
@@ -275,7 +307,7 @@ export default function DetalleTrabajador() {
     const califAccidente = ev.accidentesTrabajo?.descripcion ? (ev.accidentesTrabajo.calificado ? 'SÍ' : 'NO') : '-';
     autoTable(pdf, {
       startY: y, margin: { left: M, right: M }, theme: 'grid', styles: { ...baseStyles, fontSize: 6.5 }, headStyles: { ...headStyles, fillColor: colorSecundario },
-      head: [['ACCIDENTES DE TRABAJO', 'CALIFICADO IESS', 'ESPECIFICACIÓN', 'OBSERVACIONES']],
+      head: [['DESCRIPCIÓN DEL ACCIDENTE DE TRABAJO', 'CALIFICADO IESS', 'ESPECIFICACIÓN', 'OBSERVACIONES']],
       body: [[descAccidente, califAccidente, ev.accidentesTrabajo?.especificacion || '-', ev.accidentesTrabajo?.observaciones || '-']],
       columnStyles: { 1: { halign: 'center' } },
     });
@@ -286,7 +318,7 @@ export default function DetalleTrabajador() {
     const califEnfermedad = ev.enfermedadesProfesionales?.descripcion ? (ev.enfermedadesProfesionales.calificada ? 'SÍ' : 'NO') : '-';
     autoTable(pdf, {
       startY: y, margin: { left: M, right: M }, theme: 'grid', styles: { ...baseStyles, fontSize: 6.5 }, headStyles: { ...headStyles, fillColor: colorSecundario },
-      head: [['ENFERMEDAD PROFESIONAL', 'CALIFICADA IESS', 'ESPECIFICACIÓN', 'OBSERVACIONES']],
+      head: [['DESCRIPCIÓN DE ENFERMEDAD PROFESIONAL', 'CALIFICADA IESS', 'ESPECIFICACIÓN', 'OBSERVACIONES']],
       body: [[descEnfermedad, califEnfermedad, ev.enfermedadesProfesionales?.especificacion || '-', ev.enfermedadesProfesionales?.observaciones || '-']],
       columnStyles: { 1: { halign: 'center' } },
     });
@@ -314,7 +346,12 @@ export default function DetalleTrabajador() {
     y = (pdf as any).lastAutoTable.finalY;
 
     if (ev.antecedentesFamiliares && ev.antecedentesFamiliares.length > 0) {
-      const lineasFam = ev.antecedentesFamiliares.map((af: any) => `${af.tipo} (${af.parentesco}): ${af.descripcion || '-'}`).join('; ');
+      const famPorTipo: Record<string, string[]> = {};
+      ev.antecedentesFamiliares.forEach((af: any) => {
+        if (!famPorTipo[af.tipo]) famPorTipo[af.tipo] = [];
+        famPorTipo[af.tipo].push(`${af.parentesco || '?'}${af.descripcion ? ' con ' + af.descripcion : ''}`);
+      });
+      const lineasFam = Object.entries(famPorTipo).map(([tipo, entries]) => `${tipo}: ${entries.join(', ')}`).join('\n');
       textoLibre(lineasFam, 5); y += 1;
     } else { textoLibre('No se refieren antecedentes familiares de importancia.', 5); y += 1; }
 
@@ -372,24 +409,28 @@ export default function DetalleTrabajador() {
     y = (pdf as any).lastAutoTable.finalY;
 
     if (ev.revisionSistemasSeleccionados && ev.revisionSistemasSeleccionados.length > 0) {
-      const nums = ev.revisionSistemasSeleccionados.map((s: string) => SISTEMAS.indexOf(s) + 1).sort((a: number, b: number) => a - b);
-      const descripciones = (ev.revisionSistemasDescripcion || '').split('\n').filter((l: string) => l.trim() !== '');
-      
-      const lineasRevision: string[] = [];
-      
-      nums.forEach((num: number, index: number) => {
-        // Eliminamos cualquier número o viñeta inicial que el usuario haya escrito para evitar duplicados
-        const textoLimpio = (descripciones[index] || '').replace(/^\d+[\.\-\)]?\s*/, '');
-        lineasRevision.push(`${num}. ${textoLimpio}`);
-      });
-      
-      if (descripciones.length > nums.length) {
-        lineasRevision.push(...descripciones.slice(nums.length));
+      let textContent: string;
+      if (ev.revisionSistemasDescripciones) {
+        const lineas = ev.revisionSistemasSeleccionados.map((s: string) => {
+          const num = SISTEMAS.indexOf(s) + 1;
+          const desc = ev.revisionSistemasDescripciones[s] || '-';
+          return `${num}. ${s}: ${desc}`;
+        });
+        textContent = lineas.join('\n');
+      } else {
+        const nums = ev.revisionSistemasSeleccionados.map((s: string) => SISTEMAS.indexOf(s) + 1).sort((a: number, b: number) => a - b);
+        const descripciones = (ev.revisionSistemasDescripcion || '').split('\n').filter((l: string) => l.trim() !== '');
+        const lineasRevision: string[] = [];
+        nums.forEach((num: number, index: number) => {
+          const textoLimpio = (descripciones[index] || '').replace(/^\d+[\.\-\)]?\s*/, '');
+          lineasRevision.push(`${num}. ${textoLimpio}`);
+        });
+        if (descripciones.length > nums.length) lineasRevision.push(...descripciones.slice(nums.length));
+        textContent = lineasRevision.join('\n');
       }
-      
-      textoLibre(lineasRevision.join('\n'), 8);
-    } else { 
-      textoLibre('Paciente no refiere síntomas adicionales.', 5); 
+      textoLibre(textContent, 8);
+    } else {
+      textoLibre('Paciente no refiere síntomas adicionales.', 5);
     }
     y += 1;
 
@@ -647,10 +688,49 @@ export default function DetalleTrabajador() {
                   <Sec title="C. ANTECEDENTES PERSONALES Y LABORALES">
                     <div className="space-y-4">
                       <div>
-                        <p className="text-xs font-bold text-slate-700 mb-1">Antecedentes Clínicos y Quirúrgicos:</p>
-                        <p className="text-xs p-2 bg-slate-50 rounded border border-slate-100">{ev.antecedentesClinicosQuirurgicos || 'Sin registros'}</p>
+                        <p className="text-xs font-bold text-slate-700 mb-1">Antecedentes Clínicos:</p>
+                        {ev.antecedentesClinicosQ === true && ev.antecedentesClinicosLista?.length > 0 ? (
+                          <div className="space-y-1">
+                            {ev.antecedentesClinicosLista.map((ac: any, i: number) => (
+                              <div key={i} className="text-xs p-2 bg-blue-50 rounded border border-blue-100">
+                                <span className="font-semibold">{ac.enfermedad || '?'}</span>{ac.desdeCuando && ` (desde ${ac.desdeCuando})`}
+                                {ac.tomaMedicacion && ac.medicacionNombre && <span className="text-slate-600"> — {ac.medicacionNombre}{ac.medicacionDosis ? ' ' + ac.medicacionDosis : ''}{ac.medicacionFrecuencia ? ' ' + ac.medicacionFrecuencia : ''}</span>}
+                                {ac.complicaciones && <span className="text-orange-600"> — {ac.complicaciones}</span>}
+                              </div>
+                            ))}
+                          </div>
+                        ) : ev.antecedentesClinicosQ === false ? (
+                          <p className="text-xs p-2 bg-slate-50 rounded border border-slate-100 text-slate-500">Sin antecedentes clínicos</p>
+                        ) : (
+                          <p className="text-xs p-2 bg-slate-50 rounded border border-slate-100">{ev.antecedentesClinicosQuirurgicos || 'Sin registros'}</p>
+                        )}
                       </div>
-
+                      {ev.antecedentesQuirurgicosQ === true && ev.antecedentesQuirurgicosLista?.length > 0 && (
+                        <div>
+                          <p className="text-xs font-bold text-slate-700 mb-1">Antecedentes Quirúrgicos:</p>
+                          <div className="space-y-1">
+                            {ev.antecedentesQuirurgicosLista.map((aq: any, i: number) => (
+                              <div key={i} className="text-xs p-2 bg-purple-50 rounded border border-purple-100">
+                                <span className="font-semibold">{aq.procedimiento || '?'}</span>{aq.fechaAproximada && ` (${aq.fechaAproximada})`}
+                                {aq.secuelas && <span className="text-orange-600"> — Secuelas: {aq.secuelas}</span>}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {ev.alergiasTiene === true && ev.alergias?.length > 0 && (
+                        <div>
+                          <p className="text-xs font-bold text-slate-700 mb-1">Alergias:</p>
+                          <div className="space-y-1">
+                            {ev.alergias.map((al: any, i: number) => (
+                              <div key={i} className="text-xs p-2 bg-amber-50 rounded border border-amber-100">
+                                <span className="font-semibold">{al.alergeno || '?'}</span> — {al.intensidadReaccion || '-'}
+                                {al.sintomas && <span className="text-slate-600"> ({al.sintomas})</span>}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                       {ev.habitosToxicos?.length > 0 && (
                         <div>
                           <p className="text-xs font-bold text-slate-700 mb-1">Hábitos Tóxicos:</p>
@@ -670,7 +750,16 @@ export default function DetalleTrabajador() {
                           <p className="text-xs font-bold text-slate-700 mb-1">Estilo de Vida:</p>
                           <div className="bg-slate-50 p-2 rounded text-xs border border-slate-100 space-y-1">
                             <p><span className="font-semibold">Actividad física:</span> {ev.estiloVida.actividadFisica ? `Sí — ${ev.estiloVida.tipoActividad || ''} (${ev.estiloVida.tiempoCantidad || ''})` : 'No'}</p>
-                            <p><span className="font-semibold">Medicación habitual:</span> {ev.estiloVida.medicacionHabitual ? `Sí — ${ev.estiloVida.medicacionHabitual} (${ev.estiloVida.medicacionCantidad || ''})` : 'No'}</p>
+                            {ev.medicacionesHabituales?.length > 0 ? (
+                              <div>
+                                <span className="font-semibold">Medicación habitual:</span>
+                                {ev.medicacionesHabituales.map((m: any, i: number) => (
+                                  <span key={i} className="ml-1">{m.nombre}{m.dosis ? ' ' + m.dosis : ''}{m.frecuencia ? ' ' + m.frecuencia : ''}{m.horario ? ' (' + m.horario + ')' : ''}{i < ev.medicacionesHabituales.length - 1 ? ';' : ''}</span>
+                                ))}
+                              </div>
+                            ) : (
+                              <p><span className="font-semibold">Medicación habitual:</span> {ev.estiloVida.medicacionHabitual ? `Sí — ${ev.estiloVida.medicacionHabitual} (${ev.estiloVida.medicacionCantidad || ''})` : 'No'}</p>
+                            )}
                           </div>
                         </div>
                       )}
@@ -733,7 +822,16 @@ export default function DetalleTrabajador() {
                     </div>
                     {ev.antecedentesFamiliares?.length > 0 && (
                       <div className="text-xs space-y-1 border-t border-slate-200 pt-2 mt-2">
-                        {ev.antecedentesFamiliares.map((af: any, i: number) => <p key={i}><span className="font-semibold">{af.tipo} ({af.parentesco}):</span> {af.descripcion}</p>)}
+                        {(() => {
+                          const grouped: Record<string, {parentesco: string, descripcion: string}[]> = {};
+                          ev.antecedentesFamiliares.forEach((af: any) => {
+                            if (!grouped[af.tipo]) grouped[af.tipo] = [];
+                            grouped[af.tipo].push({ parentesco: af.parentesco, descripcion: af.descripcion });
+                          });
+                          return Object.entries(grouped).map(([tipo, entries]) => (
+                            <p key={tipo}><span className="font-semibold">{tipo}:</span> {entries.map(e => `${e.parentesco || '?'}${e.descripcion ? ' con ' + e.descripcion : ''}`).join(', ')}</p>
+                          ));
+                        })()}
                       </div>
                     )}
                   </Sec>
@@ -782,7 +880,13 @@ export default function DetalleTrabajador() {
                       </table>
                     </div>
                     {ev.revisionSistemasSeleccionados?.length > 0 ? (
-                      <p className="text-xs">{ev.revisionSistemasSeleccionados.map((s:string) => SISTEMAS.indexOf(s) + 1).sort((a:number,b:number)=>a-b).join(', ')}: {ev.revisionSistemasDescripcion}</p>
+                      <div className="space-y-1 text-xs mt-2">
+                        {ev.revisionSistemasSeleccionados.map((s: string) => {
+                          const num = SISTEMAS.indexOf(s) + 1;
+                          const desc = ev.revisionSistemasDescripciones?.[s] || ev.revisionSistemasDescripcion || '-';
+                          return <p key={s}><span className="font-semibold">{num}. {s}:</span> {desc}</p>;
+                        })}
+                      </div>
                     ) : <p className="text-xs text-green-700">Paciente no refiere síntomas adicionales al momento de la consulta</p>}
                   </Sec>
 
