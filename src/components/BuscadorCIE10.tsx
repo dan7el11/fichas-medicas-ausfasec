@@ -45,7 +45,7 @@ export default function BuscadorCIE10({ valorActual, onSeleccionar, placeholder 
        // 3. ¿Coincide la descripción normal? ¿O coincide el código limpio con el texto limpio?
         return descLimpia.includes(texto.toLowerCase()) || codigoLimpio.includes(textoLimpio);
       });
-      setSugerencias(resultados.slice(0, 5)); // Máximo 15 resultados para no trabar la PC
+      setSugerencias(resultados.slice(0, 10)); // Máximo 15 resultados para no trabar la PC
       setMostrarMenu(true);
     } else {
       setMostrarMenu(false);
