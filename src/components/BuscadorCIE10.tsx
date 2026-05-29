@@ -38,7 +38,7 @@ export default function BuscadorCIE10({ valorActual, onSeleccionar, placeholder 
   // 1. Limpiamos lo que el usuario teclea (le quitamos los puntos y lo hacemos minúscula)
       const textoLimpio = texto.toLowerCase().replace(/\./g, '');
       
-      const resultados = catalogoCIE10.filter(item => 
+      const resultados = catalogoCIE10.filter(item => {
         // 2. Limpiamos el código del catálogo para que compita en igualdad de condiciones
         const codigoLimpio = item.codigo.toLowerCase().replace(/\./g, '');
         const descLimpia = item.descripcion.toLowerCase();
