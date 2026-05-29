@@ -193,10 +193,10 @@ export default function ExamenesPanel({ trabajadorId, trabajadorNombre, evaluaci
         await uploadBytes(storageRef, item.file);
         const url = await getDownloadURL(storageRef);
 
-        // 2. Guardar documento en Firestore
+       // 2. Guardar documento en Firestore
         const docData: Omit<ExamenComplementarioDoc, 'id'> = {
           trabajadorId,
-          evaluacionId: item.evaluacionId || undefined,
+          evaluacionId: item.evaluacionId || "", // <--- AQUÍ ESTÁ LA MAGIA (quitamos el undefined)
           tipoExamen: item.tipoExamen,
           nombreExamen: item.nombreExamen,
           grupoExamen: item.grupoExamen,
