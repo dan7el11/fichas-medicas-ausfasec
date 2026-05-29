@@ -489,7 +489,7 @@ export default function NuevaEvaluacion() {
           console.error("Error al auto-cargar exámenes históricos:", err);
         }
       }
-    }; // Aquí cierra cargarDatos
+    }; 
 
     cargarDatos();
   }, [trabajadorId, user, editEvalId]);
@@ -1194,14 +1194,28 @@ export default function NuevaEvaluacion() {
           ))}
           <button type="button" onClick={() => setExamenesComplementarios(prev => [...prev, { nombre: '', fecha: '', resultado: '' }])} className="text-blue-600 text-xs font-medium mt-2 hover:underline">+ Agregar examen</button>
         </div>
-        {/* ===== K. DIAGNÓSTICOS ===== */}
+       {/* ===== K. DIAGNÓSTICOS ===== */}
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
           <h2 className="text-sm font-bold text-slate-800 mb-3 border-b pb-2">K. DIAGNÓSTICO</h2>
           {diagnosticos.map((dx, idx) => (
-            <div key={idx} className="grid grid-cols-3 gap-2 mb-2">
-              <input type="text" placeholder="Descripción" value={dx.descripcion} onChange={(e) => { const u = [...diagnosticos]; u[idx] = { ...u[idx], descripcion: e.target.value }; setDiagnosticos(u); }} className="px-2 py-1 border rounded text-sm" />
-              <input type="text" placeholder="CIE" value={dx.cie} onChange={(e) => { const u = [...diagnosticos]; u[idx] = { ...u[idx], cie: e.target.value }; setDiagnosticos(u); }} className="px-2 py-1 border rounded text-sm" />
-              <select value={dx.tipo} onChange={(e) => { const u = [...diagnosticos]; u[idx] = { ...u[idx], tipo: e.target.value as any }; setDiagnosticos(u); }} className="px-2 py-1 border rounded text-sm bg-white">
+            <div key={idx} className="grid grid-cols-1 md:grid-cols-4 gap-2 mb-2">
+              
+              <div className="md:col-span-3">
+                <BuscadorCIE10 
+                  valorActual={dx.descripcion ? `${dx.cie} - ${dx.descripcion}` : ''}
+                  onSeleccionar={(codigo, descripcion) => {
+                    const u = [...diagnosticos];
+                    u[idx] = { ...u[idx], cie: codigo, descripcion: descripcion };
+                    setDiagnosticos(u);
+                  }}
+                />
+              </div>
+
+              <select 
+                value={dx.tipo} 
+                onChange={(e) => { const u = [...diagnosticos]; u[idx] = { ...u[idx], tipo: e.target.value as any }; setDiagnosticos(u); }} 
+                className="px-2 py-1 border rounded text-sm bg-white"
+              >
                 <option value="presuntivo">Presuntivo</option>
                 <option value="definitivo">Definitivo</option>
               </select>
