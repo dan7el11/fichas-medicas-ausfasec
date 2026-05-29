@@ -78,6 +78,35 @@ export interface AntecedenteFamiliar {
   parentesco: string;
 }
 
+export interface AntecedenteClinico {
+  enfermedad: string;
+  desdeCuando: string;
+  tomaMedicacion: boolean;
+  medicacionNombre: string;
+  medicacionDosis: string;
+  medicacionFrecuencia: string;
+  seguimientoEspecialista: boolean;
+  especialista: string;
+  complicaciones: string;
+}
+
+export interface AntecedenteQuirurgico {
+  procedimiento: string;
+  fechaAproximada: string;
+  complicaciones: string;
+  recuperacionCompleta: boolean;
+  secuelas: string;
+}
+
+export interface Alergia {
+  alergeno: string;
+  intensidadReaccion: string;
+  sintomas: string;
+  tratamientoHabitual: string;
+  seguimientoEspecialista: boolean;
+  especialista: string;
+}
+
 export interface ExamenFisicoHallazgo {
   codigo: string;
   region: string;
@@ -202,7 +231,13 @@ export interface EvaluacionMedica {
   numeroArchivo: string;
 
   motivoConsulta: string;
-  antecedentesClinicosQuirurgicos: string;
+  antecedentesClinicosQuirurgicos?: string;
+  antecedentesClinicosQ?: boolean;
+  antecedentesClinicosLista?: AntecedenteClinico[];
+  antecedentesQuirurgicosQ?: boolean;
+  antecedentesQuirurgicosLista?: AntecedenteQuirurgico[];
+  alergiasTiene?: boolean;
+  alergias?: Alergia[];
   habitosToxicos: HabitoToxico[];
   estiloVida: EstiloVida;
   incidentes: string;
