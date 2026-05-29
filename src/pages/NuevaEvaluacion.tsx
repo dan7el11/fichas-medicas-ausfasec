@@ -4,7 +4,7 @@ import { doc, getDoc, collection, addDoc, updateDoc, arrayUnion, query, where, o
 import { db } from '../services/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import SignosVitalesForm from '../components/SignosVitalesForm';
-import type { Trabajador, SignosVitales, HabitoToxico, EstiloVida, AccidenteTrabajo, EnfermedadProfesional, AntecedenteFamiliar, ExamenFisicoHallazgo, ExamenComplementario, Diagnostico, Usuario, FactorRiesgoPuesto, AntecedenteClinico, AntecedenteQuirurgico, Alergia } from '../types';
+import type { Trabajador, SignosVitales, HabitoToxico, EstiloVida, AccidenteTrabajo, EnfermedadProfesional, AntecedenteFamiliar, ExamenFisicoHallazgo, ExamenComplementario, Diagnostico, Usuario, FactorRiesgoPuesto, AntecedenteClinico, AntecedenteQuirurgico, Alergia, MedicacionHabitual } from '../types';
 
 // Datos fijos de la empresa (Sección A)
 const DATOS_EMPRESA = {
@@ -204,6 +204,39 @@ const RIESGOS_PSICOSOCIALES = [
   'Inestabilidad laboral',
 ];
 
+// ===== Componente externo: grupo de checkboxes de riesgo (fuera del componente para evitar scroll) =====
+interface RiesgoCheckboxGroupProps {
+  titulo: string;
+  color: string;
+  opciones: string[];
+  seleccionados: string[];
+  onToggle: (valor: string) => void;
+}
+function RiesgoCheckboxGroup({ titulo, color, opciones, seleccionados, onToggle }: RiesgoCheckboxGroupProps) {
+  return (
+    <div className="border border-slate-200 rounded-lg overflow-hidden">
+      <div className={`px-3 py-1.5 text-xs font-bold text-white ${color}`}>
+        {titulo} ({seleccionados.length})
+      </div>
+      <div className="p-3 grid grid-cols-1 sm:grid-cols-2 gap-1">
+        {opciones.map(op => (
+          <label key={op} className={`flex items-center gap-2 text-xs cursor-pointer p-1.5 rounded transition-colors ${
+            seleccionados.includes(op) ? 'bg-blue-50 font-medium' : 'hover:bg-slate-50'
+          }`}>
+            <input
+              type="checkbox"
+              checked={seleccionados.includes(op)}
+              onChange={() => onToggle(op)}
+              className="rounded text-blue-600 w-3.5 h-3.5"
+            />
+            <span className="text-slate-700">{op}</span>
+          </label>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 const emptyAntecedenteClinico = (): AntecedenteClinico => ({
   enfermedad: '', desdeCuando: '', tomaMedicacion: false,
   medicacionNombre: '', medicacionDosis: '', medicacionFrecuencia: '',
@@ -275,9 +308,12 @@ export default function NuevaEvaluacion() {
   // F. Enfermedad actual
   const [enfermedadActual, setEnfermedadActual] = useState('');
 
+  // Medicaciones habituales (Sección C — Estilo de vida)
+  const [medicacionesHabituales, setMedicacionesHabituales] = useState<MedicacionHabitual[]>([]);
+
   // G. Revisión de órganos y sistemas
   const [revisionSistemasSeleccionados, setRevisionSistemasSeleccionados] = useState<string[]>([]);
-  const [revisionSistemasDescripcion, setRevisionSistemasDescripcion] = useState('');
+  const [revisionSistemasDescripciones, setRevisionSistemasDescripciones] = useState<Record<string, string>>({});
 
   // H. Signos vitales
   const [signosVitales, setSignosVitales] = useState<SignosVitales>({
@@ -353,7 +389,8 @@ export default function NuevaEvaluacion() {
             if (evData.factoresRiesgo) setFactoresRiesgo(evData.factoresRiesgo);
             setEnfermedadActual(evData.enfermedadActual || '');
             if (evData.revisionSistemasSeleccionados) setRevisionSistemasSeleccionados(evData.revisionSistemasSeleccionados);
-            setRevisionSistemasDescripcion(evData.revisionSistemasDescripcion || '');
+            if (evData.revisionSistemasDescripciones) setRevisionSistemasDescripciones(evData.revisionSistemasDescripciones);
+            if (evData.medicacionesHabituales) setMedicacionesHabituales(evData.medicacionesHabituales);
             if (evData.signosVitales) setSignosVitales(evData.signosVitales);
             if (evData.examenFisicoHallazgos) setExamenFisicoHallazgos(evData.examenFisicoHallazgos);
             if (evData.examenesComplementarios) setExamenesComplementarios(evData.examenesComplementarios);
@@ -399,6 +436,7 @@ export default function NuevaEvaluacion() {
           if (ultimaEval.antecedentesFamiliares) setAntecedentesFamiliares(ultimaEval.antecedentesFamiliares);
           if (ultimaEval.habitosToxicos) setHabitosToxicos(ultimaEval.habitosToxicos);
           if (ultimaEval.estiloVida) setEstiloVida(ultimaEval.estiloVida);
+          if (ultimaEval.medicacionesHabituales) setMedicacionesHabituales(ultimaEval.medicacionesHabituales);
           if (ultimaEval.incidentes) setIncidentes(ultimaEval.incidentes);
           if (ultimaEval.factoresRiesgo) setFactoresRiesgo(ultimaEval.factoresRiesgo);
           if (ultimaEval.signosVitales?.talla) {
@@ -533,6 +571,7 @@ export default function NuevaEvaluacion() {
         alergias,
         habitosToxicos,
         estiloVida,
+        medicacionesHabituales,
         incidentes,
         accidentesTrabajo: accidenteTrabajo,
         enfermedadesProfesionales: enfermedadProfesional,
@@ -540,7 +579,7 @@ export default function NuevaEvaluacion() {
         factoresRiesgo,
         enfermedadActual,
         revisionSistemasSeleccionados,
-        revisionSistemasDescripcion,
+        revisionSistemasDescripciones,
         signosVitales,
         examenFisicoHallazgos,
         examenesComplementarios: examenesComplementarios.filter(e => e.nombre.trim() !== ''),
@@ -591,38 +630,6 @@ export default function NuevaEvaluacion() {
   if (!trabajador) {
     return <div className="min-h-screen p-8 text-center text-slate-500">Cargando datos del trabajador...</div>;
   }
-
-  // ===== Componente auxiliar: grupo de checkboxes de riesgo =====
-  const RiesgoCheckboxGroup = ({ titulo, color, opciones, categoria }: {
-    titulo: string;
-    color: string;
-    opciones: string[];
-    categoria: keyof Pick<FactorRiesgoPuesto, 'fisicos' | 'mecanicos' | 'quimicos' | 'biologicos' | 'ergonomicos' | 'psicosociales'>;
-  }) => {
-    const seleccionados = factoresRiesgo[categoria];
-    return (
-      <div className="border border-slate-200 rounded-lg overflow-hidden">
-        <div className={`px-3 py-1.5 text-xs font-bold text-white ${color}`}>
-          {titulo} ({seleccionados.length})
-        </div>
-        <div className="p-3 grid grid-cols-1 sm:grid-cols-2 gap-1">
-          {opciones.map(op => (
-            <label key={op} className={`flex items-center gap-2 text-xs cursor-pointer p-1.5 rounded transition-colors ${
-              seleccionados.includes(op) ? 'bg-blue-50 font-medium' : 'hover:bg-slate-50'
-            }`}>
-              <input
-                type="checkbox"
-                checked={seleccionados.includes(op)}
-                onChange={() => toggleRiesgo(categoria, op)}
-                className="rounded text-blue-600 w-3.5 h-3.5"
-              />
-              <span className="text-slate-700">{op}</span>
-            </label>
-          ))}
-        </div>
-      </div>
-    );
-  };
 
   // Contar total de riesgos seleccionados
   const totalRiesgos = factoresRiesgo.fisicos.length + factoresRiesgo.mecanicos.length +
@@ -884,17 +891,55 @@ export default function NuevaEvaluacion() {
 
           <div>
             <label className="block text-xs font-bold text-slate-700 mb-3">ESTILO DE VIDA</label>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-              <div className="flex items-center gap-3">
-                <label className="flex items-center gap-2"><input type="checkbox" checked={estiloVida.actividadFisica} onChange={(e) => setEstiloVida(prev => ({ ...prev, actividadFisica: e.target.checked }))} /><span className="text-xs font-medium">Actividad Física</span></label>
-                <input type="text" placeholder="¿Cuál?" value={estiloVida.tipoActividad} onChange={(e) => setEstiloVida(prev => ({ ...prev, tipoActividad: e.target.value }))} className="flex-1 px-2 py-1 border rounded text-xs" />
-                <input type="text" placeholder="Tiempo/Cantidad" value={estiloVida.tiempoCantidad} onChange={(e) => setEstiloVida(prev => ({ ...prev, tiempoCantidad: e.target.value }))} className="flex-1 px-2 py-1 border rounded text-xs" />
+            <div className="flex items-center gap-3 mb-3">
+              <label className="flex items-center gap-2"><input type="checkbox" checked={estiloVida.actividadFisica} onChange={(e) => setEstiloVida(prev => ({ ...prev, actividadFisica: e.target.checked }))} /><span className="text-xs font-medium">Actividad Física</span></label>
+              <input type="text" placeholder="¿Cuál?" value={estiloVida.tipoActividad} onChange={(e) => setEstiloVida(prev => ({ ...prev, tipoActividad: e.target.value }))} className="flex-1 px-2 py-1 border rounded text-xs" />
+              <input type="text" placeholder="Tiempo/Cantidad" value={estiloVida.tiempoCantidad} onChange={(e) => setEstiloVida(prev => ({ ...prev, tiempoCantidad: e.target.value }))} className="flex-1 px-2 py-1 border rounded text-xs" />
+            </div>
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-medium text-slate-700">Medicación Habitual</span>
+                {antecedentesClinicosLista.some(ac => ac.tomaMedicacion && ac.medicacionNombre) && (
+                  <button type="button"
+                    onClick={() => {
+                      const meds = antecedentesClinicosLista
+                        .filter(ac => ac.tomaMedicacion && ac.medicacionNombre)
+                        .map(ac => ({ nombre: ac.medicacionNombre, dosis: ac.medicacionDosis, frecuencia: ac.medicacionFrecuencia, horario: '' }));
+                      setMedicacionesHabituales(meds);
+                    }}
+                    className="text-[11px] text-blue-600 hover:text-blue-800 font-medium border border-blue-300 rounded px-2 py-0.5 bg-blue-50"
+                  >↑ Auto-llenar desde Antecedentes Clínicos</button>
+                )}
               </div>
-              <div className="flex items-center gap-3">
-                <span className="text-xs font-medium whitespace-nowrap">Medicación Habitual:</span>
-                <input type="text" placeholder="Nombre" value={estiloVida.medicacionHabitual} onChange={(e) => setEstiloVida(prev => ({ ...prev, medicacionHabitual: e.target.value }))} className="flex-1 px-2 py-1 border rounded text-xs" />
-                <input type="text" placeholder="Cantidad" value={estiloVida.medicacionCantidad} onChange={(e) => setEstiloVida(prev => ({ ...prev, medicacionCantidad: e.target.value }))} className="flex-1 px-2 py-1 border rounded text-xs" />
-              </div>
+              {medicacionesHabituales.length === 0 ? (
+                <p className="text-xs text-slate-400 italic mb-2">Sin medicaciones registradas.</p>
+              ) : (
+                <div className="space-y-1.5 mb-2">
+                  {medicacionesHabituales.map((m, idx) => (
+                    <div key={idx} className="grid grid-cols-4 gap-2 items-center">
+                      <input type="text" placeholder="Medicamento" value={m.nombre}
+                        onChange={(e) => { const u = [...medicacionesHabituales]; u[idx] = { ...u[idx], nombre: e.target.value }; setMedicacionesHabituales(u); }}
+                        className="px-2 py-1 border rounded text-xs" />
+                      <input type="text" placeholder="Dosis" value={m.dosis}
+                        onChange={(e) => { const u = [...medicacionesHabituales]; u[idx] = { ...u[idx], dosis: e.target.value }; setMedicacionesHabituales(u); }}
+                        className="px-2 py-1 border rounded text-xs" />
+                      <input type="text" placeholder="Frecuencia" value={m.frecuencia}
+                        onChange={(e) => { const u = [...medicacionesHabituales]; u[idx] = { ...u[idx], frecuencia: e.target.value }; setMedicacionesHabituales(u); }}
+                        className="px-2 py-1 border rounded text-xs" />
+                      <div className="flex gap-1">
+                        <input type="text" placeholder="Horario (ej: AM)" value={m.horario}
+                          onChange={(e) => { const u = [...medicacionesHabituales]; u[idx] = { ...u[idx], horario: e.target.value }; setMedicacionesHabituales(u); }}
+                          className="flex-1 px-2 py-1 border rounded text-xs" />
+                        <button type="button" onClick={() => setMedicacionesHabituales(prev => prev.filter((_, i) => i !== idx))} className="text-red-400 hover:text-red-600 text-xs px-1">✕</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <button type="button"
+                onClick={() => setMedicacionesHabituales(prev => [...prev, { nombre: '', dosis: '', frecuencia: '', horario: '' }])}
+                className="text-blue-600 text-xs font-medium hover:underline"
+              >+ Agregar medicación</button>
             </div>
           </div>
 
@@ -1020,12 +1065,12 @@ export default function NuevaEvaluacion() {
 
           {/* 6 categorías de riesgo */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
-            <RiesgoCheckboxGroup titulo="FÍSICO" color="bg-blue-600" opciones={RIESGOS_FISICOS} categoria="fisicos" />
-            <RiesgoCheckboxGroup titulo="MECÁNICO" color="bg-red-600" opciones={RIESGOS_MECANICOS} categoria="mecanicos" />
-            <RiesgoCheckboxGroup titulo="QUÍMICO" color="bg-amber-600" opciones={RIESGOS_QUIMICOS} categoria="quimicos" />
-            <RiesgoCheckboxGroup titulo="BIOLÓGICO" color="bg-green-600" opciones={RIESGOS_BIOLOGICOS} categoria="biologicos" />
-            <RiesgoCheckboxGroup titulo="ERGONÓMICO" color="bg-purple-600" opciones={RIESGOS_ERGONOMICOS} categoria="ergonomicos" />
-            <RiesgoCheckboxGroup titulo="PSICOSOCIAL" color="bg-pink-600" opciones={RIESGOS_PSICOSOCIALES} categoria="psicosociales" />
+            <RiesgoCheckboxGroup titulo="FÍSICO" color="bg-blue-600" opciones={RIESGOS_FISICOS} seleccionados={factoresRiesgo.fisicos} onToggle={(v) => toggleRiesgo('fisicos', v)} />
+            <RiesgoCheckboxGroup titulo="MECÁNICO" color="bg-red-600" opciones={RIESGOS_MECANICOS} seleccionados={factoresRiesgo.mecanicos} onToggle={(v) => toggleRiesgo('mecanicos', v)} />
+            <RiesgoCheckboxGroup titulo="QUÍMICO" color="bg-amber-600" opciones={RIESGOS_QUIMICOS} seleccionados={factoresRiesgo.quimicos} onToggle={(v) => toggleRiesgo('quimicos', v)} />
+            <RiesgoCheckboxGroup titulo="BIOLÓGICO" color="bg-green-600" opciones={RIESGOS_BIOLOGICOS} seleccionados={factoresRiesgo.biologicos} onToggle={(v) => toggleRiesgo('biologicos', v)} />
+            <RiesgoCheckboxGroup titulo="ERGONÓMICO" color="bg-purple-600" opciones={RIESGOS_ERGONOMICOS} seleccionados={factoresRiesgo.ergonomicos} onToggle={(v) => toggleRiesgo('ergonomicos', v)} />
+            <RiesgoCheckboxGroup titulo="PSICOSOCIAL" color="bg-pink-600" opciones={RIESGOS_PSICOSOCIALES} seleccionados={factoresRiesgo.psicosociales} onToggle={(v) => toggleRiesgo('psicosociales', v)} />
           </div>
 
           {/* Medidas preventivas */}
@@ -1061,20 +1106,36 @@ export default function NuevaEvaluacion() {
         {/* ===== G. REVISIÓN DE ÓRGANOS Y SISTEMAS ===== */}
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
           <h2 className="text-sm font-bold text-slate-800 mb-1 border-b pb-2">G. REVISIÓN DE ÓRGANOS Y SISTEMAS</h2>
-          <p className="text-xs text-slate-500 mb-3">En caso de existir patología, marcar con "X" y describir abajo</p>
+          <p className="text-xs text-slate-500 mb-3">En caso de existir patología, marcar con "X" y describir por sistema</p>
           <div className="grid grid-cols-2 md:grid-cols-5 gap-2 mb-4">
             {SISTEMAS.map((s) => (
-              <label key={s.numero} className="flex items-center gap-2 text-xs bg-slate-50 p-2 rounded cursor-pointer hover:bg-slate-100">
+              <label key={s.numero} className={`flex items-center gap-2 text-xs p-2 rounded cursor-pointer transition-colors ${revisionSistemasSeleccionados.includes(s.nombre) ? 'bg-blue-50 border border-blue-200' : 'bg-slate-50 hover:bg-slate-100'}`}>
                 <input type="checkbox" checked={revisionSistemasSeleccionados.includes(s.nombre)} onChange={(e) => {
                   if (e.target.checked) setRevisionSistemasSeleccionados(prev => [...prev, s.nombre]);
                   else setRevisionSistemasSeleccionados(prev => prev.filter(n => n !== s.nombre));
                 }} />
-                <span>{s.numero}. {s.nombre}</span>
+                <span className={revisionSistemasSeleccionados.includes(s.nombre) ? 'font-semibold text-blue-800' : ''}>{s.numero}. {s.nombre}</span>
               </label>
             ))}
           </div>
           {revisionSistemasSeleccionados.length > 0 ? (
-            <textarea className="w-full p-3 border border-slate-300 rounded-lg text-sm" rows={3} value={revisionSistemasDescripcion} onChange={(e) => setRevisionSistemasDescripcion(e.target.value)} placeholder="Describa los hallazgos por numeral..." />
+            <div className="space-y-2 border-t pt-4">
+              <h4 className="text-xs font-bold text-slate-700">Hallazgos por sistema:</h4>
+              {revisionSistemasSeleccionados.map((sysNombre) => {
+                const sysNum = SISTEMAS.find(s => s.nombre === sysNombre)?.numero;
+                return (
+                  <div key={sysNombre} className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-blue-700 whitespace-nowrap w-40 shrink-0">{sysNum}. {sysNombre}:</span>
+                    <input type="text"
+                      className="flex-1 px-3 py-1.5 border rounded-lg text-sm"
+                      placeholder={`Hallazgo en ${sysNombre}...`}
+                      value={revisionSistemasDescripciones[sysNombre] || ''}
+                      onChange={(e) => setRevisionSistemasDescripciones(prev => ({ ...prev, [sysNombre]: e.target.value }))}
+                    />
+                  </div>
+                );
+              })}
+            </div>
           ) : (
             <div className="bg-green-50 text-green-800 p-3 rounded-lg text-sm">Paciente no refiere síntomas adicionales o relevantes al momento de la consulta</div>
           )}
