@@ -5,9 +5,6 @@ import { db } from '../services/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import SignosVitalesForm from '../components/SignosVitalesForm';
 import type { Trabajador, SignosVitales, HabitoToxico, EstiloVida, AccidenteTrabajo, EnfermedadProfesional, AntecedenteFamiliar, ExamenFisicoHallazgo, ExamenComplementario, Diagnostico, Usuario, FactorRiesgoPuesto } from '../types';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { storage } from '../services/firebase';
-import AdjuntarExamenes, { type ExamenAdjunto } from '../components/examenes/AdjuntarExamenes';
 
 // Datos fijos de la empresa (Sección A)
 const DATOS_EMPRESA = {
@@ -286,14 +283,13 @@ export default function NuevaEvaluacion() {
   const [aptitudMedica, setAptitudMedica] = useState<'apto' | 'aptoObservacion' | 'aptoLimitaciones' | 'noApto'>('apto');
   const [aptitudObservacion, setAptitudObservacion] = useState('');
   const [aptitudLimitaciones, setAptitudLimitaciones] = useState('');
-  const [examenesAdjuntos, setExamenesAdjuntos] = useState<ExamenAdjunto[]>([]);
 
 
   // M. endaciones
   const [recomendaciones, setRecomendaciones] = useState<string[]>([]);
   const [recomendacionesOtras, setRecomendacionesOtras] = useState('');
 
-  // ===== CARGA DE DATOS =====
+ // ===== CARGA DE DATOS =====
 
   useEffect(() => {
     const cargarDatos = async () => {
@@ -311,90 +307,11 @@ export default function NuevaEvaluacion() {
         setMedicoData(medicoDoc.data() as Usuario);
       }
 
-      // Cargar última evaluación para pre-llenar antecedentes
-      const evalQuery = query(
-        collection(db, 'evaluaciones'),
-        where('trabajadorId', '==', trabajadorId),
-        orderBy('fecha', 'desc'),
-        limit(1)
-      );
-      const evalSnap = await getDocs(evalQuery);
-      
-      if (!evalSnap.empty) {
-        const ultimaEval = evalSnap.docs[0].data();
-        
-        if (ultimaEval.antecedentesClinicosQuirurgicos) setAntecedentesClinicosQuirurgicos(ultimaEval.antecedentesClinicosQuirurgicos);
-        if (ultimaEval.antecedentesFamiliares) setAntecedentesFamiliares(ultimaEval.antecedentesFamiliares);
-        if (ultimaEval.habitosToxicos) setHabitosToxicos(ultimaEval.habitosToxicos);
-        if (ultimaEval.estiloVida) setEstiloVida(ultimaEval.estiloVida);
-        if (ultimaEval.incidentes) setIncidentes(ultimaEval.incidentes);
-        if (ultimaEval.factoresRiesgo) setFactoresRiesgo(ultimaEval.factoresRiesgo);
-        if (ultimaEval.signosVitales?.talla) {
-          setSignosVitales(prev => ({ ...prev, talla: ultimaEval.signosVitales.talla }));
-        }
-      }
-
       // =========================================================
-      // AUTO-CARGAR EXÁMENES DEL ÚLTIMO AÑO (NUEVO)
-      // =========================================================
-      try {
-        const examenesQuery = query(
-          collection(db, 'examenes'),
-          where('trabajadorId', '==', trabajadorId)
-        );
-        const examenesSnap = await getDocs(examenesQuery);
-        
-        if (!examenesSnap.empty) {
-          const unAnioAtras = new Date();
-          unAnioAtras.setFullYear(unAnioAtras.getFullYear() - 1);
-          
-          const examenesDelAnio: any[] = [];
-          
-          examenesSnap.forEach(docSnap => {
-            const data = docSnap.data();
-            const fechaExamen = data.fecha?.seconds ? new Date(data.fecha.seconds * 1000) : new Date(data.fecha);
-            
-            // Filtrar solo los exámenes realizados en los últimos 365 días
-            if (fechaExamen >= unAnioAtras) {
-              const fechaStr = fechaExamen.toISOString().split('T')[0];
-              
-              // Si es patológico muestra la observación, de lo contrario muestra "Normal"
-              const interpretacion = data.estado === 'patologico'
-                ? `Patológico - Obs: ${data.observacion || ''}`
-                : (data.observacion || 'Normal');
-              
-              // Combinar el valor numérico/resultado con la interpretación médica
-              const resultadoFinal = data.resultado 
-                ? `${data.resultado} [${interpretacion}]`
-                : interpretacion;
-
-              examenesDelAnio.push({
-                nombre: data.nombreExamen || '',
-                fecha: fechaStr,
-                resultado: resultadoFinal
-              });
-            }
-          });
-
-          // Ordenar cronológicamente del más reciente al más antiguo
-          examenesDelAnio.sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
-
-          if (examenesDelAnio.length > 0) {
-            setExamenesComplementarios(examenesDelAnio);
-          }
-        }
-      } catch (err) {
-        console.error("Error al auto-cargar exámenes históricos:", err);
-      }
-    }; // Aquí cierra cargarDatos
-
-    cargarDatos();
-  }, [trabajadorId, user]);
-
-  // =========================================================
-      // CARGAR DATOS PARA MODO EDICIÓN (NUEVO)
+      // CARGAR DATOS (EDICIÓN O CREACIÓN)
       // =========================================================
       if (editEvalId) {
+        // MODO EDICIÓN: Cargar la evaluación seleccionada
         try {
           const evalDoc = await getDoc(doc(db, 'evaluaciones', editEvalId));
           if (evalDoc.exists()) {
@@ -425,7 +342,6 @@ export default function NuevaEvaluacion() {
             if (evData.examenFisicoHallazgos) {
               const checkedSet = new Set<string>();
               evData.examenFisicoHallazgos.forEach((h: any) => {
-                // Relaciona los códigos guardados (ej: "1a") con el set visual
                 const num = h.codigo.match(/^\d+/)?.[0];
                 const cod = h.codigo.replace(/^\d+/, '');
                 if (num && cod) checkedSet.add(`${num}-${cod}`);
@@ -436,7 +352,77 @@ export default function NuevaEvaluacion() {
         } catch (err) {
           console.error("Error al cargar la evaluación para editar:", err);
         }
+      } else {
+        // MODO CREACIÓN: Cargar última evaluación para pre-llenar antecedentes
+        const evalQuery = query(
+          collection(db, 'evaluaciones'),
+          where('trabajadorId', '==', trabajadorId),
+          orderBy('fecha', 'desc'),
+          limit(1)
+        );
+        const evalSnap = await getDocs(evalQuery);
+        
+        if (!evalSnap.empty) {
+          const ultimaEval = evalSnap.docs[0].data();
+          if (ultimaEval.antecedentesClinicosQuirurgicos) setAntecedentesClinicosQuirurgicos(ultimaEval.antecedentesClinicosQuirurgicos);
+          if (ultimaEval.antecedentesFamiliares) setAntecedentesFamiliares(ultimaEval.antecedentesFamiliares);
+          if (ultimaEval.habitosToxicos) setHabitosToxicos(ultimaEval.habitosToxicos);
+          if (ultimaEval.estiloVida) setEstiloVida(ultimaEval.estiloVida);
+          if (ultimaEval.incidentes) setIncidentes(ultimaEval.incidentes);
+          if (ultimaEval.factoresRiesgo) setFactoresRiesgo(ultimaEval.factoresRiesgo);
+          if (ultimaEval.signosVitales?.talla) {
+            setSignosVitales(prev => ({ ...prev, talla: ultimaEval.signosVitales.talla }));
+          }
+        }
+
+        // Auto-cargar exámenes del último año
+        try {
+          const examenesQuery = query(
+            collection(db, 'examenes'),
+            where('trabajadorId', '==', trabajadorId)
+          );
+          const examenesSnap = await getDocs(examenesQuery);
+          
+          if (!examenesSnap.empty) {
+            const unAnioAtras = new Date();
+            unAnioAtras.setFullYear(unAnioAtras.getFullYear() - 1);
+            
+            const examenesDelAnio: any[] = [];
+            
+            examenesSnap.forEach(docSnap => {
+              const data = docSnap.data();
+              const fechaExamen = data.fecha?.seconds ? new Date(data.fecha.seconds * 1000) : new Date(data.fecha);
+              
+              if (fechaExamen >= unAnioAtras) {
+                const fechaStr = fechaExamen.toISOString().split('T')[0];
+                const interpretacion = data.estado === 'patologico'
+                  ? `Patológico - Obs: ${data.observacion || ''}`
+                  : (data.observacion || 'Normal');
+                const resultadoFinal = data.resultado 
+                  ? `${data.resultado} [${interpretacion}]`
+                  : interpretacion;
+
+                examenesDelAnio.push({
+                  nombre: data.nombreExamen || '',
+                  fecha: fechaStr,
+                  resultado: resultadoFinal
+                });
+              }
+            });
+
+            examenesDelAnio.sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
+            if (examenesDelAnio.length > 0) {
+              setExamenesComplementarios(examenesDelAnio);
+            }
+          }
+        } catch (err) {
+          console.error("Error al auto-cargar exámenes históricos:", err);
+        }
       }
+    }; // Aquí cierra cargarDatos
+
+    cargarDatos();
+  }, [trabajadorId, user, editEvalId]);
    
   // ===== MANEJO DE EXAMEN FÍSICO =====
 
@@ -876,11 +862,6 @@ export default function NuevaEvaluacion() {
           ))}
           <button type="button" onClick={() => setExamenesComplementarios(prev => [...prev, { nombre: '', fecha: '', resultado: '' }])} className="text-blue-600 text-xs font-medium mt-2 hover:underline">+ Agregar examen</button>
         </div>
-        <AdjuntarExamenes
-          examenes={examenesAdjuntos}
-          onChange={setExamenesAdjuntos}
-          fechaEvaluacion={new Date()}
-        />
         {/* ===== K. DIAGNÓSTICOS ===== */}
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
           <h2 className="text-sm font-bold text-slate-800 mb-3 border-b pb-2">K. DIAGNÓSTICO</h2>
