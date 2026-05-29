@@ -2,7 +2,6 @@ import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
-storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "polla-austrogas.appspot.com",
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyCwp8KhisgZ64tdYHAq27k-_3O76MFNijQ",
