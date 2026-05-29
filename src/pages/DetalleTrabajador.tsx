@@ -231,21 +231,21 @@ export default function DetalleTrabajador() {
     textoLibre((ev.motivoConsulta || 'ACTUALIZACIÓN DE FICHA OCUPACIONAL').toUpperCase(), 6);
     y += 1;
 
-    secHeader('C. ANTECEDENTES PERSONALES');
+    secHeader('C. ANTECEDENTES PERSONALES', colorSecundario);
     pdf.setFontSize(6.5); pdf.setFont('helvetica', 'bold');
     pdf.setDrawColor(0); pdf.rect(M, y, CW, 4, 'S');
     pdf.text('ANTECEDENTES CLÍNICOS Y QUIRÚRGICOS', M + 1.5, y + 3); y += 4;
     // Render structured antecedentes if available, fall back to legacy string
     if (ev.antecedentesClinicosQ === true && ev.antecedentesClinicosLista?.length > 0) {
       const lineasClin = ev.antecedentesClinicosLista.map((ac: any, i: number) => {
-        let linea = `${i + 1}. ${ac.enfermedad || '?'}`;
+        let linea = `Antecedentes Clínicos: ${ac.enfermedad || '?'}`;
         if (ac.desdeCuando) linea += ` (desde ${ac.desdeCuando})`;
         if (ac.tomaMedicacion && ac.medicacionNombre) linea += ` — Medicación: ${ac.medicacionNombre}${ac.medicacionDosis ? ' ' + ac.medicacionDosis : ''}${ac.medicacionFrecuencia ? ' ' + ac.medicacionFrecuencia : ''}`;
         if (ac.complicaciones) linea += ` — Comp: ${ac.complicaciones}`;
         return linea;
       }).join('\n');
       const lineasQ = ev.antecedentesQuirurgicosQ === true && ev.antecedentesQuirurgicosLista?.length > 0
-        ? '\nQx: ' + ev.antecedentesQuirurgicosLista.map((aq: any) => `${aq.procedimiento || '?'} (${aq.fechaAproximada || '?'})${aq.secuelas ? ', secuelas: ' + aq.secuelas : ''}`).join('; ')
+        ? '\nAntecedentes quirúrgicos: ' + ev.antecedentesQuirurgicosLista.map((aq: any) => `${aq.procedimiento || '?'} (${aq.fechaAproximada || '?'})${aq.secuelas ? ', secuelas: ' + aq.secuelas : ''}`).join('; ')
         : '';
       const lineasAl = ev.alergiasTiene === true && ev.alergias?.length > 0
         ? '\nAlergias: ' + ev.alergias.map((al: any) => `${al.alergeno || '?'} — ${al.intensidadReaccion || '?'}`).join('; ')
@@ -253,7 +253,7 @@ export default function DetalleTrabajador() {
       textoLibre((lineasClin + lineasQ + lineasAl) || 'Sin antecedentes relevantes.', 5);
     } else if (ev.antecedentesClinicosQ === false) {
       const lineasQ = ev.antecedentesQuirurgicosQ === true && ev.antecedentesQuirurgicosLista?.length > 0
-        ? 'Qx: ' + ev.antecedentesQuirurgicosLista.map((aq: any) => `${aq.procedimiento || '?'} (${aq.fechaAproximada || '?'})`).join('; ')
+        ? 'Antecedentes quirúrgicos: ' + ev.antecedentesQuirurgicosLista.map((aq: any) => `${aq.procedimiento || '?'} (${aq.fechaAproximada || '?'})`).join('; ')
         : '';
       const lineasAl = ev.alergiasTiene === true && ev.alergias?.length > 0
         ? '\nAlergias: ' + ev.alergias.map((al: any) => `${al.alergeno || '?'} — ${al.intensidadReaccion || '?'}`).join('; ')
@@ -359,7 +359,19 @@ export default function DetalleTrabajador() {
     if (ev.factoresRiesgo) {
       checkPage(25); secHeader('E. FACTORES DE RIESGOS DEL PUESTO DE TRABAJO');
       const fr = ev.factoresRiesgo;
-      autoTable(pdf, { startY: y, margin: { left: M, right: M }, theme: 'grid', styles: { ...baseStyles, fontSize: 6.5 }, headStyles: { ...headStyles, fontSize: 6 }, head: [['PUESTO DE TRABAJO / ÁREA', 'ACTIVIDADES', 'TIEMPO DE TRABAJO (MESES)']], body: [[fr.puestoArea || trabajador.puestoTrabajo, fr.actividades || '-', fr.tiempoTrabajoMeses || '-']] });
+      autoTable(pdf, { 
+  startY: y, 
+  margin: { left: M, right: M }, 
+  theme: 'grid', 
+  styles: { ...baseStyles, fontSize: 6 }, 
+  headStyles: { ...headStyles, fontSize: 5.5 }, 
+  head: [['CATEGORÍA', 'FACTORES DE RIESGO IDENTIFICADOS']], 
+  body: [
+    ...categorias.map(c => [c.nombre, c.items.join(', ')]),
+    ['MEDIDAS PREVENTIVAS', fr.medidasPreventivas || 'Ninguna descrita']
+  ], 
+  columnStyles: { 0: { cellWidth: 25, fontStyle: 'bold' } } 
+});
       y = (pdf as any).lastAutoTable.finalY;
       const categorias = [
         { nombre: 'FÍSICO', items: fr.fisicos || [] }, { nombre: 'MECÁNICO', items: fr.mecanicos || [] },
@@ -555,7 +567,7 @@ export default function DetalleTrabajador() {
     pdf.setFillColor(248, 248, 248); pdf.setDrawColor(0);
     const certText = 'CERTIFICO QUE LO ANTERIORMENTE EXPRESADO EN RELACIÓN A MI ESTADO DE SALUD ES VERDAD. SE ME HA INFORMADO LAS MEDIDAS PREVENTIVAS A TOMAR PARA DISMINUIR O MITIGAR LOS RIESGOS RELACIONADOS CON MI ACTIVIDAD LABORAL.';
     const certLines = pdf.splitTextToSize(certText, CW - 3); const certH = certLines.length * 3 + 3;
-    pdf.rect(M, y, CW, certH, 'FD'); pdf.setFontSize(6.5); pdf.setFont('helvetica', 'bold'); pdf.text(certLines, M + 1.5, y + 3); y += certH + 3;
+    pdf.rect(M, y, CW, certH, 'F'); pdf.setFontSize(6.5); pdf.setFont('helvetica', 'bold'); pdf.text(certLines, M + 1.5, y + 3); y += certH + 3;
 
     // N. DATOS DEL PROFESIONAL
     checkPage(25); secHeader('N. DATOS DEL PROFESIONAL                                                                             O. FIRMA DEL USUARIO');
