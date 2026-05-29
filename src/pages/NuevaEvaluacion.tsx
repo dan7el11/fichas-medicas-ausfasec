@@ -4,7 +4,7 @@ import { doc, getDoc, collection, addDoc, updateDoc, arrayUnion, query, where, o
 import { db } from '../services/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import SignosVitalesForm from '../components/SignosVitalesForm';
-import type { Trabajador, SignosVitales, HabitoToxico, EstiloVida, AccidenteTrabajo, EnfermedadProfesional, AntecedenteFamiliar, ExamenFisicoHallazgo, ExamenComplementario, Diagnostico, Usuario, FactorRiesgoPuesto } from '../types';
+import type { Trabajador, SignosVitales, HabitoToxico, EstiloVida, AccidenteTrabajo, EnfermedadProfesional, AntecedenteFamiliar, ExamenFisicoHallazgo, ExamenComplementario, Diagnostico, Usuario, FactorRiesgoPuesto, AntecedenteClinico, AntecedenteQuirurgico, Alergia } from '../types';
 
 // Datos fijos de la empresa (Sección A)
 const DATOS_EMPRESA = {
@@ -204,6 +204,22 @@ const RIESGOS_PSICOSOCIALES = [
   'Inestabilidad laboral',
 ];
 
+const emptyAntecedenteClinico = (): AntecedenteClinico => ({
+  enfermedad: '', desdeCuando: '', tomaMedicacion: false,
+  medicacionNombre: '', medicacionDosis: '', medicacionFrecuencia: '',
+  seguimientoEspecialista: false, especialista: '', complicaciones: ''
+});
+
+const emptyAntecedenteQuirurgico = (): AntecedenteQuirurgico => ({
+  procedimiento: '', fechaAproximada: '', complicaciones: '',
+  recuperacionCompleta: true, secuelas: ''
+});
+
+const emptyAlergia = (): Alergia => ({
+  alergeno: '', intensidadReaccion: '', sintomas: '',
+  tratamientoHabitual: '', seguimientoEspecialista: false, especialista: ''
+});
+
 export default function NuevaEvaluacion() {
   const { trabajadorId } = useParams();
   const navigate = useNavigate();
@@ -221,7 +237,12 @@ export default function NuevaEvaluacion() {
   const [motivoConsulta, setMotivoConsulta] = useState('ACTUALIZACIÓN DE FICHA OCUPACIONAL');
 
   // C. Antecedentes personales
-  const [antecedentesClinicosQuirurgicos, setAntecedentesClinicosQuirurgicos] = useState('');
+  const [antecedentesClinicosQ, setAntecedentesClinicosQ] = useState<boolean | null>(null);
+  const [antecedentesClinicosLista, setAntecedentesClinicosLista] = useState<AntecedenteClinico[]>([]);
+  const [antecedentesQuirurgicosQ, setAntecedentesQuirurgicosQ] = useState<boolean | null>(null);
+  const [antecedentesQuirurgicosLista, setAntecedentesQuirurgicosLista] = useState<AntecedenteQuirurgico[]>([]);
+  const [alergiasTiene, setAlergiasTiene] = useState<boolean | null>(null);
+  const [alergias, setAlergias] = useState<Alergia[]>([]);
   const [habitosToxicos, setHabitosToxicos] = useState<HabitoToxico[]>([
     { tipo: 'tabaco', consume: false, tiempoConsumo: '', cantidad: '', exConsumidor: false, tiempoAbstinencia: '' },
     { tipo: 'alcohol', consume: false, tiempoConsumo: '', cantidad: '', exConsumidor: false, tiempoAbstinencia: '' },
@@ -317,7 +338,12 @@ export default function NuevaEvaluacion() {
           if (evalDoc.exists()) {
             const evData = evalDoc.data();
             setMotivoConsulta(evData.motivoConsulta || '');
-            setAntecedentesClinicosQuirurgicos(evData.antecedentesClinicosQuirurgicos || '');
+            if (evData.antecedentesClinicosQ !== undefined) setAntecedentesClinicosQ(evData.antecedentesClinicosQ);
+            if (evData.antecedentesClinicosLista) setAntecedentesClinicosLista(evData.antecedentesClinicosLista);
+            if (evData.antecedentesQuirurgicosQ !== undefined) setAntecedentesQuirurgicosQ(evData.antecedentesQuirurgicosQ);
+            if (evData.antecedentesQuirurgicosLista) setAntecedentesQuirurgicosLista(evData.antecedentesQuirurgicosLista);
+            if (evData.alergiasTiene !== undefined) setAlergiasTiene(evData.alergiasTiene);
+            if (evData.alergias) setAlergias(evData.alergias);
             if (evData.habitosToxicos) setHabitosToxicos(evData.habitosToxicos);
             if (evData.estiloVida) setEstiloVida(evData.estiloVida);
             setIncidentes(evData.incidentes || 'NINGUNO');
@@ -364,7 +390,12 @@ export default function NuevaEvaluacion() {
         
         if (!evalSnap.empty) {
           const ultimaEval = evalSnap.docs[0].data();
-          if (ultimaEval.antecedentesClinicosQuirurgicos) setAntecedentesClinicosQuirurgicos(ultimaEval.antecedentesClinicosQuirurgicos);
+          if (ultimaEval.antecedentesClinicosQ !== undefined) setAntecedentesClinicosQ(ultimaEval.antecedentesClinicosQ);
+          if (ultimaEval.antecedentesClinicosLista) setAntecedentesClinicosLista(ultimaEval.antecedentesClinicosLista);
+          if (ultimaEval.antecedentesQuirurgicosQ !== undefined) setAntecedentesQuirurgicosQ(ultimaEval.antecedentesQuirurgicosQ);
+          if (ultimaEval.antecedentesQuirurgicosLista) setAntecedentesQuirurgicosLista(ultimaEval.antecedentesQuirurgicosLista);
+          if (ultimaEval.alergiasTiene !== undefined) setAlergiasTiene(ultimaEval.alergiasTiene);
+          if (ultimaEval.alergias) setAlergias(ultimaEval.alergias);
           if (ultimaEval.antecedentesFamiliares) setAntecedentesFamiliares(ultimaEval.antecedentesFamiliares);
           if (ultimaEval.habitosToxicos) setHabitosToxicos(ultimaEval.habitosToxicos);
           if (ultimaEval.estiloVida) setEstiloVida(ultimaEval.estiloVida);
@@ -442,6 +473,20 @@ export default function NuevaEvaluacion() {
     setExamenFisicoHallazgos(prev => prev.map(h => h.codigo === codigo ? { ...h, descripcion } : h));
   };
 
+  // ===== MANEJO DE ANTECEDENTES PERSONALES ESTRUCTURADOS =====
+
+  const updateClinico = (idx: number, field: keyof AntecedenteClinico, value: any) => {
+    setAntecedentesClinicosLista(prev => { const u = [...prev]; u[idx] = { ...u[idx], [field]: value }; return u; });
+  };
+
+  const updateQuirurgico = (idx: number, field: keyof AntecedenteQuirurgico, value: any) => {
+    setAntecedentesQuirurgicosLista(prev => { const u = [...prev]; u[idx] = { ...u[idx], [field]: value }; return u; });
+  };
+
+  const updateAlergia = (idx: number, field: keyof Alergia, value: any) => {
+    setAlergias(prev => { const u = [...prev]; u[idx] = { ...u[idx], [field]: value }; return u; });
+  };
+
   // ===== MANEJO DE HÁBITOS TÓXICOS =====
 
   const updateHabito = (index: number, field: keyof HabitoToxico, value: any) => {
@@ -480,7 +525,12 @@ export default function NuevaEvaluacion() {
         medicoNombre: medicoData?.nombreCompleto || '',
         medicoCedula: medicoData?.cedula || '',
         motivoConsulta,
-        antecedentesClinicosQuirurgicos,
+        antecedentesClinicosQ,
+        antecedentesClinicosLista,
+        antecedentesQuirurgicosQ,
+        antecedentesQuirurgicosLista,
+        alergiasTiene,
+        alergias,
         habitosToxicos,
         estiloVida,
         incidentes,
@@ -628,9 +678,192 @@ export default function NuevaEvaluacion() {
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 space-y-6">
           <h2 className="text-sm font-bold text-slate-800 mb-3 border-b pb-2">C. ANTECEDENTES PERSONALES</h2>
 
+          {/* --- Antecedentes Clínicos --- */}
           <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">ANTECEDENTES CLÍNICOS Y QUIRÚRGICOS</label>
-            <textarea className="w-full p-3 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-sm" rows={3} value={antecedentesClinicosQuirurgicos} onChange={(e) => setAntecedentesClinicosQuirurgicos(e.target.value)} placeholder="Los datos de evaluaciones previas se cargan automáticamente..." />
+            <div className="flex items-center gap-3 mb-3">
+              <label className="text-xs font-bold text-slate-700 uppercase">Antecedentes Clínicos</label>
+              <div className="flex gap-1.5">
+                {([true, false] as const).map(val => (
+                  <button key={String(val)} type="button"
+                    onClick={() => {
+                      setAntecedentesClinicosQ(val);
+                      if (val && antecedentesClinicosLista.length === 0) setAntecedentesClinicosLista([emptyAntecedenteClinico()]);
+                    }}
+                    className={`px-3 py-1 rounded-full text-xs font-semibold border transition-colors ${antecedentesClinicosQ === val ? (val ? 'bg-blue-600 text-white border-blue-600' : 'bg-slate-600 text-white border-slate-600') : 'bg-white text-slate-600 border-slate-300 hover:border-slate-400'}`}
+                  >{val ? 'Sí' : 'No'}</button>
+                ))}
+              </div>
+            </div>
+            {antecedentesClinicosQ === true && (
+              <div className="space-y-4">
+                {antecedentesClinicosLista.map((ac, idx) => (
+                  <div key={idx} className="bg-blue-50 p-4 rounded-lg border border-blue-200 space-y-3">
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs font-semibold text-blue-800">Antecedente clínico #{idx + 1}</span>
+                      {antecedentesClinicosLista.length > 1 && (
+                        <button type="button" onClick={() => setAntecedentesClinicosLista(prev => prev.filter((_, i) => i !== idx))} className="text-red-400 hover:text-red-600 text-xs">Eliminar</button>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-xs text-slate-600 mb-1 block">¿Qué enfermedad/condición padece?</label>
+                        <input type="text" value={ac.enfermedad} onChange={(e) => updateClinico(idx, 'enfermedad', e.target.value)} className="w-full px-2 py-1.5 border rounded-lg text-xs" placeholder="Diagnóstico o condición..." />
+                      </div>
+                      <div>
+                        <label className="text-xs text-slate-600 mb-1 block">¿Desde hace cuánto la padece?</label>
+                        <input type="text" value={ac.desdeCuando} onChange={(e) => updateClinico(idx, 'desdeCuando', e.target.value)} className="w-full px-2 py-1.5 border rounded-lg text-xs" placeholder="Ej: 5 años, desde 2018..." />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="flex items-center gap-2 text-xs font-semibold text-slate-700 mb-2 cursor-pointer">
+                        <input type="checkbox" checked={ac.tomaMedicacion} onChange={(e) => updateClinico(idx, 'tomaMedicacion', e.target.checked)} />
+                        ¿Toma medicación?
+                      </label>
+                      {ac.tomaMedicacion && (
+                        <div className="grid grid-cols-3 gap-2 ml-5">
+                          <input type="text" value={ac.medicacionNombre} onChange={(e) => updateClinico(idx, 'medicacionNombre', e.target.value)} className="px-2 py-1.5 border rounded-lg text-xs" placeholder="Medicamento" />
+                          <input type="text" value={ac.medicacionDosis} onChange={(e) => updateClinico(idx, 'medicacionDosis', e.target.value)} className="px-2 py-1.5 border rounded-lg text-xs" placeholder="Dosis" />
+                          <input type="text" value={ac.medicacionFrecuencia} onChange={(e) => updateClinico(idx, 'medicacionFrecuencia', e.target.value)} className="px-2 py-1.5 border rounded-lg text-xs" placeholder="Frecuencia" />
+                        </div>
+                      )}
+                    </div>
+                    <div>
+                      <label className="flex items-center gap-2 text-xs font-semibold text-slate-700 mb-2 cursor-pointer">
+                        <input type="checkbox" checked={ac.seguimientoEspecialista} onChange={(e) => updateClinico(idx, 'seguimientoEspecialista', e.target.checked)} />
+                        ¿Seguimiento por médico particular o especialista?
+                      </label>
+                      {ac.seguimientoEspecialista && (
+                        <input type="text" value={ac.especialista} onChange={(e) => updateClinico(idx, 'especialista', e.target.value)} className="w-full px-2 py-1.5 border rounded-lg text-xs ml-5" placeholder="Especialidad o nombre del especialista..." />
+                      )}
+                    </div>
+                    <div>
+                      <label className="text-xs text-slate-600 mb-1 block">¿Complicaciones u hospitalizaciones recientes?</label>
+                      <input type="text" value={ac.complicaciones} onChange={(e) => updateClinico(idx, 'complicaciones', e.target.value)} className="w-full px-2 py-1.5 border rounded-lg text-xs" placeholder="Ninguna / Describir..." />
+                    </div>
+                  </div>
+                ))}
+                <button type="button" onClick={() => setAntecedentesClinicosLista(prev => [...prev, emptyAntecedenteClinico()])} className="text-blue-600 text-xs font-medium hover:underline">+ Agregar otro antecedente clínico</button>
+              </div>
+            )}
+          </div>
+
+          {/* --- Antecedentes Quirúrgicos --- */}
+          <div>
+            <div className="flex items-center gap-3 mb-3">
+              <label className="text-xs font-bold text-slate-700 uppercase">Antecedentes Quirúrgicos</label>
+              <div className="flex gap-1.5">
+                {([true, false] as const).map(val => (
+                  <button key={String(val)} type="button"
+                    onClick={() => {
+                      setAntecedentesQuirurgicosQ(val);
+                      if (val && antecedentesQuirurgicosLista.length === 0) setAntecedentesQuirurgicosLista([emptyAntecedenteQuirurgico()]);
+                    }}
+                    className={`px-3 py-1 rounded-full text-xs font-semibold border transition-colors ${antecedentesQuirurgicosQ === val ? (val ? 'bg-blue-600 text-white border-blue-600' : 'bg-slate-600 text-white border-slate-600') : 'bg-white text-slate-600 border-slate-300 hover:border-slate-400'}`}
+                  >{val ? 'Sí' : 'No'}</button>
+                ))}
+              </div>
+            </div>
+            {antecedentesQuirurgicosQ === true && (
+              <div className="space-y-4">
+                {antecedentesQuirurgicosLista.map((aq, idx) => (
+                  <div key={idx} className="bg-purple-50 p-4 rounded-lg border border-purple-200 space-y-3">
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs font-semibold text-purple-800">Antecedente quirúrgico #{idx + 1}</span>
+                      {antecedentesQuirurgicosLista.length > 1 && (
+                        <button type="button" onClick={() => setAntecedentesQuirurgicosLista(prev => prev.filter((_, i) => i !== idx))} className="text-red-400 hover:text-red-600 text-xs">Eliminar</button>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-xs text-slate-600 mb-1 block">¿Qué procedimiento fue realizado?</label>
+                        <input type="text" value={aq.procedimiento} onChange={(e) => updateQuirurgico(idx, 'procedimiento', e.target.value)} className="w-full px-2 py-1.5 border rounded-lg text-xs" placeholder="Nombre del procedimiento..." />
+                      </div>
+                      <div>
+                        <label className="text-xs text-slate-600 mb-1 block">¿Fecha aproximada del procedimiento?</label>
+                        <input type="text" value={aq.fechaAproximada} onChange={(e) => updateQuirurgico(idx, 'fechaAproximada', e.target.value)} className="w-full px-2 py-1.5 border rounded-lg text-xs" placeholder="Ej: 2019, hace 3 años..." />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-xs text-slate-600 mb-1 block">¿Hubo complicaciones asociadas con el procedimiento o la recuperación?</label>
+                      <input type="text" value={aq.complicaciones} onChange={(e) => updateQuirurgico(idx, 'complicaciones', e.target.value)} className="w-full px-2 py-1.5 border rounded-lg text-xs" placeholder="Ninguna / Describir complicaciones..." />
+                    </div>
+                    <div>
+                      <label className="flex items-center gap-2 text-xs font-semibold text-slate-700 mb-2 cursor-pointer">
+                        <input type="checkbox" checked={aq.recuperacionCompleta} onChange={(e) => updateQuirurgico(idx, 'recuperacionCompleta', e.target.checked)} />
+                        ¿Tuvo una recuperación completa?
+                      </label>
+                      {!aq.recuperacionCompleta && (
+                        <div>
+                          <label className="text-xs text-slate-600 mb-1 block ml-5">¿Secuelas posteriores?</label>
+                          <input type="text" value={aq.secuelas} onChange={(e) => updateQuirurgico(idx, 'secuelas', e.target.value)} className="w-full px-2 py-1.5 border rounded-lg text-xs ml-5" style={{width: 'calc(100% - 1.25rem)'}} placeholder="Describir secuelas..." />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+                <button type="button" onClick={() => setAntecedentesQuirurgicosLista(prev => [...prev, emptyAntecedenteQuirurgico()])} className="text-purple-600 text-xs font-medium hover:underline">+ Agregar otro antecedente quirúrgico</button>
+              </div>
+            )}
+          </div>
+
+          {/* --- Alergias --- */}
+          <div>
+            <div className="flex items-center gap-3 mb-3">
+              <label className="text-xs font-bold text-slate-700 uppercase">Alergias</label>
+              <div className="flex gap-1.5">
+                {([true, false] as const).map(val => (
+                  <button key={String(val)} type="button"
+                    onClick={() => {
+                      setAlergiasTiene(val);
+                      if (val && alergias.length === 0) setAlergias([emptyAlergia()]);
+                    }}
+                    className={`px-3 py-1 rounded-full text-xs font-semibold border transition-colors ${alergiasTiene === val ? (val ? 'bg-blue-600 text-white border-blue-600' : 'bg-slate-600 text-white border-slate-600') : 'bg-white text-slate-600 border-slate-300 hover:border-slate-400'}`}
+                  >{val ? 'Sí' : 'No'}</button>
+                ))}
+              </div>
+            </div>
+            {alergiasTiene === true && (
+              <div className="space-y-4">
+                {alergias.map((al, idx) => (
+                  <div key={idx} className="bg-amber-50 p-4 rounded-lg border border-amber-200 space-y-3">
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs font-semibold text-amber-800">Alergia #{idx + 1}</span>
+                      {alergias.length > 1 && (
+                        <button type="button" onClick={() => setAlergias(prev => prev.filter((_, i) => i !== idx))} className="text-red-400 hover:text-red-600 text-xs">Eliminar</button>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-xs text-slate-600 mb-1 block">¿Conoce el alérgeno específico? (Alergia a qué)</label>
+                        <input type="text" value={al.alergeno} onChange={(e) => updateAlergia(idx, 'alergeno', e.target.value)} className="w-full px-2 py-1.5 border rounded-lg text-xs" placeholder="Polen, penicilina, mariscos..." />
+                      </div>
+                      <div>
+                        <label className="text-xs text-slate-600 mb-1 block">Gravedad/intensidad de la reacción alérgica</label>
+                        <input type="text" value={al.intensidadReaccion} onChange={(e) => updateAlergia(idx, 'intensidadReaccion', e.target.value)} className="w-full px-2 py-1.5 border rounded-lg text-xs" placeholder="Leve, moderada, severa, anafilaxia..." />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-xs text-slate-600 mb-1 block">Síntomas que presenta al exponerse</label>
+                      <input type="text" value={al.sintomas} onChange={(e) => updateAlergia(idx, 'sintomas', e.target.value)} className="w-full px-2 py-1.5 border rounded-lg text-xs" placeholder="Urticaria, disnea, edema, rinitis..." />
+                    </div>
+                    <div>
+                      <label className="text-xs text-slate-600 mb-1 block">¿Cuenta con tratamiento indicado o de uso habitual al momento de la reacción?</label>
+                      <input type="text" value={al.tratamientoHabitual} onChange={(e) => updateAlergia(idx, 'tratamientoHabitual', e.target.value)} className="w-full px-2 py-1.5 border rounded-lg text-xs" placeholder="Ninguno / Antihistamínico, adrenalina..." />
+                    </div>
+                    <div>
+                      <label className="flex items-center gap-2 text-xs font-semibold text-slate-700 mb-2 cursor-pointer">
+                        <input type="checkbox" checked={al.seguimientoEspecialista} onChange={(e) => updateAlergia(idx, 'seguimientoEspecialista', e.target.checked)} />
+                        ¿Seguimiento por parte del especialista?
+                      </label>
+                      {al.seguimientoEspecialista && (
+                        <input type="text" value={al.especialista} onChange={(e) => updateAlergia(idx, 'especialista', e.target.value)} className="w-full px-2 py-1.5 border rounded-lg text-xs ml-5" style={{width: 'calc(100% - 1.25rem)'}} placeholder="Especialidad o nombre del especialista..." />
+                      )}
+                    </div>
+                  </div>
+                ))}
+                <button type="button" onClick={() => setAlergias(prev => [...prev, emptyAlergia()])} className="text-amber-600 text-xs font-medium hover:underline">+ Agregar otra alergia</button>
+              </div>
+            )}
           </div>
 
           <div>
@@ -693,32 +926,69 @@ export default function NuevaEvaluacion() {
 
         {/* ===== D. ANTECEDENTES FAMILIARES ===== */}
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-          <h2 className="text-sm font-bold text-slate-800 mb-3 border-b pb-2">D. ANTECEDENTES FAMILIARES (Detallar parentesco)</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-4">
+          <h2 className="text-sm font-bold text-slate-800 mb-1 border-b pb-2">D. ANTECEDENTES FAMILIARES (Detallar parentesco)</h2>
+          <p className="text-xs text-slate-500 mb-4">Seleccione los grupos de enfermedades presentes en familiares. Puede agregar múltiples familiares por grupo.</p>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-5">
             {TIPOS_ANTECEDENTES_FAMILIARES.map((tipo) => {
-              const existente = antecedentesFamiliares.find(a => a.tipo === tipo.nombre);
+              const count = antecedentesFamiliares.filter(a => a.tipo === tipo.nombre).length;
               return (
-                <label key={tipo.numero} className="flex items-center gap-2 text-xs bg-slate-50 p-2 rounded cursor-pointer hover:bg-slate-100">
-                  <input type="checkbox" checked={!!existente} onChange={(e) => {
+                <label key={tipo.numero} className={`flex items-center gap-2 text-xs p-2 rounded cursor-pointer transition-colors ${count > 0 ? 'bg-blue-50 border border-blue-200' : 'bg-slate-50 hover:bg-slate-100'}`}>
+                  <input type="checkbox" checked={count > 0} onChange={(e) => {
                     if (e.target.checked) setAntecedentesFamiliares(prev => [...prev, { tipo: tipo.nombre, descripcion: '', parentesco: '' }]);
                     else setAntecedentesFamiliares(prev => prev.filter(a => a.tipo !== tipo.nombre));
                   }} />
-                  <span>{tipo.numero}. {tipo.nombre}</span>
+                  <span className={count > 0 ? 'font-semibold text-blue-800' : ''}>{tipo.numero}. {tipo.nombre}</span>
+                  {count > 0 && <span className="ml-auto bg-blue-600 text-white text-[10px] rounded-full w-4 h-4 flex items-center justify-center font-bold">{count}</span>}
                 </label>
               );
             })}
           </div>
-          {antecedentesFamiliares.length > 0 && (
-            <div className="space-y-2">
-              {antecedentesFamiliares.map((af, idx) => (
-                <div key={idx} className="flex gap-2 items-center text-xs bg-blue-50 p-2 rounded">
-                  <span className="font-semibold whitespace-nowrap">{af.tipo}:</span>
-                  <input type="text" placeholder="Parentesco" value={af.parentesco} onChange={(e) => { const updated = [...antecedentesFamiliares]; updated[idx] = { ...updated[idx], parentesco: e.target.value }; setAntecedentesFamiliares(updated); }} className="px-2 py-1 border rounded flex-1" />
-                  <input type="text" placeholder="Descripción" value={af.descripcion} onChange={(e) => { const updated = [...antecedentesFamiliares]; updated[idx] = { ...updated[idx], descripcion: e.target.value }; setAntecedentesFamiliares(updated); }} className="px-2 py-1 border rounded flex-1" />
+
+          {TIPOS_ANTECEDENTES_FAMILIARES.map(tipo => {
+            const tipoEntries = antecedentesFamiliares
+              .map((af, idx) => ({ af, idx }))
+              .filter(({ af }) => af.tipo === tipo.nombre);
+            if (tipoEntries.length === 0) return null;
+
+            const preview = tipoEntries
+              .filter(({ af }) => af.parentesco || af.descripcion)
+              .map(({ af }) => `${af.parentesco || '?'}${af.descripcion ? ' con ' + af.descripcion : ''}`)
+              .join(', ');
+
+            return (
+              <div key={tipo.nombre} className="mb-4 bg-blue-50 rounded-lg border border-blue-200 overflow-hidden">
+                <div className="flex items-center justify-between px-3 py-2 bg-blue-100">
+                  <span className="text-xs font-bold text-blue-900">{tipo.nombre}</span>
+                  <button type="button"
+                    onClick={() => setAntecedentesFamiliares(prev => [...prev, { tipo: tipo.nombre, descripcion: '', parentesco: '' }])}
+                    className="text-blue-700 hover:text-blue-900 text-xs font-semibold"
+                  >+ Agregar familiar</button>
                 </div>
-              ))}
-            </div>
-          )}
+                <div className="p-3 space-y-2">
+                  {tipoEntries.map(({ af, idx }) => (
+                    <div key={idx} className="flex gap-2 items-center text-xs">
+                      <input type="text" placeholder="Parentesco (ej: Madre, Padre, Hermano)" value={af.parentesco}
+                        onChange={(e) => { const updated = [...antecedentesFamiliares]; updated[idx] = { ...updated[idx], parentesco: e.target.value }; setAntecedentesFamiliares(updated); }}
+                        className="px-2 py-1.5 border rounded-lg w-44 bg-white text-xs"
+                      />
+                      <input type="text" placeholder="Enfermedad o descripción (ej: Diabetes tipo II)" value={af.descripcion}
+                        onChange={(e) => { const updated = [...antecedentesFamiliares]; updated[idx] = { ...updated[idx], descripcion: e.target.value }; setAntecedentesFamiliares(updated); }}
+                        className="px-2 py-1.5 border rounded-lg flex-1 bg-white text-xs"
+                      />
+                      {tipoEntries.length > 1 && (
+                        <button type="button" onClick={() => setAntecedentesFamiliares(prev => prev.filter((_, i) => i !== idx))} className="text-red-400 hover:text-red-600 text-xs font-bold px-1">✕</button>
+                      )}
+                    </div>
+                  ))}
+                  {preview && (
+                    <p className="text-[11px] text-blue-700 italic mt-1">
+                      <span className="font-semibold">{tipo.nombre}:</span> {preview}
+                    </p>
+                  )}
+                </div>
+              </div>
+            );
+          })}
         </div>
 
         {/* ============================================================ */}
