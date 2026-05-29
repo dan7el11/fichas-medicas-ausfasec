@@ -34,11 +34,18 @@ export default function BuscadorCIE10({ valorActual, onSeleccionar, placeholder 
     setTextoBusqueda(texto);
     
     if (texto.length > 2) { // Solo busca si hay más de 2 letras
+
+  // 1. Limpiamos lo que el usuario teclea (le quitamos los puntos y lo hacemos minúscula)
+      const textoLimpio = texto.toLowerCase().replace(/\./g, '');
+      
       const resultados = catalogoCIE10.filter(item => 
-        item.descripcion.toLowerCase().includes(texto.toLowerCase()) || 
-        item.codigo.toLowerCase().includes(texto.toLowerCase())
-      );
-      setSugerencias(resultados.slice(0, 15)); // Máximo 15 resultados para no trabar la PC
+        // 2. Limpiamos el código del catálogo para que compita en igualdad de condiciones
+        const codigoLimpio = item.codigo.toLowerCase().replace(/\./g, '');
+        const descLimpia = item.descripcion.toLowerCase();
+       // 3. ¿Coincide la descripción normal? ¿O coincide el código limpio con el texto limpio?
+        return descLimpia.includes(texto.toLowerCase()) || codigoLimpio.includes(textoLimpio);
+      });
+      setSugerencias(resultados.slice(0, 5)); // Máximo 15 resultados para no trabar la PC
       setMostrarMenu(true);
     } else {
       setMostrarMenu(false);
