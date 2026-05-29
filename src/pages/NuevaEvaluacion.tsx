@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { doc, getDoc, collection, addDoc, updateDoc, arrayUnion, query, where, orderBy, getDocs, limit } from 'firebase/firestore';
 import { db } from '../services/firebase';
 import { useAuth } from '../contexts/AuthContext';
@@ -210,6 +210,8 @@ const RIESGOS_PSICOSOCIALES = [
 export default function NuevaEvaluacion() {
   const { trabajadorId } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const editEvalId = searchParams.get('editId'); // Captura el ID si venimos a editar
   const { user } = useAuth();
   
   const [trabajador, setTrabajador] = useState<Trabajador | null>(null);
@@ -388,6 +390,53 @@ export default function NuevaEvaluacion() {
 
     cargarDatos();
   }, [trabajadorId, user]);
+
+  // =========================================================
+      // CARGAR DATOS PARA MODO EDICIÓN (NUEVO)
+      // =========================================================
+      if (editEvalId) {
+        try {
+          const evalDoc = await getDoc(doc(db, 'evaluaciones', editEvalId));
+          if (evalDoc.exists()) {
+            const evData = evalDoc.data();
+            setMotivoConsulta(evData.motivoConsulta || '');
+            setAntecedentesClinicosQuirurgicos(evData.antecedentesClinicosQuirurgicos || '');
+            if (evData.habitosToxicos) setHabitosToxicos(evData.habitosToxicos);
+            if (evData.estiloVida) setEstiloVida(evData.estiloVida);
+            setIncidentes(evData.incidentes || 'NINGUNO');
+            if (evData.accidentesTrabajo) setAccidenteTrabajo(evData.accidentesTrabajo);
+            if (evData.enfermedadesProfesionales) setEnfermedadProfesional(evData.enfermedadesProfesionales);
+            if (evData.antecedentesFamiliares) setAntecedentesFamiliares(evData.antecedentesFamiliares);
+            if (evData.factoresRiesgo) setFactoresRiesgo(evData.factoresRiesgo);
+            setEnfermedadActual(evData.enfermedadActual || '');
+            if (evData.revisionSistemasSeleccionados) setRevisionSistemasSeleccionados(evData.revisionSistemasSeleccionados);
+            setRevisionSistemasDescripcion(evData.revisionSistemasDescripcion || '');
+            if (evData.signosVitales) setSignosVitales(evData.signosVitales);
+            if (evData.examenFisicoHallazgos) setExamenFisicoHallazgos(evData.examenFisicoHallazgos);
+            if (evData.examenesComplementarios) setExamenesComplementarios(evData.examenesComplementarios);
+            if (evData.diagnosticos) setDiagnosticos(evData.diagnosticos);
+            setAptitudMedica(evData.aptitudMedica || 'apto');
+            setAptitudObservacion(evData.aptitudObservacion || '');
+            setAptitudLimitaciones(evData.aptitudLimitaciones || '');
+            if (evData.recomendaciones) setRecomendaciones(evData.recomendaciones);
+            setRecomendacionesOtras(evData.recomendacionesOtras || '');
+            
+            // Reconstruir visualmente los checkboxes del examen físico regional
+            if (evData.examenFisicoHallazgos) {
+              const checkedSet = new Set<string>();
+              evData.examenFisicoHallazgos.forEach((h: any) => {
+                // Relaciona los códigos guardados (ej: "1a") con el set visual
+                const num = h.codigo.match(/^\d+/)?.[0];
+                const cod = h.codigo.replace(/^\d+/, '');
+                if (num && cod) checkedSet.add(`${num}-${cod}`);
+              });
+              setExamenFisicoSeleccionados(checkedSet);
+            }
+          }
+        } catch (err) {
+          console.error("Error al cargar la evaluación para editar:", err);
+        }
+      }
    
   // ===== MANEJO DE EXAMEN FÍSICO =====
 
@@ -439,15 +488,11 @@ export default function NuevaEvaluacion() {
       const dia = String(hoy.getDate()).padStart(2, '0');
       const numeroArchivo = `AUSTROGAS-${hoy.getFullYear()}${mes}${dia}`;
 
-      const evaluacion = {
+      const evaluacionData: any = {
         trabajadorId,
         medicoId: user.uid,
         medicoNombre: medicoData?.nombreCompleto || '',
         medicoCedula: medicoData?.cedula || '',
-        fecha: hoy,
-        numeroHistoriaClinica: trabajador.cedula,
-        numeroArchivo,
-
         motivoConsulta,
         antecedentesClinicosQuirurgicos,
         habitosToxicos,
@@ -469,70 +514,35 @@ export default function NuevaEvaluacion() {
         aptitudLimitaciones,
         recomendaciones,
         recomendacionesOtras,
-        createdAt: hoy
       };
 
-      // 1. Guardar la evaluación y obtener su referencia explícitamente
-      const evaluacionesRef = collection(db, 'evaluaciones');
-      const docRef = await addDoc(evaluacionesRef, evaluacion);
-      const evaluacionIdGenerado = docRef.id;
+      if (editEvalId) {
+        // MODO EDICIÓN: Actualizar ficha existente
+        await updateDoc(doc(db, 'evaluaciones', editEvalId), {
+          ...evaluacionData,
+          updatedAt: hoy
+        });
+        alert('Evaluación actualizada con éxito');
+      } else {
+        // MODO CREACIÓN: Ficha nueva estándar
+        evaluacionData.fecha = hoy;
+        evaluacionData.numeroHistoriaClinica = trabajador.cedula;
+        evaluacionData.numeroArchivo = numeroArchivo;
+        evaluacionData.createdAt = hoy;
 
-      // 2. Subir exámenes adjuntos y vincularlos al ID explícito
-      const examenesIds: string[] = [];
-      
-      if (examenesAdjuntos && examenesAdjuntos.length > 0) {
-          for (const item of examenesAdjuntos) {
-            if (!item.nombreExamen.trim()) continue;
-            if (item.estado === 'patologico' && !item.observacion.trim()) continue;
+        const docRef = await addDoc(collection(db, 'evaluaciones'), evaluacionData);
 
-            // Subir archivo a Storage
-            const ext = item.file.name.split('.').pop() || 'pdf';
-            const storagePath = `examenes/${trabajadorId}/${Date.now()}_${item.nombreExamen.replace(/\s+/g, '_')}.${ext}`;
-            const storageRef = ref(storage, storagePath);
-            await uploadBytes(storageRef, item.file);
-            const url = await getDownloadURL(storageRef);
-
-            // Crear documento en Firestore usando el ID seguro
-            const exDoc = await addDoc(collection(db, 'examenes'), {
-              trabajadorId,
-              evaluacionId: evaluacionIdGenerado,
-              tipoExamen: item.tipoExamen,
-              nombreExamen: item.nombreExamen,
-              grupoExamen: item.grupoExamen,
-              fecha: new Date(item.fecha),
-              resultado: item.resultado,
-              estado: item.estado,
-              observacion: item.observacion,
-              archivoUrl: url,
-              archivoNombre: item.file.name,
-              archivoTipo: item.file.type,
-              archivoPath: storagePath,
-              medicoId: user.uid,
-              medicoNombre: medicoData?.nombreCompleto || '',
-              createdAt: hoy,
-            });
-            examenesIds.push(exDoc.id);
-          }
-
-          // 3. Actualizar la evaluación con los IDs de los exámenes
-          if (examenesIds.length > 0) {
-            await updateDoc(doc(db, 'evaluaciones', evaluacionIdGenerado), { 
-              examenesVinculados: examenesIds 
-            });
-          }
+        await updateDoc(doc(db, 'trabajadores', trabajadorId), {
+          evaluaciones: arrayUnion(docRef.id),
+          updatedAt: hoy
+        });
+        alert('Evaluación guardada exitosamente');
       }
 
-      // 4. Actualizar el trabajador
-      await updateDoc(doc(db, 'trabajadores', trabajadorId), {
-        evaluaciones: arrayUnion(evaluacionIdGenerado),
-        updatedAt: hoy
-      });
-
-      alert('Evaluación guardada exitosamente');
-      navigate('/');
+      navigate(`/trabajador/${trabajadorId}`);
     } catch (error) {
       console.error('Error al guardar:', error);
-      alert('Hubo un error al guardar la evaluación.');
+      alert('Hubo un error al procesar la evaluación.');
     } finally {
       setGuardando(false);
     }
@@ -956,7 +966,7 @@ export default function NuevaEvaluacion() {
         {/* ===== BOTÓN GUARDAR ===== */}
         <div className="flex justify-end pb-8">
           <button onClick={handleGuardar} disabled={guardando} className="bg-blue-600 text-white font-semibold py-3 px-10 rounded-lg hover:bg-blue-700 transition-all disabled:opacity-70 shadow-md text-sm">
-            {guardando ? 'Guardando evaluación...' : 'Guardar Evaluación Definitiva'}
+            {guardando ? 'Guardando...' : editEvalId ? 'Guardar Cambios de la Consulta' : 'Guardar Evaluación Definitiva'}
           </button>
         </div>
 
