@@ -39,8 +39,14 @@ export default function SignosVitalesForm({ onDataChange, initialData }: SignosV
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
+    // BP fields: restrict to 3 digits
+    if ((name === 'presionSistolica' || name === 'presionDiastolica') && value.length > 3) return;
     setDatos(prev => ({ ...prev, [name]: value }));
   };
+
+  const sist = parseInt(datos.presionSistolica || '0');
+  const diast = parseInt(datos.presionDiastolica || '0');
+  const bpAlerta = (sist > 0 && sist >= 140) || (diast > 0 && diast >= 90);
 
   return (
     <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
@@ -48,11 +54,15 @@ export default function SignosVitalesForm({ onDataChange, initialData }: SignosV
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3 text-xs">
         <div>
           <label className="block font-medium text-slate-600 mb-1">Presión Sistólica</label>
-          <input type="number" name="presionSistolica" value={datos.presionSistolica} onChange={handleChange} className="w-full px-2 py-1.5 border rounded-md outline-none focus:ring-1 focus:ring-blue-500" placeholder="120" />
+          <input type="number" name="presionSistolica" value={datos.presionSistolica} onChange={handleChange} maxLength={3}
+            className={`w-full px-2 py-1.5 border rounded-md outline-none focus:ring-1 focus:ring-blue-500 ${sist >= 140 ? 'border-amber-400 bg-amber-50' : ''}`} placeholder="120" />
+          {sist >= 140 && <p className="text-[10px] text-amber-600 mt-0.5">⚠ Sistólica ≥ 140</p>}
         </div>
         <div>
           <label className="block font-medium text-slate-600 mb-1">Presión Diastólica</label>
-          <input type="number" name="presionDiastolica" value={datos.presionDiastolica} onChange={handleChange} className="w-full px-2 py-1.5 border rounded-md outline-none focus:ring-1 focus:ring-blue-500" placeholder="80" />
+          <input type="number" name="presionDiastolica" value={datos.presionDiastolica} onChange={handleChange} maxLength={3}
+            className={`w-full px-2 py-1.5 border rounded-md outline-none focus:ring-1 focus:ring-blue-500 ${diast >= 90 ? 'border-amber-400 bg-amber-50' : ''}`} placeholder="80" />
+          {diast >= 90 && <p className="text-[10px] text-amber-600 mt-0.5">⚠ Diastólica ≥ 90</p>}
         </div>
         <div>
           <label className="block font-medium text-slate-600 mb-1">Frec. Cardíaca</label>
@@ -89,6 +99,12 @@ export default function SignosVitalesForm({ onDataChange, initialData }: SignosV
           <input type="number" name="perimetroAbdominal" value={datos.perimetroAbdominal} onChange={handleChange} className="w-full px-2 py-1.5 border rounded-md outline-none focus:ring-1 focus:ring-blue-500" placeholder="cm" />
         </div>
       </div>
+      {bpAlerta && (
+        <div className="mt-3 flex items-center gap-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+          <span className="text-base">⚠</span>
+          <span>Presión arterial elevada ({datos.presionSistolica || '?'}/{datos.presionDiastolica || '?'} mmHg). Verifique el dato y considere referencia.</span>
+        </div>
+      )}
     </div>
   );
 }
