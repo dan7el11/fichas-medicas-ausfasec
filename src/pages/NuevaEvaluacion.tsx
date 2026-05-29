@@ -331,11 +331,64 @@ export default function NuevaEvaluacion() {
           setSignosVitales(prev => ({ ...prev, talla: ultimaEval.signosVitales.talla }));
         }
       }
-    };
+
+      // =========================================================
+      // AUTO-CARGAR EXÁMENES DEL ÚLTIMO AÑO (NUEVO)
+      // =========================================================
+      try {
+        const examenesQuery = query(
+          collection(db, 'examenes'),
+          where('trabajadorId', '==', trabajadorId)
+        );
+        const examenesSnap = await getDocs(examenesQuery);
+        
+        if (!examenesSnap.empty) {
+          const unAnioAtras = new Date();
+          unAnioAtras.setFullYear(unAnioAtras.getFullYear() - 1);
+          
+          const examenesDelAnio: any[] = [];
+          
+          examenesSnap.forEach(docSnap => {
+            const data = docSnap.data();
+            const fechaExamen = data.fecha?.seconds ? new Date(data.fecha.seconds * 1000) : new Date(data.fecha);
+            
+            // Filtrar solo los exámenes realizados en los últimos 365 días
+            if (fechaExamen >= unAnioAtras) {
+              const fechaStr = fechaExamen.toISOString().split('T')[0];
+              
+              // Si es patológico muestra la observación, de lo contrario muestra "Normal"
+              const interpretacion = data.estado === 'patologico'
+                ? `Patológico - Obs: ${data.observacion || ''}`
+                : (data.observacion || 'Normal');
+              
+              // Combinar el valor numérico/resultado con la interpretación médica
+              const resultadoFinal = data.resultado 
+                ? `${data.resultado} [${interpretacion}]`
+                : interpretacion;
+
+              examenesDelAnio.push({
+                nombre: data.nombreExamen || '',
+                fecha: fechaStr,
+                resultado: resultadoFinal
+              });
+            }
+          });
+
+          // Ordenar cronológicamente del más reciente al más antiguo
+          examenesDelAnio.sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
+
+          if (examenesDelAnio.length > 0) {
+            setExamenesComplementarios(examenesDelAnio);
+          }
+        }
+      } catch (err) {
+        console.error("Error al auto-cargar exámenes históricos:", err);
+      }
+    }; // Aquí cierra cargarDatos
 
     cargarDatos();
   }, [trabajadorId, user]);
-
+   
   // ===== MANEJO DE EXAMEN FÍSICO =====
 
   const toggleExamenFisico = (key: string, numero: number, codigo: string, region: string, subregion: string) => {
