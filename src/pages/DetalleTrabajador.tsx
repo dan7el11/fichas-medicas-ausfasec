@@ -601,22 +601,29 @@ export default function DetalleTrabajador() {
                 ))}
               </div>
               
-              {/* Botones de Exportar PDF, Excel y Editar */}
+             {/* Botones de Exportar y Editar */}
               {ev && (
-                <div className="p-4 bg-white border-b border-slate-100 flex justify-end gap-3">
-                  <button onClick={() => navigate(`/trabajador/${trabajadorId}/nueva-evaluacion?editId=${ev.id}`)} className="px-4 py-2 bg-amber-500 text-white font-semibold rounded-lg hover:bg-amber-600 flex items-center gap-2 text-sm shadow-sm">
+                <div className="p-4 bg-white border-b border-slate-100 flex justify-end gap-3 print:hidden">
+                  <button 
+                    onClick={() => navigate(`/evaluar/${trabajadorId}?editId=${ev.id}`)} 
+                    className="px-4 py-2 bg-amber-500 text-white font-semibold rounded-lg hover:bg-amber-600 flex items-center gap-2 text-sm shadow-sm"
+                  >
                     ✏️ Editar Consulta
                   </button>
-                  <button onClick={exportarExcel} className="px-4 py-2 bg-[#107c41] text-white font-semibold rounded-lg hover:bg-[#0c5c30] flex items-center gap-2 text-sm shadow-sm">📊 Exportar Excel</button>
-                  <button onClick={generarPDF} className="px-4 py-2 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 flex items-center gap-2 text-sm shadow-sm">📄 Exportar PDF (SO-RE-38)</button>
+                  <button 
+                    onClick={exportarExcel} 
+                    className="px-4 py-2 bg-[#107c41] text-white font-semibold rounded-lg hover:bg-[#0c5c30] flex items-center gap-2 text-sm shadow-sm"
+                  >
+                    📊 Exportar Excel
+                  </button>
+                  <button 
+                    onClick={generarPDF} 
+                    className="px-4 py-2 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 flex items-center gap-2 text-sm shadow-sm"
+                  >
+                    📄 Exportar PDF (SO-RE-38)
+                  </button>
                 </div>
               )}
-
-              {/* =========================================================
-                  VISTA WEB DE LA FICHA SO-RE-38
-              ========================================================= */}
- 
-
                 {/* =========================================================
                     VISTA WEB DE LA FICHA SO-RE-38
                 ========================================================= */}
@@ -839,11 +846,33 @@ export default function DetalleTrabajador() {
 
                   {ev.examenesComplementarios?.length > 0 && (
                     <Sec title="J. RESULTADOS DE EXÁMENES">
-                      <table className="w-full text-xs"><thead><tr className="border-b text-left"><th className="pb-1 font-semibold">Examen</th><th className="pb-1 font-semibold">Fecha</th><th className="pb-1 font-semibold">Resultado</th></tr></thead><tbody>
-                        {ev.examenesComplementarios.map((ex: any, i: number) => <tr key={i} className="border-b border-slate-100"><td className="py-1">{ex.nombre}</td><td className="py-1">{ex.fecha}</td><td className="py-1">{ex.resultado}</td></tr>)}
-                      </tbody></table>
-                    </Sec>
-                  )}
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr className="border-b text-left">
+                          <th className="pb-1 font-semibold w-1/3">Examen</th>
+                          <th className="pb-1 font-semibold w-1/6">Fecha</th>
+                          <th className="pb-1 font-semibold w-1/2">Resultado</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {ev.examenesComplementarios && ev.examenesComplementarios.length > 0 ? (
+                          ev.examenesComplementarios.map((ex: any, i: number) => (
+                            <tr key={i} className="border-b border-slate-100">
+                              <td className="py-1">{ex.nombre}</td>
+                              <td className="py-1">{ex.fecha}</td>
+                              <td className="py-1">{ex.resultado}</td>
+                            </tr>
+                          ))
+                        ) : (
+                          <tr className="border-b border-slate-100">
+                            <td className="py-3 text-slate-400 italic text-center" colSpan={3}>
+                              Sin exámenes registrados
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </Sec>
 
                   <Sec title="K. DIAGNÓSTICO">
                     {ev.diagnosticos?.length > 0 ? ev.diagnosticos.map((dx: any, i: number) => (
