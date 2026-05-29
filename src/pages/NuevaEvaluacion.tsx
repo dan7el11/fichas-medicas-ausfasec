@@ -5,6 +5,7 @@ import { db } from '../services/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import SignosVitalesForm from '../components/SignosVitalesForm';
 import type { Trabajador, SignosVitales, HabitoToxico, EstiloVida, AccidenteTrabajo, EnfermedadProfesional, AntecedenteFamiliar, ExamenFisicoHallazgo, ExamenComplementario, Diagnostico, Usuario, FactorRiesgoPuesto, AntecedenteClinico, AntecedenteQuirurgico, Alergia, MedicacionHabitual } from '../types';
+import BuscadorCIE10 from '../components/BuscadorCIE10';
 
 // Datos fijos de la empresa (Sección A)
 const DATOS_EMPRESA = {
