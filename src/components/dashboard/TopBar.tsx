@@ -32,10 +32,11 @@ export default function TopBar({
         {/* Contenedor blanco con bordes redondeados para el logo */}
         <div className="w-[34px] h-[34px] bg-white rounded-[8px] flex items-center justify-center p-1 shadow-sm overflow-hidden">
           <img src="/logo.png" alt="Logo" className="w-full h-full object-contain" />
-        </div>
-        <div className="flex flex-col leading-[1.15]">
+          </div>
+          <div className="flex flex-col leading-[1.15]">
           <span className="font-bold tracking-[0.1px] text-[13px]">CEM AUSTROGAS</span>
           <span className="text-[10px] text-white/70">Medicina Ocupacional</span>
+          </div>
         </div>
       </div>
 
