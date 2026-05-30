@@ -39,9 +39,10 @@ export default function Login() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50">
       <div className="max-w-md w-full bg-white rounded-xl shadow-lg p-8">
-        <div className="text-center mb-8">
+       <div className="text-center mb-8 flex flex-col items-center">
+          <img src="/logo.png" alt="Logo CEM AUSTROGAS" className="h-20 mb-3 object-contain drop-shadow-sm" />
           <h2 className="text-2xl font-bold text-slate-800">CEM AUSTROGAS</h2>
-          <p className="text-slate-500 mt-2">Sistema de Fichas Médicas</p>
+          <p className="text-slate-500 mt-2 font-medium">Sistema de Fichas Médicas</p>
         </div>
         
         {error && (
