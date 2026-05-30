@@ -46,11 +46,7 @@ const SISTEMAS = [
   { numero: 9, nombre: 'HEMO LINFÁTICO' },
   { numero: 10, nombre: 'NERVIOSO' }
 ];
-// Estados para el Modal de Importación de Exámenes
-  const [mostrarModalExamenes, setMostrarModalExamenes] = useState(false);
-  const [examenesDisponibles, setExamenesDisponibles] = useState<any[]>([]);
-  const [examenesSeleccionadosModal, setExamenesSeleccionadosModal] = useState<string[]>([]);
-  const [cargandoExamenesHist, setCargandoExamenesHist] = useState(false);
+
 // Regiones del examen físico (Sección I) — exacto al formato SO-RE-38
 const REGIONES_EXAMEN_FISICO = [
   { numero: 1, region: 'Piel', subregiones: [
@@ -269,6 +265,10 @@ export default function NuevaEvaluacion() {
   const [medicoData, setMedicoData] = useState<Usuario | null>(null);
   const [guardando, setGuardando] = useState(false);
 
+  const [mostrarModalExamenes, setMostrarModalExamenes] = useState(false);
+  const [examenesDisponibles, setExamenesDisponibles] = useState<any[]>([]);
+  const [examenesSeleccionadosModal, setExamenesSeleccionadosModal] = useState<string[]>([]);
+  const [cargandoExamenesHist, setCargandoExamenesHist] = useState(false);
   // ===== ESTADOS DEL FORMULARIO =====
 
   // B. Motivo de consulta
