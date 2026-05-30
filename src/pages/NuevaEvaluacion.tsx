@@ -46,7 +46,11 @@ const SISTEMAS = [
   { numero: 9, nombre: 'HEMO LINFÁTICO' },
   { numero: 10, nombre: 'NERVIOSO' }
 ];
-
+// Estados para el Modal de Importación de Exámenes
+  const [mostrarModalExamenes, setMostrarModalExamenes] = useState(false);
+  const [examenesDisponibles, setExamenesDisponibles] = useState<any[]>([]);
+  const [examenesSeleccionadosModal, setExamenesSeleccionadosModal] = useState<string[]>([]);
+  const [cargandoExamenesHist, setCargandoExamenesHist] = useState(false);
 // Regiones del examen físico (Sección I) — exacto al formato SO-RE-38
 const REGIONES_EXAMEN_FISICO = [
   { numero: 1, region: 'Piel', subregiones: [
@@ -545,7 +549,54 @@ export default function NuevaEvaluacion() {
       return { ...prev, [categoria]: next };
     });
   };
+// Abre el modal y busca el historial de exámenes de ESTE paciente en Firebase
+  const abrirModalExamenes = async () => {
+    setMostrarModalExamenes(true);
+    setCargandoExamenesHist(true);
+    try {
+      const q = query(
+        collection(db, 'examenes'), 
+        where('trabajadorId', '==', trabajadorId), 
+        orderBy('fecha', 'desc')
+      );
+      const snap = await getDocs(q);
+      const docs: any[] = [];
+      snap.forEach(doc => docs.push({ id: doc.id, ...doc.data() }));
+      setExamenesDisponibles(docs);
+    } catch (error) {
+      console.error("Error al cargar historial de exámenes:", error);
+    } finally {
+      setCargandoExamenesHist(false);
+    }
+  };
 
+  // Toma los que marcaste con el checkbox y los inyecta en tu tabla
+  const inyectarExamenes = () => {
+    const seleccionados = examenesDisponibles.filter(ex => examenesSeleccionadosModal.includes(ex.id));
+    
+    const nuevosParaTabla = seleccionados.map(data => {
+      const fechaExamen = data.fecha?.seconds ? new Date(data.fecha.seconds * 1000) : new Date(data.fecha);
+      const fechaStr = fechaExamen.toISOString().split('T')[0];
+      const interpretacion = data.estado === 'patologico' 
+        ? `Patológico - Obs: ${data.observacion || ''}` 
+        : (data.observacion || 'Normal');
+        
+      return {
+        nombre: data.nombreExamen || '',
+        fecha: fechaStr,
+        resultado: data.resultado ? `${data.resultado} [${interpretacion}]` : interpretacion
+      };
+    });
+
+    // Inyectamos sin borrar los que ya hayas escrito a mano
+    setExamenesComplementarios(prev => {
+      const limpios = prev.filter(e => e.nombre.trim() !== '' || e.resultado.trim() !== '');
+      return [...limpios, ...nuevosParaTabla];
+    });
+    
+    setMostrarModalExamenes(false);
+    setExamenesSeleccionadosModal([]);
+  };
 // ===== GUARDAR EVALUACIÓN =====
 
   const handleGuardar = async () => {
@@ -1182,17 +1233,25 @@ export default function NuevaEvaluacion() {
           )}
         </div>
 
-        {/* ===== J. EXÁMENES COMPLEMENTARIOS ===== */}
+       {/* ===== J. EXÁMENES COMPLEMENTARIOS ===== */}
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-          <h2 className="text-sm font-bold text-slate-800 mb-3 border-b pb-2">J. RESULTADOS DE EXÁMENES</h2>
+          <div className="flex justify-between items-center mb-3 border-b pb-2">
+            <h2 className="text-sm font-bold text-slate-800">J. RESULTADOS DE EXÁMENES</h2>
+            <button type="button" onClick={abrirModalExamenes} className="text-xs bg-blue-100 text-blue-700 hover:bg-blue-200 font-bold px-3 py-1.5 rounded-lg flex items-center gap-1 transition-colors">
+              📦 Importar Historial
+            </button>
+          </div>
           {examenesComplementarios.map((ex, idx) => (
-            <div key={idx} className="grid grid-cols-3 gap-2 mb-2">
-              <input type="text" placeholder="Examen" value={ex.nombre} onChange={(e) => { const u = [...examenesComplementarios]; u[idx] = { ...u[idx], nombre: e.target.value }; setExamenesComplementarios(u); }} className="px-2 py-1 border rounded text-sm" />
-              <input type="date" value={ex.fecha} onChange={(e) => { const u = [...examenesComplementarios]; u[idx] = { ...u[idx], fecha: e.target.value }; setExamenesComplementarios(u); }} className="px-2 py-1 border rounded text-sm" />
-              <input type="text" placeholder="Resultado" value={ex.resultado} onChange={(e) => { const u = [...examenesComplementarios]; u[idx] = { ...u[idx], resultado: e.target.value }; setExamenesComplementarios(u); }} className="px-2 py-1 border rounded text-sm" />
+            <div key={idx} className="flex gap-2 mb-2">
+              <input type="text" placeholder="Examen" value={ex.nombre} onChange={(e) => { const u = [...examenesComplementarios]; u[idx] = { ...u[idx], nombre: e.target.value }; setExamenesComplementarios(u); }} className="w-1/3 px-2 py-1 border rounded text-sm" />
+              <input type="date" value={ex.fecha} onChange={(e) => { const u = [...examenesComplementarios]; u[idx] = { ...u[idx], fecha: e.target.value }; setExamenesComplementarios(u); }} className="w-1/6 px-2 py-1 border rounded text-sm" />
+              <input type="text" placeholder="Resultado" value={ex.resultado} onChange={(e) => { const u = [...examenesComplementarios]; u[idx] = { ...u[idx], resultado: e.target.value }; setExamenesComplementarios(u); }} className="flex-1 px-2 py-1 border rounded text-sm" />
+              
+              {/* Botón sutil para borrar una fila si nos equivocamos */}
+              <button type="button" onClick={() => setExamenesComplementarios(prev => prev.filter((_, i) => i !== idx))} className="text-red-400 hover:text-red-600 font-bold px-2">×</button>
             </div>
           ))}
-          <button type="button" onClick={() => setExamenesComplementarios(prev => [...prev, { nombre: '', fecha: '', resultado: '' }])} className="text-blue-600 text-xs font-medium mt-2 hover:underline">+ Agregar examen</button>
+          <button type="button" onClick={() => setExamenesComplementarios(prev => [...prev, { nombre: '', fecha: '', resultado: '' }])} className="text-blue-600 text-xs font-medium mt-2 hover:underline">+ Agregar fila vacía</button>
         </div>
        {/* ===== K. DIAGNÓSTICOS ===== */}
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
@@ -1296,7 +1355,72 @@ export default function NuevaEvaluacion() {
             {guardando ? 'Guardando...' : editEvalId ? 'Guardar Cambios de la Consulta' : 'Guardar Evaluación Definitiva'}
           </button>
         </div>
+{/* ============================================================== */}
+        {/* ===== MODAL FLOTANTE DE IMPORTACIÓN DE EXÁMENES ===== */}
+        {/* ============================================================== */}
+        {mostrarModalExamenes && (
+          <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-xl w-full max-w-3xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden">
+              
+              <div className="p-4 border-b border-slate-200 flex justify-between items-center bg-slate-50">
+                <div>
+                  <h3 className="font-bold text-slate-800">Importar Exámenes del Trabajador</h3>
+                  <p className="text-xs text-slate-500">Seleccione los exámenes que desea incluir en esta evaluación.</p>
+                </div>
+                <button onClick={() => setMostrarModalExamenes(false)} className="text-slate-400 hover:text-red-500 font-bold text-2xl leading-none">&times;</button>
+              </div>
 
+              <div className="p-4 overflow-y-auto flex-1 bg-slate-100">
+                {cargandoExamenesHist ? (
+                  <p className="text-center text-sm text-slate-500 py-8 font-semibold animate-pulse">Buscando en el archivo histórico...</p>
+                ) : examenesDisponibles.length === 0 ? (
+                  <p className="text-center text-sm text-slate-500 py-8">No hay exámenes complementarios previos registrados para este trabajador en la base de datos.</p>
+                ) : (
+                  <div className="grid grid-cols-1 gap-2">
+                    {examenesDisponibles.map(ex => {
+                      const fechaEx = ex.fecha?.seconds ? new Date(ex.fecha.seconds * 1000).toLocaleDateString('es-EC') : ex.fecha;
+                      const isSelected = examenesSeleccionadosModal.includes(ex.id);
+                      
+                      return (
+                        <label key={ex.id} className={`flex items-center gap-4 p-3 border rounded-lg cursor-pointer transition-colors ${isSelected ? 'bg-blue-50 border-blue-400 shadow-sm' : 'bg-white hover:bg-blue-50/50 border-slate-200'}`}>
+                          <input 
+                            type="checkbox" 
+                            className="w-5 h-5 text-blue-600 rounded border-slate-300"
+                            checked={isSelected}
+                            onChange={(e) => {
+                              if (e.target.checked) setExamenesSeleccionadosModal(prev => [...prev, ex.id]);
+                              else setExamenesSeleccionadosModal(prev => prev.filter(id => id !== ex.id));
+                            }}
+                          />
+                          <div className="flex-1">
+                            <div className="flex justify-between items-start mb-1">
+                              <span className="font-bold text-sm text-slate-800">{ex.nombreExamen}</span>
+                              <span className="text-xs font-semibold text-slate-500">{fechaEx}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${ex.estado === 'patologico' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
+                                {ex.estado === 'patologico' ? 'Patológico' : 'Normal'}
+                              </span>
+                              <span className="text-xs text-slate-600 line-clamp-1">{ex.resultado || 'Sin valor numérico'} {ex.observacion ? `— Obs: ${ex.observacion}` : ''}</span>
+                            </div>
+                          </div>
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              <div className="p-4 border-t border-slate-200 flex justify-end gap-3 bg-white">
+                <button onClick={() => setMostrarModalExamenes(false)} className="px-5 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-300 rounded-lg hover:bg-slate-50">Cancelar</button>
+                <button onClick={inyectarExamenes} disabled={examenesSeleccionadosModal.length === 0} className="px-5 py-2 text-sm font-bold text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all">
+                  ⬇️ Inyectar {examenesSeleccionadosModal.length > 0 ? `(${examenesSeleccionadosModal.length})` : ''} a la Ficha
+                </button>
+              </div>
+
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
