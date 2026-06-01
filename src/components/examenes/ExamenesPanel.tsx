@@ -1,6 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { collection, addDoc, getDocs, query, where, orderBy, deleteDoc, doc, updateDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
+import {
+  Upload, UploadCloud, ClipboardList, FileText, FileImage, Calendar, Paperclip,
+  Link2, AlertTriangle, Check, X, Trash2, Eye, TrendingUp,
+} from 'lucide-react';
 import { db, storage } from '../../services/firebase';
 import { useAuth } from '../../contexts/AuthContext';
 import type { ExamenComplementarioDoc, EvaluacionMedica, TipoExamen, GrupoExamen } from '../../types';
@@ -25,6 +29,9 @@ interface ArchivoEnCola {
   evaluacionId: string;
   preview?: string;
 }
+
+// Verde de marca (igual que el resto del sistema)
+const BRAND = '#0a6b3b';
 
 const fmtF = (fecha: any): string => {
   if (!fecha) return '-';
@@ -269,22 +276,32 @@ export default function ExamenesPanel({ trabajadorId, trabajadorNombre, evaluaci
 
       {/* ====== HEADER + STATS ====== */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h2 className="text-lg font-bold text-slate-800">Exámenes Complementarios</h2>
-          <p className="text-xs text-slate-500">{examenes.length} exámenes registrados para {trabajadorNombre}</p>
+        <div className="flex items-center gap-2.5">
+          <span className="grid place-items-center w-9 h-9 rounded-lg" style={{ background: '#e6f6ee', color: BRAND }}>
+            <ClipboardList size={19} />
+          </span>
+          <div>
+            <h2 className="text-lg font-bold text-slate-800 leading-tight">Exámenes Complementarios</h2>
+            <p className="text-xs text-slate-500">{examenes.length} exámenes registrados para {trabajadorNombre}</p>
+          </div>
         </div>
         <div className="flex items-center gap-3">
           <div className="flex gap-2 text-xs">
-            <span className="px-2 py-1 rounded-full bg-green-100 text-green-800 font-semibold">{totalNormales} Normal</span>
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 font-semibold">
+              <Check size={12} /> {totalNormales} Normal
+            </span>
             {totalPatologicos > 0 && (
-              <span className="px-2 py-1 rounded-full bg-red-100 text-red-800 font-semibold animate-pulse">{totalPatologicos} Patológico</span>
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-red-50 text-red-700 font-semibold">
+                <AlertTriangle size={12} /> {totalPatologicos} Patológico
+              </span>
             )}
           </div>
           <button
             onClick={() => setMostrarUpload(true)}
-            className="px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 text-sm flex items-center gap-2"
+            className="px-4 py-2 text-white font-semibold rounded-lg hover:opacity-90 text-sm flex items-center gap-2"
+            style={{ background: BRAND }}
           >
-            📎 Cargar Exámenes
+            <Upload size={16} /> Cargar Exámenes
           </button>
         </div>
       </div>
@@ -294,21 +311,21 @@ export default function ExamenesPanel({ trabajadorId, trabajadorNombre, evaluaci
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           <div>
             <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Tipo</label>
-            <select value={filtroTipo} onChange={e => setFiltroTipo(e.target.value)} className="w-full px-2 py-1.5 border border-slate-300 rounded-lg text-xs">
+            <select value={filtroTipo} onChange={e => setFiltroTipo(e.target.value)} className="w-full px-2 py-1.5 border border-slate-300 rounded-lg text-xs outline-none focus:border-emerald-400">
               <option>Todos</option>
               {TIPOS_EXAMEN.map(t => <option key={t}>{t}</option>)}
             </select>
           </div>
           <div>
             <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Grupo</label>
-            <select value={filtroGrupo} onChange={e => setFiltroGrupo(e.target.value)} className="w-full px-2 py-1.5 border border-slate-300 rounded-lg text-xs">
+            <select value={filtroGrupo} onChange={e => setFiltroGrupo(e.target.value)} className="w-full px-2 py-1.5 border border-slate-300 rounded-lg text-xs outline-none focus:border-emerald-400">
               <option>Todos</option>
               {GRUPOS_EXAMEN.map(g => <option key={g}>{g}</option>)}
             </select>
           </div>
           <div>
             <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Estado</label>
-            <select value={filtroEstado} onChange={e => setFiltroEstado(e.target.value)} className="w-full px-2 py-1.5 border border-slate-300 rounded-lg text-xs">
+            <select value={filtroEstado} onChange={e => setFiltroEstado(e.target.value)} className="w-full px-2 py-1.5 border border-slate-300 rounded-lg text-xs outline-none focus:border-emerald-400">
               <option>Todos</option>
               <option value="normal">Normal</option>
               <option value="patologico">Patológico</option>
@@ -316,11 +333,11 @@ export default function ExamenesPanel({ trabajadorId, trabajadorNombre, evaluaci
           </div>
           <div>
             <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Buscar examen</label>
-            <input type="text" value={filtroNombre} onChange={e => setFiltroNombre(e.target.value)} placeholder="Nombre..." className="w-full px-2 py-1.5 border border-slate-300 rounded-lg text-xs" />
+            <input type="text" value={filtroNombre} onChange={e => setFiltroNombre(e.target.value)} placeholder="Nombre..." className="w-full px-2 py-1.5 border border-slate-300 rounded-lg text-xs outline-none focus:border-emerald-400" />
           </div>
           <div>
             <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Evolución</label>
-            <select value={evolucionNombre || ''} onChange={e => setEvolucionNombre(e.target.value || null)} className="w-full px-2 py-1.5 border border-slate-300 rounded-lg text-xs">
+            <select value={evolucionNombre || ''} onChange={e => setEvolucionNombre(e.target.value || null)} className="w-full px-2 py-1.5 border border-slate-300 rounded-lg text-xs outline-none focus:border-emerald-400">
               <option value="">Seleccionar examen...</option>
               {nombresUnicos.map(n => <option key={n}>{n}</option>)}
             </select>
@@ -330,25 +347,29 @@ export default function ExamenesPanel({ trabajadorId, trabajadorNombre, evaluaci
 
       {/* ====== EVOLUCIÓN HISTÓRICA ====== */}
       {evolucionNombre && examenesEvolucion.length > 0 && (
-        <div className="bg-white rounded-xl border border-blue-200 p-4">
+        <div className="bg-white rounded-xl border p-4" style={{ borderColor: '#c3ead2' }}>
           <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-bold text-blue-800">Evolución: {evolucionNombre}</h3>
-            <button onClick={() => setEvolucionNombre(null)} className="text-xs text-slate-500 hover:text-slate-700">Cerrar ×</button>
+            <h3 className="text-sm font-bold flex items-center gap-2" style={{ color: BRAND }}>
+              <TrendingUp size={16} /> Evolución: {evolucionNombre}
+            </h3>
+            <button onClick={() => setEvolucionNombre(null)} className="inline-flex items-center gap-1 text-xs text-slate-500 hover:text-slate-700">
+              Cerrar <X size={13} />
+            </button>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-xs border-collapse">
               <thead>
-                <tr className="bg-blue-50 border-b border-blue-200">
-                  <th className="text-left p-2 font-semibold text-blue-800">Fecha</th>
-                  <th className="text-left p-2 font-semibold text-blue-800">Grupo</th>
-                  <th className="text-left p-2 font-semibold text-blue-800">Resultado</th>
-                  <th className="text-center p-2 font-semibold text-blue-800">Estado</th>
-                  <th className="text-left p-2 font-semibold text-blue-800">Observación</th>
-                  <th className="text-left p-2 font-semibold text-blue-800">Evaluación</th>
+                <tr className="border-b" style={{ background: '#f3fbf6', borderColor: '#c3ead2' }}>
+                  <th className="text-left p-2 font-semibold" style={{ color: BRAND }}>Fecha</th>
+                  <th className="text-left p-2 font-semibold" style={{ color: BRAND }}>Grupo</th>
+                  <th className="text-left p-2 font-semibold" style={{ color: BRAND }}>Resultado</th>
+                  <th className="text-center p-2 font-semibold" style={{ color: BRAND }}>Estado</th>
+                  <th className="text-left p-2 font-semibold" style={{ color: BRAND }}>Observación</th>
+                  <th className="text-left p-2 font-semibold" style={{ color: BRAND }}>Evaluación</th>
                 </tr>
               </thead>
               <tbody>
-                {examenesEvolucion.map((ex, i) => {
+                {examenesEvolucion.map((ex) => {
                   const evalVinc = evaluaciones.find(e => e.id === ex.evaluacionId);
                   return (
                     <tr key={ex.id} className={`border-b border-slate-100 ${ex.estado === 'patologico' ? 'bg-red-50' : ''}`}>
@@ -356,10 +377,10 @@ export default function ExamenesPanel({ trabajadorId, trabajadorNombre, evaluaci
                       <td className="p-2">{ex.grupoExamen}</td>
                       <td className="p-2">{ex.resultado || '-'}</td>
                       <td className="p-2 text-center">
-                        <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                          ex.estado === 'patologico' ? 'bg-red-200 text-red-800' : 'bg-green-100 text-green-800'
+                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                          ex.estado === 'patologico' ? 'bg-red-100 text-red-800' : 'bg-emerald-100 text-emerald-800'
                         }`}>
-                          {ex.estado === 'patologico' ? '⚠ PATOLÓGICO' : '✓ NORMAL'}
+                          {ex.estado === 'patologico' ? <><AlertTriangle size={10} /> PATOLÓGICO</> : <><Check size={10} /> NORMAL</>}
                         </span>
                       </td>
                       <td className="p-2 text-slate-600">{ex.observacion || '-'}</td>
@@ -383,41 +404,42 @@ export default function ExamenesPanel({ trabajadorId, trabajadorNombre, evaluaci
         <div className="text-center py-10 text-slate-400 text-sm">Cargando exámenes...</div>
       ) : examenesFiltrados.length === 0 ? (
         <div className="bg-white rounded-xl border border-slate-200 p-10 text-center">
-          <p className="text-slate-400 text-lg mb-1">📋</p>
+          <div className="grid place-items-center w-12 h-12 rounded-xl mx-auto mb-2" style={{ background: '#eef1f5', color: '#94a2b3' }}>
+            <ClipboardList size={24} />
+          </div>
           <p className="text-slate-500 text-sm">{examenes.length === 0 ? 'Sin exámenes registrados' : 'Sin resultados para los filtros aplicados'}</p>
-          <button onClick={() => setMostrarUpload(true)} className="mt-3 text-blue-600 text-sm font-medium hover:underline">Cargar primer examen</button>
+          <button onClick={() => setMostrarUpload(true)} className="mt-3 text-sm font-medium hover:underline" style={{ color: BRAND }}>Cargar primer examen</button>
         </div>
       ) : (
         <div className="space-y-2">
           {examenesFiltrados.map(ex => {
             const evalVinc = evaluaciones.find(e => e.id === ex.evaluacionId);
+            const esPdf = ex.archivoTipo === 'application/pdf';
             return (
               <div key={ex.id} className={`bg-white rounded-xl border p-4 flex items-start gap-4 transition-all hover:shadow-md ${
                 ex.estado === 'patologico' ? 'border-red-300 bg-red-50/30' : 'border-slate-200'
               }`}>
                 {/* Icono tipo */}
-                <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-lg flex-shrink-0 ${
-                  ex.archivoTipo === 'application/pdf' ? 'bg-red-100' : 'bg-blue-100'
-                }`}>
-                  {ex.archivoTipo === 'application/pdf' ? '📄' : '🖼️'}
+                <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${esPdf ? 'bg-red-50 text-red-500' : 'bg-sky-50 text-sky-500'}`}>
+                  {esPdf ? <FileText size={20} /> : <FileImage size={20} />}
                 </div>
 
                 {/* Info */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <h4 className="font-semibold text-sm text-slate-800">{ex.nombreExamen}</h4>
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                      ex.estado === 'patologico' ? 'bg-red-200 text-red-800' : 'bg-green-100 text-green-700'
+                    <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                      ex.estado === 'patologico' ? 'bg-red-100 text-red-800' : 'bg-emerald-100 text-emerald-700'
                     }`}>
-                      {ex.estado === 'patologico' ? '⚠ PATOLÓGICO' : '✓ Normal'}
+                      {ex.estado === 'patologico' ? <><AlertTriangle size={10} /> PATOLÓGICO</> : <><Check size={10} /> Normal</>}
                     </span>
                     <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">{ex.tipoExamen}</span>
-                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-50 text-blue-700">{ex.grupoExamen}</span>
+                    <span className="text-[10px] px-2 py-0.5 rounded-full" style={{ background: '#e6f6ee', color: BRAND }}>{ex.grupoExamen}</span>
                   </div>
                   <div className="flex items-center gap-4 mt-1 text-xs text-slate-500">
-                    <span>📅 {fmtF(ex.fecha)}</span>
-                    <span>📎 {ex.archivoNombre}</span>
-                    {evalVinc && <span className="text-blue-600">🔗 Eval: {fmtF(evalVinc.fecha)}</span>}
+                    <span className="inline-flex items-center gap-1"><Calendar size={12} /> {fmtF(ex.fecha)}</span>
+                    <span className="inline-flex items-center gap-1"><Paperclip size={12} /> {ex.archivoNombre}</span>
+                    {evalVinc && <span className="inline-flex items-center gap-1" style={{ color: BRAND }}><Link2 size={12} /> Eval: {fmtF(evalVinc.fecha)}</span>}
                   </div>
                   {ex.resultado && <p className="text-xs text-slate-700 mt-1">Resultado: {ex.resultado}</p>}
                   {ex.observacion && <p className="text-xs text-red-700 mt-1 italic">Obs: {ex.observacion}</p>}
@@ -426,12 +448,12 @@ export default function ExamenesPanel({ trabajadorId, trabajadorNombre, evaluaci
                 {/* Acciones */}
                 <div className="flex gap-1.5 flex-shrink-0">
                   <a href={ex.archivoUrl} target="_blank" rel="noopener noreferrer"
-                    className="px-3 py-1.5 bg-slate-100 text-slate-700 rounded-lg text-xs font-medium hover:bg-slate-200">
-                    Ver
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 text-slate-700 rounded-lg text-xs font-medium hover:bg-slate-200">
+                    <Eye size={13} /> Ver
                   </a>
                   <button onClick={() => eliminarExamen(ex)}
-                    className="px-3 py-1.5 bg-red-50 text-red-600 rounded-lg text-xs font-medium hover:bg-red-100">
-                    ×
+                    className="inline-flex items-center justify-center w-8 h-8 bg-red-50 text-red-600 rounded-lg hover:bg-red-100">
+                    <Trash2 size={14} />
                   </button>
                 </div>
               </div>
@@ -445,12 +467,15 @@ export default function ExamenesPanel({ trabajadorId, trabajadorNombre, evaluaci
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-white rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto shadow-2xl">
             <div className="sticky top-0 bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between rounded-t-2xl z-10">
-              <div>
-                <h3 className="text-lg font-bold text-slate-800">Cargar Exámenes Complementarios</h3>
-                <p className="text-xs text-slate-500">{cola.length} archivo{cola.length !== 1 ? 's' : ''} en cola</p>
+              <div className="flex items-center gap-2.5">
+                <span className="grid place-items-center w-8 h-8 rounded-lg" style={{ background: '#e6f6ee', color: BRAND }}><Upload size={17} /></span>
+                <div>
+                  <h3 className="text-lg font-bold text-slate-800 leading-tight">Cargar Exámenes Complementarios</h3>
+                  <p className="text-xs text-slate-500">{cola.length} archivo{cola.length !== 1 ? 's' : ''} en cola</p>
+                </div>
               </div>
               <button onClick={() => { setMostrarUpload(false); cola.forEach(item => { if (item.preview) URL.revokeObjectURL(item.preview); }); setCola([]); }}
-                className="text-slate-400 hover:text-slate-600 text-2xl leading-none">×</button>
+                className="text-slate-400 hover:text-slate-600"><X size={22} /></button>
             </div>
 
             <div className="p-6 space-y-5">
@@ -460,11 +485,14 @@ export default function ExamenesPanel({ trabajadorId, trabajadorNombre, evaluaci
                 onDragLeave={handleDragLeave}
                 onDrop={handleDrop}
                 onClick={() => fileInputRef.current?.click()}
-                className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all ${
-                  dragging ? 'border-blue-500 bg-blue-50' : 'border-slate-300 hover:border-blue-400 hover:bg-slate-50'
-                }`}
+                className="border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all"
+                style={dragging
+                  ? { borderColor: BRAND, background: '#f3fbf6' }
+                  : { borderColor: '#cbd5e1', background: '#fff' }}
               >
-                <p className="text-3xl mb-2">{dragging ? '📥' : '📎'}</p>
+                <div className="grid place-items-center w-12 h-12 rounded-xl mx-auto mb-2" style={{ background: dragging ? '#e6f6ee' : '#f1f5f9', color: dragging ? BRAND : '#94a2b3' }}>
+                  <UploadCloud size={26} />
+                </div>
                 <p className="text-sm font-medium text-slate-700">Arrastra y suelta archivos aquí</p>
                 <p className="text-xs text-slate-400 mt-1">PDF, JPG o PNG · Máx. 10 MB por archivo</p>
                 <input ref={fileInputRef} type="file" multiple accept=".pdf,.jpg,.jpeg,.png" onChange={handleFileSelect} className="hidden" />
@@ -473,17 +501,18 @@ export default function ExamenesPanel({ trabajadorId, trabajadorNombre, evaluaci
               {/* Cola de archivos */}
               {cola.map((item, idx) => {
                 const errorFecha = validarFecha(item);
+                const esPdf = item.file.type === 'application/pdf';
                 return (
                   <div key={idx} className={`border rounded-xl p-4 space-y-3 ${errorFecha ? 'border-red-300 bg-red-50/30' : 'border-slate-200'}`}>
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <span className="text-lg">{item.file.type === 'application/pdf' ? '📄' : '🖼️'}</span>
+                        <span className={esPdf ? 'text-red-500' : 'text-sky-500'}>{esPdf ? <FileText size={20} /> : <FileImage size={20} />}</span>
                         <div>
                           <p className="text-sm font-medium text-slate-800">{item.file.name}</p>
                           <p className="text-[10px] text-slate-400">{(item.file.size / 1024).toFixed(0)} KB</p>
                         </div>
                       </div>
-                      <button onClick={() => eliminarDeCola(idx)} className="text-red-400 hover:text-red-600 text-lg">×</button>
+                      <button onClick={() => eliminarDeCola(idx)} className="text-red-400 hover:text-red-600"><X size={18} /></button>
                     </div>
 
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -496,7 +525,7 @@ export default function ExamenesPanel({ trabajadorId, trabajadorNombre, evaluaci
                           value={item.nombreExamen}
                           onChange={e => actualizarCola(idx, 'nombreExamen', e.target.value)}
                           placeholder="Ej: Biometría hemática"
-                          className="w-full px-2 py-1.5 border border-slate-300 rounded-lg text-xs"
+                          className="w-full px-2 py-1.5 border border-slate-300 rounded-lg text-xs outline-none focus:border-emerald-400"
                         />
                         <datalist id={`exnames-${idx}`}>
                           {NOMBRES_EXAMEN_COMUNES.map(n => <option key={n} value={n} />)}
@@ -506,7 +535,7 @@ export default function ExamenesPanel({ trabajadorId, trabajadorNombre, evaluaci
                       {/* Tipo */}
                       <div>
                         <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Tipo</label>
-                        <select value={item.tipoExamen} onChange={e => actualizarCola(idx, 'tipoExamen', e.target.value)} className="w-full px-2 py-1.5 border border-slate-300 rounded-lg text-xs">
+                        <select value={item.tipoExamen} onChange={e => actualizarCola(idx, 'tipoExamen', e.target.value)} className="w-full px-2 py-1.5 border border-slate-300 rounded-lg text-xs outline-none focus:border-emerald-400">
                           {TIPOS_EXAMEN.map(t => <option key={t}>{t}</option>)}
                         </select>
                       </div>
@@ -514,7 +543,7 @@ export default function ExamenesPanel({ trabajadorId, trabajadorNombre, evaluaci
                       {/* Grupo */}
                       <div>
                         <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Grupo</label>
-                        <select value={item.grupoExamen} onChange={e => actualizarCola(idx, 'grupoExamen', e.target.value)} className="w-full px-2 py-1.5 border border-slate-300 rounded-lg text-xs">
+                        <select value={item.grupoExamen} onChange={e => actualizarCola(idx, 'grupoExamen', e.target.value)} className="w-full px-2 py-1.5 border border-slate-300 rounded-lg text-xs outline-none focus:border-emerald-400">
                           {GRUPOS_EXAMEN.map(g => <option key={g}>{g}</option>)}
                         </select>
                       </div>
@@ -522,31 +551,31 @@ export default function ExamenesPanel({ trabajadorId, trabajadorNombre, evaluaci
                       {/* Fecha */}
                       <div>
                         <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Fecha del examen *</label>
-                        <input type="date" value={item.fecha} onChange={e => actualizarCola(idx, 'fecha', e.target.value)} className="w-full px-2 py-1.5 border border-slate-300 rounded-lg text-xs" />
+                        <input type="date" value={item.fecha} onChange={e => actualizarCola(idx, 'fecha', e.target.value)} className="w-full px-2 py-1.5 border border-slate-300 rounded-lg text-xs outline-none focus:border-emerald-400" />
                         {errorFecha && <p className="text-[10px] text-red-600 mt-0.5">{errorFecha}</p>}
                       </div>
 
                       {/* Resultado */}
                       <div>
                         <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Resultado</label>
-                        <input type="text" value={item.resultado} onChange={e => actualizarCola(idx, 'resultado', e.target.value)} placeholder="Valor/Descripción" className="w-full px-2 py-1.5 border border-slate-300 rounded-lg text-xs" />
+                        <input type="text" value={item.resultado} onChange={e => actualizarCola(idx, 'resultado', e.target.value)} placeholder="Valor/Descripción" className="w-full px-2 py-1.5 border border-slate-300 rounded-lg text-xs outline-none focus:border-emerald-400" />
                       </div>
 
                       {/* Estado (Semáforo) */}
                       <div>
                         <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Estado *</label>
                         <div className="flex gap-2">
-                          <label className={`flex-1 text-center py-1.5 rounded-lg text-xs font-semibold cursor-pointer border-2 transition-all ${
-                            item.estado === 'normal' ? 'border-green-500 bg-green-50 text-green-800' : 'border-slate-200 text-slate-400'
+                          <label className={`flex-1 inline-flex items-center justify-center gap-1 py-1.5 rounded-lg text-xs font-semibold cursor-pointer border-2 transition-all ${
+                            item.estado === 'normal' ? 'border-emerald-500 bg-emerald-50 text-emerald-800' : 'border-slate-200 text-slate-400'
                           }`}>
                             <input type="radio" className="hidden" checked={item.estado === 'normal'} onChange={() => actualizarCola(idx, 'estado', 'normal')} />
-                            ✓ Normal
+                            <Check size={13} /> Normal
                           </label>
-                          <label className={`flex-1 text-center py-1.5 rounded-lg text-xs font-semibold cursor-pointer border-2 transition-all ${
+                          <label className={`flex-1 inline-flex items-center justify-center gap-1 py-1.5 rounded-lg text-xs font-semibold cursor-pointer border-2 transition-all ${
                             item.estado === 'patologico' ? 'border-red-500 bg-red-50 text-red-800' : 'border-slate-200 text-slate-400'
                           }`}>
                             <input type="radio" className="hidden" checked={item.estado === 'patologico'} onChange={() => actualizarCola(idx, 'estado', 'patologico')} />
-                            ⚠ Patológico
+                            <AlertTriangle size={13} /> Patológico
                           </label>
                         </div>
                       </div>
@@ -554,7 +583,7 @@ export default function ExamenesPanel({ trabajadorId, trabajadorNombre, evaluaci
                       {/* Vincular a evaluación */}
                       <div>
                         <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Vincular a evaluación</label>
-                        <select value={item.evaluacionId} onChange={e => actualizarCola(idx, 'evaluacionId', e.target.value)} className="w-full px-2 py-1.5 border border-slate-300 rounded-lg text-xs">
+                        <select value={item.evaluacionId} onChange={e => actualizarCola(idx, 'evaluacionId', e.target.value)} className="w-full px-2 py-1.5 border border-slate-300 rounded-lg text-xs outline-none focus:border-emerald-400">
                           <option value="">Sin vincular</option>
                           {evaluaciones.map(ev => (
                             <option key={ev.id} value={ev.id}>{fmtF(ev.fecha)} — HC {ev.numeroHistoriaClinica}</option>
@@ -566,12 +595,12 @@ export default function ExamenesPanel({ trabajadorId, trabajadorNombre, evaluaci
                     {/* Observación (obligatoria si patológico) */}
                     {item.estado === 'patologico' && (
                       <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-                        <label className="block text-[10px] font-bold text-red-700 uppercase mb-1">⚠ Observación / Interpretación (OBLIGATORIA)</label>
+                        <label className="flex items-center gap-1 text-[10px] font-bold text-red-700 uppercase mb-1"><AlertTriangle size={11} /> Observación / Interpretación (OBLIGATORIA)</label>
                         <textarea
                           value={item.observacion}
                           onChange={e => actualizarCola(idx, 'observacion', e.target.value)}
                           placeholder="Describa la interpretación del resultado patológico..."
-                          className="w-full px-2 py-1.5 border border-red-300 rounded-lg text-xs bg-white"
+                          className="w-full px-2 py-1.5 border border-red-300 rounded-lg text-xs bg-white outline-none"
                           rows={2}
                         />
                       </div>
@@ -588,8 +617,9 @@ export default function ExamenesPanel({ trabajadorId, trabajadorNombre, evaluaci
                     Cancelar
                   </button>
                   <button onClick={subirExamenes} disabled={subiendo}
-                    className="px-6 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2">
-                    {subiendo ? 'Subiendo...' : `Subir ${cola.length} examen${cola.length !== 1 ? 'es' : ''}`}
+                    className="px-6 py-2 text-white rounded-lg text-sm font-semibold hover:opacity-90 disabled:opacity-50 flex items-center gap-2"
+                    style={{ background: BRAND }}>
+                    <Check size={15} /> {subiendo ? 'Subiendo...' : `Subir ${cola.length} examen${cola.length !== 1 ? 'es' : ''}`}
                   </button>
                 </div>
               )}
