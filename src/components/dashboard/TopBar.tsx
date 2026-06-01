@@ -10,8 +10,10 @@ interface TopBarProps {
 
 const TABS = [
   { key: '/', label: 'Trabajadores / Dashboard' },
-  { key: '/reportes', label: 'Reportes y Estadísticas' }
+  { key: '/consulta-diaria', label: 'Consulta diaria' },   // ← NUEVA
+  { key: '/reportes', label: 'Reportes y Estadísticas' },
 ];
+
 
 export default function TopBar({
   userInitials = 'DD',
