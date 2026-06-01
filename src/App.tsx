@@ -8,6 +8,7 @@ import NuevaEvaluacion from './pages/NuevaEvaluacion';
 import DetalleTrabajador from './pages/DetalleTrabajador';
 import Reportes from './pages/Reportes';
 import ConsultaDiaria from './pages/ConsultaDiaria';
+import Permisos from './pages/Permisos';
 
 // Componente de seguridad para proteger el acceso a las pantallas del sistema
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
