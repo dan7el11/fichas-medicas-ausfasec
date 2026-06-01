@@ -39,65 +39,29 @@ function App() {
           {/* Ruta pública de acceso */}
           <Route path="/login" element={<Login />} />
           
-          {/* Panel principal de control */}
-<Route path="/trabajadores" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+          {/* Pantalla principal de bienvenida */}
+          <Route path="/" element={<ProtectedRoute><Inicio /></ProtectedRoute>} />
+
+          {/* Panel de control de trabajadores */}
+          <Route path="/trabajadores" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
           
           {/* Registro y configuración del perfil del médico */}
-          <Route 
-            path="/perfil" 
-            element={
-              <ProtectedRoute>
-                <UserProfile />
-              </ProtectedRoute>
-            } 
-          />
+          <Route path="/perfil" element={<ProtectedRoute><UserProfile /></ProtectedRoute>} />
           
           {/* Registro inicial de datos personales del trabajador */}
-          <Route 
-            path="/nuevo-trabajador" 
-            element={
-              <ProtectedRoute>
-                <NuevoTrabajador />
-              </ProtectedRoute>
-            } 
-          />
+          <Route path="/nuevo-trabajador" element={<ProtectedRoute><NuevoTrabajador /></ProtectedRoute>} />
           
           {/* Formulario clínico de evaluación ocupacional SO-RE-38 */}
-          <Route 
-            path="/evaluar/:trabajadorId" 
-            element={
-              <ProtectedRoute>
-                <NuevaEvaluacion />
-              </ProtectedRoute>
-            } 
-          />
+          <Route path="/evaluar/:trabajadorId" element={<ProtectedRoute><NuevaEvaluacion /></ProtectedRoute>} />
           
           {/* Expediente del trabajador: historial de evaluaciones por pestañas y descarga PDF */}
-          <Route 
-            path="/trabajador/:trabajadorId" 
-            element={
-              <ProtectedRoute>
-                <DetalleTrabajador />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="/reportes" 
-            element={<ProtectedRoute><Reportes /></ProtectedRoute>} 
-          />
-          <Route
-  path="/consulta-diaria"
-  element={<ProtectedRoute><ConsultaDiaria /></ProtectedRoute>}
-            />
-          <Route 
-            path="/permisos" 
-            element={<ProtectedRoute><Permisos /></ProtectedRoute>} 
-            />
-          <Route 
-            path="/agenda-examenes" 
-            element={<ProtectedRoute><AgendaExamenes /></ProtectedRoute>} 
-            />
-
+          <Route path="/trabajador/:trabajadorId" element={<ProtectedRoute><DetalleTrabajador /></ProtectedRoute>} />
+          
+          {/* Otras herramientas médicas */}
+          <Route path="/reportes" element={<ProtectedRoute><Reportes /></ProtectedRoute>} />
+          <Route path="/consulta-diaria" element={<ProtectedRoute><ConsultaDiaria /></ProtectedRoute>} />
+          <Route path="/permisos" element={<ProtectedRoute><Permisos /></ProtectedRoute>} />
+          <Route path="/agenda-examenes" element={<ProtectedRoute><AgendaExamenes /></ProtectedRoute>} />
           
           {/* Redirección automática en caso de escribir una dirección inexistente */}
           <Route path="*" element={<Navigate to="/" />} />
