@@ -40,7 +40,6 @@ function App() {
           <Route path="/login" element={<Login />} />
           
           {/* Panel principal de control */}
-          <Route path="/"             element={<ProtectedRoute><Inicio /></ProtectedRoute>} />
 <Route path="/trabajadores" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
 
             } 
