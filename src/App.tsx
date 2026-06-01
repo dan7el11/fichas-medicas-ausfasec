@@ -9,6 +9,8 @@ import DetalleTrabajador from './pages/DetalleTrabajador';
 import Reportes from './pages/Reportes';
 import ConsultaDiaria from './pages/ConsultaDiaria';
 import Permisos from './pages/Permisos';
+import AgendaExamenes from './pages/AgendaExamenes';
+
 
 // Componente de seguridad para proteger el acceso a las pantallas del sistema
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -97,6 +99,10 @@ function App() {
           <Route 
             path="/permisos" 
             element={<ProtectedRoute><Permisos /></ProtectedRoute>} 
+            />
+          <Route 
+            path="/agenda-examenes" 
+            element={<ProtectedRoute><AgendaExamenes /></ProtectedRoute>} 
             />
 
           
