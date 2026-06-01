@@ -1,6 +1,6 @@
 // Tarjeta de atención (vista Feed) y utilidades visuales compartidas.
 // Archivo NUEVO.
-import { Pill, Bandage, BedDouble } from 'lucide-react';
+import { Pill, Syringe, BedDouble } from 'lucide-react';
 import type { AtencionMedica } from '../../types/atencion';
 import { toDate } from '../../services/atenciones';
 
