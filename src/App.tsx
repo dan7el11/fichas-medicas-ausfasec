@@ -11,6 +11,8 @@ import ConsultaDiaria from './pages/ConsultaDiaria';
 import Permisos from './pages/Permisos';
 import AgendaExamenes from './pages/AgendaExamenes';
 import Inicio from './pages/Inicio';
+import ExpedienteResumen from './pages/ExpedienteResumen';
+
 
 // Componente de seguridad para proteger el acceso a las pantallas del sistema
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -56,6 +58,9 @@ function App() {
           
           {/* Expediente del trabajador: historial de evaluaciones por pestañas y descarga PDF */}
           <Route path="/trabajador/:trabajadorId" element={<ProtectedRoute><DetalleTrabajador /></ProtectedRoute>} />
+          
+          {/* Resumen trabajador por expediente */}
+          <Route path="/expediente/:id" element={<ProtectedRoute><ExpedienteResumen /></ProtectedRoute>} />
           
           {/* Otras herramientas médicas */}
           <Route path="/reportes" element={<ProtectedRoute><Reportes /></ProtectedRoute>} />
