@@ -9,8 +9,9 @@ interface TopBarProps {
 }
 
 const TABS = [
-  { key: '/', label: 'Trabajadores / Dashboard' },
-  { key: '/consulta-diaria', label: 'Consulta diaria' },   // ← NUEVA
+  { key: '/',             label: 'Inicio' },          // ← NUEVO
+  { key: '/trabajadores', label: 'Trabajadores' },    // ← antes era key '/'
+  { key: '/consulta-diaria', label: 'Consulta diaria' },
   { key: '/permisos', label: 'Permisos médicos' },
   { key: '/agenda-examenes', label: 'Exámenes' },
   { key: '/reportes', label: 'Reportes y Estadísticas' },
