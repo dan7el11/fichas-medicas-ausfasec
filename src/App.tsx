@@ -7,6 +7,8 @@ import NuevoTrabajador from './pages/NuevoTrabajador';
 import NuevaEvaluacion from './pages/NuevaEvaluacion';
 import DetalleTrabajador from './pages/DetalleTrabajador';
 import Reportes from './pages/Reportes';
+import ConsultaDiaria from './pages/ConsultaDiaria';
+
 // Componente de seguridad para proteger el acceso a las pantallas del sistema
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
@@ -87,6 +89,10 @@ function App() {
             path="/reportes" 
             element={<ProtectedRoute><Reportes /></ProtectedRoute>} 
           />
+          <Route
+  path="/consulta-diaria"
+  element={<ProtectedRoute><ConsultaDiaria /></ProtectedRoute>}
+            />
           
           {/* Redirección automática en caso de escribir una dirección inexistente */}
           <Route path="*" element={<Navigate to="/" />} />
