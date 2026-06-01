@@ -650,11 +650,13 @@ export default function DetalleTrabajador() {
               🔬 Exámenes Complementarios
               {totalPatologicos > 0 && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-red-500 text-white font-bold animate-pulse">{totalPatologicos} ⚠</span>}
             </button>
+            <button onClick={() => setPestaña('resumen')} className={...}>Resumen</button>
           </div>
           {tabPrincipal === 'examenes' ? (
             <div className="p-6">
               <ExamenesPanel trabajadorId={trabajadorId || ''} trabajadorNombre={trabajador.primerApellido + ' ' + trabajador.primerNombre} evaluaciones={evaluaciones} />
             </div>
+          {pestaña === 'resumen' && (<ResumenExpediente trabajadorId={trabajadorId} /> )}
           ) : evaluaciones.length === 0 ? (
             <div className="p-12 text-center text-slate-500">Este trabajador no tiene evaluaciones registradas.</div>
           ) : (
