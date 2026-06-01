@@ -6,6 +6,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import type { Trabajador, EvaluacionMedica } from '../types';
 import ExamenesPanel from '../components/examenes/ExamenesPanel';
+import ResumenExpediente from '../components/expediente/ResumenExpediente';
 
 // ============================================================================
 // LOGOS EN BASE64
