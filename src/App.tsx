@@ -42,7 +42,6 @@ function App() {
           {/* Panel principal de control */}
 <Route path="/trabajadores" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
 
-            } 
           />
           
           {/* Registro y configuración del perfil del médico */}
