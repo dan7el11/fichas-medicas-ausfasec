@@ -94,6 +94,11 @@ function App() {
   path="/consulta-diaria"
   element={<ProtectedRoute><ConsultaDiaria /></ProtectedRoute>}
             />
+          <Route 
+            path="/permisos" 
+            element={<ProtectedRoute><Permisos /></ProtectedRoute>} 
+            />
+
           
           {/* Redirección automática en caso de escribir una dirección inexistente */}
           <Route path="*" element={<Navigate to="/" />} />
