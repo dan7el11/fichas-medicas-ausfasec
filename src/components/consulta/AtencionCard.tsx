@@ -106,7 +106,7 @@ export default function AtencionCard({ atencion: a, onOpen }: CardProps) {
             className="inline-flex items-center gap-1 text-[12px] px-2 py-[3px] rounded-md font-semibold"
             style={{ color: '#5b3fbd', background: '#f0ebff' }}
           >
-            <Bandage size={13} /> {a.procedimientos.length}
+            <Syringe size={13} /> {a.procedimientos.length}
           </span>
         )}
         {a.reposoDias > 0 && (
