@@ -10,7 +10,7 @@ import Reportes from './pages/Reportes';
 import ConsultaDiaria from './pages/ConsultaDiaria';
 import Permisos from './pages/Permisos';
 import AgendaExamenes from './pages/AgendaExamenes';
-
+import Inicio from './pages/Inicio';
 
 // Componente de seguridad para proteger el acceso a las pantallas del sistema
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
