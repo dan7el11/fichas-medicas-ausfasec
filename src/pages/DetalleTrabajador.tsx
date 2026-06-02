@@ -664,6 +664,7 @@ export default function DetalleTrabajador() {
             <button onClick={abrirModalEditar} className="px-4 py-2 bg-amber-100 text-amber-800 font-semibold rounded-lg hover:bg-amber-200 text-sm">✏️ Editar datos</button>
             <button onClick={() => navigate(`/evaluar/${trabajador.id}`)} className="px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 shadow-sm text-sm">+ Eval. Periódica</button>
             <button onClick={() => navigate(`/evaluar-retiro/${trabajador.id}`)} className="px-4 py-2 bg-orange-600 text-white font-semibold rounded-lg hover:bg-orange-700 shadow-sm text-sm">+ Eval. Retiro</button>
+            <button onClick={() => navigate(`/preocupacional/${trabajadorId}`)} className="px-4 py-2 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 transition-colors shadow-sm flex items-center gap-2">+ Nueva Preocupacional</button>
           </div>
         </div>
 
