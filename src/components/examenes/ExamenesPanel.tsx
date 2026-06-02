@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useToast } from '../Toast';
 import { collection, addDoc, getDocs, query, where, orderBy, deleteDoc, doc, updateDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { db, storage } from '../../services/firebase';
@@ -41,6 +42,7 @@ const fmtFISO = (fecha: any): string => {
 
 export default function ExamenesPanel({ trabajadorId, trabajadorNombre, evaluaciones }: ExamenesPanelProps) {
   const { user } = useAuth();
+  const toast = useToast();
   const [examenes, setExamenes] = useState<ExamenComplementarioDoc[]>([]);
   const [cargando, setCargando] = useState(true);
   const [subiendo, setSubiendo] = useState(false);
@@ -173,14 +175,14 @@ export default function ExamenesPanel({ trabajadorId, trabajadorNombre, evaluaci
     // Validaciones
     for (let i = 0; i < cola.length; i++) {
       const item = cola[i];
-      if (!item.nombreExamen.trim()) { alert(`Archivo ${i + 1}: Ingrese el nombre del examen`); return; }
-      if (!item.fecha) { alert(`Archivo ${i + 1}: Ingrese la fecha`); return; }
+      if (!item.nombreExamen.trim()) { toast.warning(`Archivo ${i + 1}: Ingrese el nombre del examen`); return; }
+      if (!item.fecha) { toast.warning(`Archivo ${i + 1}: Ingrese la fecha`); return; }
       if (item.estado === 'patologico' && !item.observacion.trim()) {
-        alert(`Archivo ${i + 1} (${item.nombreExamen}): Los exámenes patológicos requieren observación obligatoria`);
+        toast.warning(`Archivo ${i + 1} (${item.nombreExamen}): Los exámenes patológicos requieren observación obligatoria`);
         return;
       }
       const errorFecha = validarFecha(item);
-      if (errorFecha) { alert(`Archivo ${i + 1}: ${errorFecha}`); return; }
+      if (errorFecha) { toast.warning(`Archivo ${i + 1}: ${errorFecha}`); return; }
     }
 
     setSubiendo(true);
@@ -228,10 +230,10 @@ export default function ExamenesPanel({ trabajadorId, trabajadorNombre, evaluaci
       setCola([]);
       setMostrarUpload(false);
       await cargarExamenes();
-      alert('Exámenes cargados exitosamente');
+      toast.success('Exámenes cargados exitosamente');
     } catch (err) {
       console.error('Error subiendo exámenes:', err);
-      alert('Error al subir los exámenes. Verifique su conexión.');
+      toast.error('Error al subir los exámenes. Verifique su conexión.');
     } finally {
       setSubiendo(false);
     }
@@ -250,7 +252,7 @@ export default function ExamenesPanel({ trabajadorId, trabajadorNombre, evaluaci
       await cargarExamenes();
     } catch (err) {
       console.error('Error eliminando examen:', err);
-      alert('Error al eliminar el examen.');
+      toast.error('Error al eliminar el examen.');
     }
   };
 
