@@ -6,7 +6,6 @@ import {
   getDocs,
   query as fbQuery,
   orderBy,
-  where,
 } from 'firebase/firestore';
 import { signOut } from 'firebase/auth';
 import { auth, db } from '../services/firebase';
@@ -15,8 +14,7 @@ import type { Trabajador, EvaluacionMedica } from '../types';
 
 import TopBar from '../components/dashboard/TopBar';
 import Sidebar from '../components/dashboard/Sidebar';
-import QuickView from '../components/dashboard/QuickView';
-import FullFicha from '../components/dashboard/FullFicha';
+import FichaTrabajador from '../components/trabajador/FichaTrabajador';
 
 import {
   areaDeTrabajador,
@@ -39,15 +37,12 @@ export default function Dashboard() {
   const [trabajadores, setTrabajadores] = useState<Trabajador[]>([]);
   const [evaluaciones, setEvaluaciones] = useState<EvaluacionMedica[]>([]);
   const [cargando, setCargando] = useState(true);
-  const [selectedExamenes, setSelectedExamenes] = useState<any[]>([]);
-  const [selectedReposos, setSelectedReposos] = useState<any[]>([]);
 
   const [query, setQuery] = useState('');
   const [areaFilter, setAreaFilter] = useState<Area | 'Todas'>('Todas');
   const [tipoFilter, setTipoFilter] = useState<string>('Todos');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('Todos');
   const [selectedId, setSelectedId] = useState<string | undefined>();
-  const [view, setView] = useState<'quick' | 'full'>('quick');
 
   // Carga inicial — sin selectedId en deps para evitar re-fetch al seleccionar trabajador
   useEffect(() => {
@@ -74,32 +69,6 @@ export default function Dashboard() {
       }
     })();
   }, []); // solo al montar
-
-  // Carga exámenes y reposos cuando cambia el trabajador seleccionado
-  useEffect(() => {
-    if (!selectedId) { setSelectedExamenes([]); setSelectedReposos([]); return; }
-    (async () => {
-      try {
-        const [examSnap, reposoSnap] = await Promise.all([
-          getDocs(fbQuery(collection(db, 'examenes'), where('trabajadorId', '==', selectedId))),
-          getDocs(fbQuery(collection(db, 'reposos'), where('trabajadorId', '==', selectedId))),
-        ]);
-        setSelectedExamenes(
-          examSnap.docs
-            .map((d) => ({ id: d.id, ...d.data() }))
-            .sort((a: any, b: any) => (b.fecha?.seconds ?? 0) - (a.fecha?.seconds ?? 0)),
-        );
-        setSelectedReposos(
-          reposoSnap.docs
-            .map((d) => ({ id: d.id, ...d.data() }))
-            .sort((a: any, b: any) => (b.createdAt?.seconds ?? 0) - (a.createdAt?.seconds ?? 0)),
-        );
-      } catch {
-        setSelectedExamenes([]);
-        setSelectedReposos([]);
-      }
-    })();
-  }, [selectedId]);
 
   const evalsPorTrabajador = useMemo(() => {
     const m = new Map<string, EvaluacionMedica[]>();
@@ -129,16 +98,9 @@ export default function Dashboard() {
   }, [trabajadores, query, areaFilter, tipoFilter, statusFilter, evalsPorTrabajador]);
 
   const selected = trabajadores.find((w) => w.id === selectedId) ?? filtered[0] ?? null;
-  const selectedEvals = selected ? evalsPorTrabajador.get(selected.id ?? '') ?? [] : [];
 
   const handleLogout = async () => { try { await signOut(auth); } catch (err) { console.error(err); } };
   const handleNewWorker = () => navigate('/nuevo-trabajador');
-  const handleNewEval = () => { if (selected?.id) navigate(`/evaluar/${selected.id}`); };
-  const handleNewEvalRetiro = () => { if (selected?.id) navigate(`/evaluar-retiro/${selected.id}`); };
-  const handleNewReposo = () => { if (selected?.id) navigate(`/reposo/${selected.id}`); };
-  const handleOpenFullPage = (evalId?: string) => {
-    if (selected?.id) navigate(evalId ? `/trabajador/${selected.id}?evalId=${evalId}` : `/trabajador/${selected.id}`);
-  };
 
   const userInitials = user?.email?.slice(0, 2).toUpperCase() ?? 'DR';
 
@@ -155,32 +117,13 @@ export default function Dashboard() {
           query={query} setQuery={setQuery} areaFilter={areaFilter} setAreaFilter={setAreaFilter}
           tipoFilter={tipoFilter} setTipoFilter={setTipoFilter} statusFilter={statusFilter} setStatusFilter={setStatusFilter}
           selectedId={selected?.id}
-          onSelect={(id) => { setSelectedId(id); setView('quick'); }}
+          onSelect={(id) => { setSelectedId(id); }}
           onNewWorker={handleNewWorker}
         />
 
         <main className="overflow-y-auto" style={{ background: '#f5f7fa' }}>
-          {selected ? (
-            view === 'quick' ? (
-              <QuickView
-                trabajador={selected}
-                evals={selectedEvals}
-                examenes={selectedExamenes}
-                reposos={selectedReposos}
-                onOpenFull={() => handleOpenFullPage()}
-                onNewEval={handleNewEval}
-                onNewEvalRetiro={handleNewEvalRetiro}
-                onNewReposo={handleNewReposo}
-                onViewEval={(evalId) => handleOpenFullPage(evalId)}
-              />
-            ) : (
-              <FullFicha
-                trabajador={selected} evals={selectedEvals}
-                onClose={() => setView('quick')} onNewEval={handleNewEval} onNewEvalRetiro={handleNewEvalRetiro}
-                onEdit={() => handleOpenFullPage()} onPrintPdf={() => handleOpenFullPage()}
-                onViewEval={(evalId) => handleOpenFullPage(evalId)}
-              />
-            )
+          {selected?.id ? (
+            <FichaTrabajador trabajadorId={selected.id} />
           ) : (
             <EmptyState onClear={() => { setQuery(''); setAreaFilter('Todas'); setTipoFilter('Todos'); setStatusFilter('Todos'); }} />
           )}
