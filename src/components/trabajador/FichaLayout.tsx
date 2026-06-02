@@ -12,6 +12,8 @@ import { estadoPermiso, duracionPermiso, fmtFecha as fmtPF, toDate } from '../..
 import { TIPOS_PERMISO } from '../../types/permiso';
 import type { PermisoMedico } from '../../types/permiso';
 import type { OrdenExamen } from '../../types/examenPlan';
+import SeguimientoSignos from './SeguimientoSignos';
+
 
 const BRAND = '#0a6b3b';
 
@@ -138,7 +140,13 @@ export default function FichaLayout(props: FichaLayoutProps) {
       <div className="max-w-[1080px] mx-auto px-8 py-6">
         {tab === 'resumen' && <Resumen {...props} ultEval={ultEval} apt={apt} futuros={futuros.length} setTab={setTab} />}
         {tab === 'evaluaciones' && <Evaluaciones {...props} />}
-        {tab === 'signos' && <Signos evaluaciones={evaluaciones} />}
+        {tab === 'signos' && (
+  <SeguimientoSignos
+    trabajadorId={t.id}
+    tallaMetros={(Number(evaluaciones[0]?.signosVitales?.talla) / 100) || 1.65}
+    nombreCompleto={nombreCompleto}
+  />
+)}
         {tab === 'consultas' && <Consultas atenciones={atenciones} />}
         {tab === 'examenes' && <Examenes {...props} />}
         {tab === 'permisos' && <Permisos {...props} />}
