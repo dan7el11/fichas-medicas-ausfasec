@@ -7,6 +7,7 @@ import Dashboard from './pages/Dashboard';
 import UserProfile from './pages/UserProfile';
 import NuevoTrabajador from './pages/NuevoTrabajador';
 import NuevaEvaluacion from './pages/NuevaEvaluacion';
+import NuevaEvaluacionRetiro from './pages/NuevaEvaluacionRetiro';
 import DetalleTrabajador from './pages/DetalleTrabajador';
 import Reportes from './pages/Reportes';
 import NuevoReposo from './pages/NuevoReposo';
@@ -16,7 +17,6 @@ import AgendaExamenes from './pages/AgendaExamenes';
 import ExpedienteResumen from './pages/ExpedienteResumen';
 import ConfiguracionEmpresa from './pages/ConfiguracionEmpresa';
 import { ToastProvider } from './components/Toast';
-import NuevaPreocupacional from './pages/NuevaPreocupacional';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -63,6 +63,7 @@ function App() {
 
               {/* Evaluaciones */}
               <Route path="/evaluar/:trabajadorId" element={<ProtectedRoute><NuevaEvaluacion /></ProtectedRoute>} />
+              <Route path="/evaluar-retiro/:trabajadorId" element={<ProtectedRoute><NuevaEvaluacionRetiro /></ProtectedRoute>} />
 
               {/* Consulta diaria */}
               <Route path="/consulta-diaria" element={<ProtectedRoute><ConsultaDiaria /></ProtectedRoute>} />
@@ -77,9 +78,6 @@ function App() {
               {/* Reportes y perfil */}
               <Route path="/reportes" element={<ProtectedRoute><Reportes /></ProtectedRoute>} />
               <Route path="/perfil" element={<ProtectedRoute><UserProfile /></ProtectedRoute>} />
-
-              {/* Formulario clínico de evaluación PREOCUPACIONAL SO-RE-41 */}
-              <Route path="/preocupacional/:trabajadorId" element={<ProtectedRoute><NuevaPreocupacional /></ProtectedRoute>} />
 
               {/* Configuración */}
               <Route path="/configuracion" element={<ProtectedRoute><ConfiguracionEmpresa /></ProtectedRoute>} />
