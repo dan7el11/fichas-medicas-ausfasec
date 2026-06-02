@@ -101,6 +101,7 @@ export default function DetalleTrabajador() {
   const [cargando, setCargando] = useState(true);
   const [pestanaActiva, setPestanaActiva] = useState(0);
   const [evDrawer, setEvDrawer] = useState<any>(null);
+  const [busquedaEval, setBusquedaEval] = useState('');
   const [tabPrincipal, setTabPrincipal] = useState<'evaluaciones' | 'examenes'>(searchParams.get('tab') === 'examenes' ? 'examenes' : 'evaluaciones');
   const [totalPatologicos, setTotalPatologicos] = useState(0);
 
@@ -681,8 +682,28 @@ export default function DetalleTrabajador() {
           ) : evaluaciones.length === 0 ? (
             <div className="p-12 text-center text-slate-500">Este trabajador no tiene evaluaciones registradas.</div>
           ) : (
-            <div className="divide-y divide-slate-100">
-              {evaluaciones.map((item) => {
+            <>
+              <div className="px-6 py-3 border-b border-slate-100 bg-slate-50">
+                <input
+                  type="text"
+                  placeholder="Buscar por fecha, motivo, diagnóstico o aptitud..."
+                  value={busquedaEval}
+                  onChange={e => setBusquedaEval(e.target.value)}
+                  className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            {(() => {
+              const q = busquedaEval.trim().toLowerCase();
+              const filtradas = q ? evaluaciones.filter(item => {
+                const fecha = fmtF(item.fecha).toLowerCase();
+                const motivo = ((item as any).motivoConsulta || '').toLowerCase();
+                const aptitud = (item.aptitudMedica || '').toLowerCase();
+                const dxTexto = Array.isArray((item as any).diagnosticos) ? (item as any).diagnosticos.map((d: any) => d.descripcion || '').join(' ').toLowerCase() : '';
+                const medico = ((item as any).medicoNombre || '').toLowerCase();
+                return fecha.includes(q) || motivo.includes(q) || aptitud.includes(q) || dxTexto.includes(q) || medico.includes(q);
+              }) : evaluaciones;
+              if (q && filtradas.length === 0) return <div className="p-8 text-center text-slate-400 text-sm">No se encontraron evaluaciones para "{busquedaEval}"</div>;
+              return <div className="divide-y divide-slate-100">{filtradas.map((item) => {
                 const aptitudColor = item.aptitudMedica === 'apto' ? 'bg-green-100 text-green-800' : item.aptitudMedica === 'aptoObservacion' ? 'bg-amber-100 text-amber-800' : item.aptitudMedica === 'aptoLimitaciones' ? 'bg-orange-100 text-orange-800' : item.aptitudMedica ? 'bg-red-100 text-red-800' : 'bg-slate-100 text-slate-500';
                 const aptitudLabel = item.aptitudMedica === 'apto' ? 'APTO' : item.aptitudMedica === 'aptoObservacion' ? 'EN OBSERVACIÓN' : item.aptitudMedica === 'aptoLimitaciones' ? 'CON LIMITACIONES' : item.aptitudMedica === 'noApto' ? 'NO APTO' : 'Sin aptitud';
                 const dxCount = Array.isArray((item as any).diagnosticos) ? (item as any).diagnosticos.length : 0;
@@ -705,7 +726,9 @@ export default function DetalleTrabajador() {
                   </button>
                 );
               })}
-            </div>
+            </div>;
+            })()}
+            </>
           )}
           </div>
         </div>
