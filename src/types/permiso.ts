@@ -44,6 +44,7 @@ export interface PermisoMedico {
   // Justificativo
   certAdjunto: boolean;        // true si tiene certificado / si es interno
   certNombreArchivo?: string;
+  certUrl?: string;            // URL de descarga en Firebase Storage
 
   // Metadatos
   medicoId: string;
