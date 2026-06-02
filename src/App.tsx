@@ -17,6 +17,7 @@ import AgendaExamenes from './pages/AgendaExamenes';
 import ExpedienteResumen from './pages/ExpedienteResumen';
 import ConfiguracionEmpresa from './pages/ConfiguracionEmpresa';
 import { ToastProvider } from './components/Toast';
+import NuevaPreocupacional from './pages/NuevaPreocupacional';
 
 const queryClient = new QueryClient({
   defaultOptions: {
