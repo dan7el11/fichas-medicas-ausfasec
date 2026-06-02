@@ -78,6 +78,9 @@ function App() {
               <Route path="/reportes" element={<ProtectedRoute><Reportes /></ProtectedRoute>} />
               <Route path="/perfil" element={<ProtectedRoute><UserProfile /></ProtectedRoute>} />
 
+              {/* Formulario clínico de evaluación PREOCUPACIONAL SO-RE-41 */}
+              <Route path="/preocupacional/:trabajadorId" element={<ProtectedRoute><NuevaPreocupacional /></ProtectedRoute>} />
+
               {/* Configuración */}
               <Route path="/configuracion" element={<ProtectedRoute><ConfiguracionEmpresa /></ProtectedRoute>} />
 
