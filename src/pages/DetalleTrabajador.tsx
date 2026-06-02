@@ -662,7 +662,8 @@ export default function DetalleTrabajador() {
           <div className="flex gap-3 flex-wrap">
             <button onClick={() => navigate('/')} className="px-4 py-2 bg-slate-100 text-slate-700 font-semibold rounded-lg hover:bg-slate-200 text-sm">Volver</button>
             <button onClick={abrirModalEditar} className="px-4 py-2 bg-amber-100 text-amber-800 font-semibold rounded-lg hover:bg-amber-200 text-sm">✏️ Editar datos</button>
-            <button onClick={() => navigate(`/evaluar/${trabajador.id}`)} className="px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 shadow-sm text-sm">+ Nueva Evaluación</button>
+            <button onClick={() => navigate(`/evaluar/${trabajador.id}`)} className="px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 shadow-sm text-sm">+ Nueva Evaluación Periódica</button>
+            <button onClick={() => navigate(`/preocupacional/${trabajadorId}`)}className="px-4 py-2 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 transition-colors shadow-sm flex items-center gap-2">➕ Nueva Preocupacional</button>
           </div>
         </div>
 
