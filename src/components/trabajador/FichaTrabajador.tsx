@@ -1,14 +1,21 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { doc, getDoc, updateDoc, collection, query, where, getDocs, orderBy } from 'firebase/firestore';
-import { db } from '../../services/firebase';
+import { doc, getDoc, updateDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { db, storage } from '../../services/firebase';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import type { Trabajador, EvaluacionMedica } from '../../types';
 import ExamenesPanel from '../examenes/ExamenesPanel';
+import { OrdenDetalleModal } from '../examenes/ExamenModales';
 import { useToast } from '../Toast';
 import { useAuth } from '../../contexts/AuthContext';
 import { LOGO_EMPRESA } from '../../assets/logoEmpresa';
+import { getOrdenes, eliminarOrden } from '../../services/examenesPlan';
+import { estadoPermiso, duracionPermiso, fmtFecha as fmtPF, toDate } from '../../services/permisos';
+import { TIPOS_PERMISO } from '../../types/permiso';
+import type { OrdenExamen } from '../../types/examenPlan';
+import type { PermisoMedico } from '../../types/permiso';
 
 // ============================================================================
 // CONSTANTES
@@ -123,14 +130,22 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
 
   const [trabajador, setTrabajador] = useState<Trabajador | null>(null);
   const [evaluaciones, setEvaluaciones] = useState<EvaluacionMedica[]>([]);
-  const [reposos, setReposos] = useState<any[]>([]);
+  const [permisos, setPermisos] = useState<PermisoMedico[]>([]);
   const [atenciones, setAtenciones] = useState<any[]>([]);
+  const [ordenes, setOrdenes] = useState<OrdenExamen[]>([]);
   const [totalPatologicos, setTotalPatologicos] = useState(0);
   const [cargando, setCargando] = useState(true);
 
   // Drawer evaluacion
   const [evDrawer, setEvDrawer] = useState<any>(null);
   const [busquedaEval, setBusquedaEval] = useState('');
+
+  // Modal orden examen
+  const [ordenDetalle, setOrdenDetalle] = useState<OrdenExamen | null>(null);
+
+  // Subida certificado permiso
+  const certInputRef = useRef<HTMLInputElement>(null);
+  const [subiendoCert, setSubiendoCert] = useState<string | null>(null);
 
   // Dropdown nueva evaluación
   const [menuEvalOpen, setMenuEvalOpen] = useState(false);
@@ -152,12 +167,13 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
     setCargando(true);
     (async () => {
       try {
-        const [workerSnap, evSnap, reposoSnap, atencionSnap, patSnap] = await Promise.all([
+        const [workerSnap, evSnap, permisosSnap, atencionSnap, patSnap, ords] = await Promise.all([
           getDoc(doc(db, 'trabajadores', trabajadorId)),
           getDocs(query(collection(db, 'evaluaciones'), where('trabajadorId', '==', trabajadorId))),
-          getDocs(query(collection(db, 'reposos'), where('trabajadorId', '==', trabajadorId))),
+          getDocs(query(collection(db, 'permisos'), where('trabajadorId', '==', trabajadorId))),
           getDocs(query(collection(db, 'atenciones'), where('trabajadorId', '==', trabajadorId))),
           getDocs(query(collection(db, 'examenes'), where('trabajadorId', '==', trabajadorId), where('estado', '==', 'patologico'))).catch(() => ({ size: 0 })),
+          getOrdenes().catch(() => [] as OrdenExamen[]),
         ]);
 
         if (workerSnap.exists()) {
@@ -172,14 +188,15 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
         });
         setEvaluaciones(evals);
 
-        const reps = reposoSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-        reps.sort((a: any, b: any) => (b.createdAt?.seconds ?? 0) - (a.createdAt?.seconds ?? 0));
-        setReposos(reps);
+        const perms: PermisoMedico[] = permisosSnap.docs.map(d => ({ id: d.id, ...d.data() } as PermisoMedico));
+        perms.sort((a, b) => toDate(b.desde).getTime() - toDate(a.desde).getTime());
+        setPermisos(perms);
 
         const atens = atencionSnap.docs.map(d => ({ id: d.id, ...d.data() }));
         atens.sort((a: any, b: any) => (b.fecha?.seconds ?? 0) - (a.fecha?.seconds ?? 0));
         setAtenciones(atens);
 
+        setOrdenes((ords as OrdenExamen[]).filter(o => o.trabajadorId === trabajadorId));
         setTotalPatologicos((patSnap as any).size ?? 0);
       } catch (err) {
         console.error('Error al cargar FichaTrabajador:', err);
@@ -226,6 +243,39 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
       toast.error('No se pudo guardar. Intenta nuevamente.');
     } finally {
       setGuardandoEdicion(false);
+    }
+  };
+
+  // ----------------------------------------------------------------
+  // SUBIR CERTIFICADO PERMISO
+  // ----------------------------------------------------------------
+  const subirCertificado = async (permisoId: string, file: File) => {
+    setSubiendoCert(permisoId);
+    try {
+      const path = `permisos/${permisoId}/${file.name}`;
+      const snap = await uploadBytes(storageRef(storage, path), file);
+      const url = await getDownloadURL(snap.ref);
+      await updateDoc(doc(db, 'permisos', permisoId), { certAdjunto: true, certNombreArchivo: file.name, certUrl: url });
+      setPermisos(prev => prev.map(p => p.id === permisoId ? { ...p, certAdjunto: true, certNombreArchivo: file.name, certUrl: url } as any : p));
+      toast.success('Certificado adjuntado y permiso justificado.');
+    } catch {
+      toast.error('No se pudo subir el certificado.');
+    } finally {
+      setSubiendoCert(null);
+    }
+  };
+
+  // ----------------------------------------------------------------
+  // ELIMINAR ORDEN EXAMEN
+  // ----------------------------------------------------------------
+  const eliminarOrdenExamen = async (id: string) => {
+    if (!window.confirm('¿Eliminar este examen programado?')) return;
+    try {
+      await eliminarOrden(id);
+      setOrdenes(prev => prev.filter(o => o.id !== id));
+      toast.success('Examen eliminado.');
+    } catch {
+      toast.error('No se pudo eliminar.');
     }
   };
 
@@ -898,44 +948,144 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
         </div>
       </div>
 
-      {/* ── SECCIÓN 3: PERMISOS / REPOSOS ── */}
+      {/* ── SECCIÓN 3: PERMISOS MÉDICOS ── */}
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
         <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-100 bg-slate-50">
           <div className="flex items-center gap-2">
             <span className="text-amber-600 text-lg">🏥</span>
-            <span className="font-bold text-slate-800 text-sm">Permisos / Reposos</span>
-            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 font-bold">{reposos.length}</span>
+            <span className="font-bold text-slate-800 text-sm">Permisos médicos</span>
+            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 font-bold">{permisos.length}</span>
           </div>
-          <button onClick={() => navigate(`/reposo/${trabajadorId}`)} className="text-xs px-2.5 py-1 bg-amber-500 text-white rounded-lg hover:bg-amber-600 font-semibold">
-            + Nuevo reposo
+          <button onClick={() => navigate(`/permisos`)} className="text-xs px-2.5 py-1 bg-amber-500 text-white rounded-lg hover:bg-amber-600 font-semibold">
+            + Nuevo permiso
           </button>
         </div>
-        <div className="overflow-y-auto" style={{ maxHeight: 250 }}>
-          {reposos.length === 0 ? (
-            <div className="p-8 text-center text-slate-400 text-sm">Sin reposos registrados.</div>
+        <input type="file" accept="application/pdf,image/*" ref={certInputRef} className="hidden"
+          onChange={e => {
+            const file = e.target.files?.[0];
+            const pid = certInputRef.current?.dataset.permisoId;
+            if (file && pid) subirCertificado(pid, file);
+            e.target.value = '';
+          }}
+        />
+        <div className="overflow-y-auto" style={{ maxHeight: 320 }}>
+          {permisos.length === 0 ? (
+            <div className="p-8 text-center text-slate-400 text-sm">Sin permisos registrados.</div>
           ) : (
             <div className="divide-y divide-slate-100">
-              {reposos.map((r: any) => (
-                <div key={r.id} className="px-5 py-3 flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-semibold text-slate-700">{r.tipoPermiso || r.tipo || 'Reposo'}</p>
-                    <p className="text-xs text-slate-400 mt-0.5">
-                      {fmtF(r.createdAt || r.fechaInicio)}
-                      {r.dias !== undefined && ` · ${r.dias} días`}
-                      {r.diasReposo !== undefined && ` · ${r.diasReposo} días`}
-                    </p>
-                    {r.motivo || r.diagnostico ? (
-                      <p className="text-xs text-slate-500 mt-0.5">{r.motivo || r.diagnostico}</p>
-                    ) : null}
+              {permisos.map((p) => {
+                const meta = TIPOS_PERMISO[p.tipo];
+                const estado = estadoPermiso(p);
+                const dur = duracionPermiso(p);
+                const estadoColors: Record<string, string> = {
+                  justificado: 'bg-green-100 text-green-700',
+                  activo: 'bg-blue-100 text-blue-700',
+                  pendiente: 'bg-amber-100 text-amber-700',
+                  vencido: 'bg-red-100 text-red-700',
+                };
+                return (
+                  <div key={p.id} className="px-5 py-3 flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-[11px] font-bold px-2 py-0.5 rounded-full" style={{ background: `${meta.color}18`, color: meta.color }}>{meta.label}</span>
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${estadoColors[estado] ?? 'bg-slate-100 text-slate-600'}`}>{estado.charAt(0).toUpperCase() + estado.slice(1)}</span>
+                        <span className="text-[11px] text-slate-500">{dur}</span>
+                      </div>
+                      <p className="text-xs text-slate-600 mt-1">{p.motivo || '—'}</p>
+                      <p className="text-[11px] text-slate-400 mt-0.5">{fmtPF(p.desde)}{p.hasta && p.hasta !== p.desde ? ` → ${fmtPF(p.hasta)}` : ''}</p>
+                    </div>
+                    <div className="shrink-0">
+                      {p.certAdjunto ? (
+                        <a href={(p as any).certUrl || '#'} target="_blank" rel="noopener noreferrer"
+                          className="text-[11px] px-2.5 py-1 bg-green-100 text-green-700 rounded-lg font-semibold hover:bg-green-200 inline-flex items-center gap-1">
+                          ✓ Certificado
+                        </a>
+                      ) : meta.requiereCert ? (
+                        <button
+                          disabled={subiendoCert === p.id}
+                          onClick={() => {
+                            if (certInputRef.current) {
+                              certInputRef.current.dataset.permisoId = p.id!;
+                              certInputRef.current.click();
+                            }
+                          }}
+                          className="text-[11px] px-2.5 py-1 bg-amber-100 text-amber-700 rounded-lg font-semibold hover:bg-amber-200 disabled:opacity-50">
+                          {subiendoCert === p.id ? 'Subiendo…' : '⬆ Subir PDF'}
+                        </button>
+                      ) : null}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
       </div>
 
-      {/* ── SECCIÓN 4: CONSULTAS MÉDICAS ── */}
+      {/* ── SECCIÓN 4: EXÁMENES PROGRAMADOS ── */}
+      {(() => {
+        const now = new Date();
+        const pasados = ordenes.filter(o => toDate(o.fechaProgramada) < now).sort((a, b) => toDate(b.fechaProgramada).getTime() - toDate(a.fechaProgramada).getTime());
+        const futuros = ordenes.filter(o => toDate(o.fechaProgramada) >= now).sort((a, b) => toDate(a.fechaProgramada).getTime() - toDate(b.fechaProgramada).getTime());
+        return (
+          <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+            <div className="flex items-center gap-2 px-5 py-3.5 border-b border-slate-100 bg-slate-50">
+              <span className="text-cyan-600 text-lg">📅</span>
+              <span className="font-bold text-slate-800 text-sm">Exámenes programados</span>
+              {futuros.length > 0 && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-cyan-100 text-cyan-700 font-bold">{futuros.length} próximos</span>}
+              {pasados.length > 0 && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-500 font-bold">{pasados.length} realizados</span>}
+            </div>
+            <div className="overflow-y-auto" style={{ maxHeight: 320 }}>
+              {ordenes.length === 0 ? (
+                <div className="p-8 text-center text-slate-400 text-sm">Sin exámenes programados.</div>
+              ) : (
+                <div>
+                  {futuros.length > 0 && (
+                    <>
+                      <div className="px-5 py-2 text-[11px] font-bold uppercase tracking-wide text-cyan-700 bg-cyan-50 border-b border-cyan-100">
+                        Próximos
+                      </div>
+                      {futuros.map(o => (
+                        <div key={o.id} className="px-5 py-3 border-b border-slate-100 flex items-center justify-between gap-2">
+                          <div className="flex-1">
+                            <p className="text-sm font-semibold text-slate-700">{o.tipoEvaluacion} · {o.examenes.length} examen{o.examenes.length !== 1 ? 'es' : ''}</p>
+                            <p className="text-xs text-slate-400 mt-0.5">📅 {fmtPF(o.fechaProgramada)} · {o.examenes.filter(e => e.realizado).length}/{o.examenes.length} realizados</p>
+                          </div>
+                          <div className="flex gap-1.5 shrink-0">
+                            <button onClick={() => setOrdenDetalle(o)} className="text-[11px] px-2.5 py-1 bg-cyan-100 text-cyan-700 rounded-lg font-semibold hover:bg-cyan-200">Ver / Editar</button>
+                            <button onClick={() => eliminarOrdenExamen(o.id!)} className="text-[11px] px-2.5 py-1 bg-red-100 text-red-600 rounded-lg font-semibold hover:bg-red-200">✕</button>
+                          </div>
+                        </div>
+                      ))}
+                    </>
+                  )}
+                  {pasados.length > 0 && (
+                    <>
+                      <div className="px-5 py-2 text-[11px] font-bold uppercase tracking-wide text-slate-500 bg-slate-50 border-b border-slate-100">
+                        Historial
+                      </div>
+                      {pasados.map(o => (
+                        <div key={o.id} className="px-5 py-3 border-b border-slate-100 flex items-center justify-between gap-2 opacity-80">
+                          <div className="flex-1">
+                            <p className="text-sm font-semibold text-slate-600">{o.tipoEvaluacion} · {o.examenes.length} examen{o.examenes.length !== 1 ? 'es' : ''}</p>
+                            <p className="text-xs text-slate-400 mt-0.5">📅 {fmtPF(o.fechaProgramada)} · {o.examenes.filter(e => e.realizado).length}/{o.examenes.length} realizados</p>
+                          </div>
+                          <div className="flex gap-1.5 shrink-0">
+                            <button onClick={() => setOrdenDetalle(o)} className="text-[11px] px-2.5 py-1 bg-slate-100 text-slate-600 rounded-lg font-semibold hover:bg-slate-200">Ver</button>
+                            <button onClick={() => eliminarOrdenExamen(o.id!)} className="text-[11px] px-2.5 py-1 bg-red-100 text-red-600 rounded-lg font-semibold hover:bg-red-200">✕</button>
+                          </div>
+                        </div>
+                      ))}
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ── SECCIÓN 5: CONSULTAS MÉDICAS ── */}
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
         <div className="flex items-center gap-2 px-5 py-3.5 border-b border-slate-100 bg-slate-50">
           <span className="text-green-600 text-lg">🩺</span>
@@ -960,6 +1110,18 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
           )}
         </div>
       </div>
+
+      {/* ── MODAL ORDEN EXAMEN ── */}
+      {ordenDetalle && (
+        <OrdenDetalleModal
+          orden={ordenDetalle}
+          onClose={() => setOrdenDetalle(null)}
+          onSaved={() => {
+            setOrdenDetalle(null);
+            getOrdenes().then(ords => setOrdenes((ords as OrdenExamen[]).filter(o => o.trabajadorId === trabajadorId)));
+          }}
+        />
+      )}
 
       {/* ── DRAWER EVALUACIÓN ── */}
       {evDrawer && (
