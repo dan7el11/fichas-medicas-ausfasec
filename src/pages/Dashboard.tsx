@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { DashboardSkeleton } from '../components/Skeleton';
 import { useNavigate } from 'react-router-dom';
 import {
   collection,
@@ -39,6 +40,7 @@ export default function Dashboard() {
   const [evaluaciones, setEvaluaciones] = useState<EvaluacionMedica[]>([]);
   const [cargando, setCargando] = useState(true);
   const [selectedExamenes, setSelectedExamenes] = useState<any[]>([]);
+  const [selectedReposos, setSelectedReposos] = useState<any[]>([]);
 
   const [query, setQuery] = useState('');
   const [areaFilter, setAreaFilter] = useState<Area | 'Todas'>('Todas');
@@ -73,20 +75,28 @@ export default function Dashboard() {
     })();
   }, []); // solo al montar
 
-  // Carga exámenes cuando cambia el trabajador seleccionado
+  // Carga exámenes y reposos cuando cambia el trabajador seleccionado
   useEffect(() => {
-    if (!selectedId) { setSelectedExamenes([]); return; }
+    if (!selectedId) { setSelectedExamenes([]); setSelectedReposos([]); return; }
     (async () => {
       try {
-        const snap = await getDocs(
-          fbQuery(collection(db, 'examenes'), where('trabajadorId', '==', selectedId)),
+        const [examSnap, reposoSnap] = await Promise.all([
+          getDocs(fbQuery(collection(db, 'examenes'), where('trabajadorId', '==', selectedId))),
+          getDocs(fbQuery(collection(db, 'reposos'), where('trabajadorId', '==', selectedId))),
+        ]);
+        setSelectedExamenes(
+          examSnap.docs
+            .map((d) => ({ id: d.id, ...d.data() }))
+            .sort((a: any, b: any) => (b.fecha?.seconds ?? 0) - (a.fecha?.seconds ?? 0)),
         );
-        const exams = snap.docs
-          .map((d) => ({ id: d.id, ...d.data() }))
-          .sort((a: any, b: any) => (b.fecha?.seconds ?? 0) - (a.fecha?.seconds ?? 0));
-        setSelectedExamenes(exams);
+        setSelectedReposos(
+          reposoSnap.docs
+            .map((d) => ({ id: d.id, ...d.data() }))
+            .sort((a: any, b: any) => (b.createdAt?.seconds ?? 0) - (a.createdAt?.seconds ?? 0)),
+        );
       } catch {
         setSelectedExamenes([]);
+        setSelectedReposos([]);
       }
     })();
   }, [selectedId]);
@@ -124,19 +134,14 @@ export default function Dashboard() {
   const handleLogout = async () => { try { await signOut(auth); } catch (err) { console.error(err); } };
   const handleNewWorker = () => navigate('/nuevo-trabajador');
   const handleNewEval = () => { if (selected?.id) navigate(`/evaluar/${selected.id}`); };
+  const handleNewReposo = () => { if (selected?.id) navigate(`/reposo/${selected.id}`); };
   const handleOpenFullPage = (evalId?: string) => {
     if (selected?.id) navigate(evalId ? `/trabajador/${selected.id}?evalId=${evalId}` : `/trabajador/${selected.id}`);
   };
 
   const userInitials = user?.email?.slice(0, 2).toUpperCase() ?? 'DR';
 
-  if (cargando) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-100 text-slate-500 font-bold">
-        Cargando sistema...
-      </div>
-    );
-  }
+  if (cargando) return <DashboardSkeleton />;
 
   return (
     <div className="w-screen h-screen flex flex-col overflow-hidden text-slate-900"
@@ -160,8 +165,10 @@ export default function Dashboard() {
                 trabajador={selected}
                 evals={selectedEvals}
                 examenes={selectedExamenes}
+                reposos={selectedReposos}
                 onOpenFull={() => handleOpenFullPage()}
                 onNewEval={handleNewEval}
+                onNewReposo={handleNewReposo}
                 onViewEval={(evalId) => handleOpenFullPage(evalId)}
               />
             ) : (
