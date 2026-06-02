@@ -119,7 +119,7 @@ export default function AgendaExamenes() {
         <ProgramarExamenModal trabajadores={trabajadores} protocolos={protocolos} medicoId={user?.uid ?? ''} medicoNombre={user?.email ?? 'Médico'}
           onClose={() => setProgramar(false)} onSaved={() => { setProgramar(false); cargar(); }} />
       )}
-      {detalle && <OrdenDetalleModal orden={detalle} onClose={() => setDetalle(null)} onSaved={() => { setDetalle(null); cargar(); }} />}
+      {detalle && <OrdenDetalleModal orden={detalle} onClose={() => setDetalle(null)} onSaved={() => { setDetalle(null); cargar(); }} onDeleted={() => { setDetalle(null); cargar(); }} />}
     </div>
   );
 }
