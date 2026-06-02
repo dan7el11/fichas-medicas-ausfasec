@@ -192,6 +192,59 @@ export default function FullFicha({
         </div>
       </section>
 
+      {/* Resumen clínico de la última evaluación */}
+      {le && (
+        <section className="px-7 pt-4">
+          <div className="bg-white rounded-xl border border-slate-200 p-5">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="m-0 text-sm font-bold">Resumen clínico — última evaluación</h3>
+              <span className="text-[11px] text-slate-500">{fmtDate((le as any).fecha)}</span>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+              {[
+                { l: 'P.A.', v: `${(le as any).signosVitales?.presionSistolica || '-'}/${(le as any).signosVitales?.presionDiastolica || '-'} mmHg` },
+                { l: 'F.C.', v: `${(le as any).signosVitales?.frecuenciaCardiaca || '-'} lpm` },
+                { l: 'Peso', v: `${(le as any).signosVitales?.peso || '-'} kg` },
+                { l: 'IMC', v: `${(le as any).signosVitales?.imc || '-'}`, hi: true },
+                { l: 'Talla', v: `${(le as any).signosVitales?.talla || '-'} cm` },
+                { l: 'Temp.', v: `${(le as any).signosVitales?.temperatura || '-'} °C` },
+                { l: 'SAT O₂', v: `${(le as any).signosVitales?.saturacion || '-'} %` },
+                { l: 'Perím. Abd.', v: `${(le as any).signosVitales?.perimetroAbdominal || '-'} cm` },
+              ].map((s, i) => (
+                <div key={i} className={`p-2 rounded-lg text-center ${s.hi ? 'bg-blue-50 border border-blue-100' : 'bg-slate-50'}`}>
+                  <p className="text-[10px] text-slate-500 mb-0.5">{s.l}</p>
+                  <p className={`text-xs font-bold ${s.hi ? 'text-blue-700' : 'text-slate-800'}`}>{s.v}</p>
+                </div>
+              ))}
+            </div>
+            {(le as any).diagnosticos?.length > 0 && (
+              <div className="mb-3">
+                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1">Diagnósticos</p>
+                <div className="space-y-1">
+                  {(le as any).diagnosticos.map((dx: any, i: number) => (
+                    <div key={i} className="flex items-center gap-2 text-xs">
+                      <span className="text-slate-700">{dx.descripcion}</span>
+                      {dx.cie && <span className="text-slate-400 text-[10px]">CIE: {dx.cie}</span>}
+                      <span className={`ml-auto text-[10px] px-1.5 py-0.5 rounded font-semibold ${dx.tipo === 'definitivo' ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700'}`}>
+                        {dx.tipo === 'definitivo' ? 'DEF' : 'PRE'}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            {Array.isArray((le as any).recomendaciones) && (le as any).recomendaciones.length > 0 && (
+              <div>
+                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1">Recomendaciones</p>
+                <p className="text-xs text-slate-700">
+                  {(le as any).recomendaciones.join(' · ')}{(le as any).recomendacionesOtras ? ` · ${(le as any).recomendacionesOtras}` : ''}
+                </p>
+              </div>
+            )}
+          </div>
+        </section>
+      )}
+
       <section
         className="px-7 pt-4 pb-7 grid gap-4"
         style={{ gridTemplateColumns: '1fr 320px' }}
