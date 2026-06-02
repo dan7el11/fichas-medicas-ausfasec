@@ -222,18 +222,46 @@ export default function NuevaPreocupacional() {
           </div>
         </div>
 
-         {/* ===== CONSTANTES VITALES ===== */}
-    <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-      <h2 className="text-sm font-bold text-slate-800 mb-3 border-b pb-2">G. CONSTANTES VITALES Y ANTROPOMETRÍA</h2>
-        {/* Ajustado para usar la propiedad exacta que tus tipados esperan */}
-        <SignosVitalesForm data={signosVitales} onChange={setSignosVitales} />
-    </div>
-        {/* ===== CIE-10 ===== */}
-    <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-      <h2 className="text-sm font-bold text-slate-800 mb-3 border-b pb-2">L. DIAGNÓSTICO (CIE-10)</h2>
-        {/* Modificado para que coincida con las propiedades reales de tu Buscador */}
-        <BuscadorCIE10 diagnosticos={diagnosticos} setDiagnosticos={setDiagnosticos} />
-    </div>
+        {/* ===== CONSTANTES VITALES ===== */}
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+          <h2 className="text-sm font-bold text-slate-800 mb-3 border-b pb-2">G. CONSTANTES VITALES Y ANTROPOMETRÍA</h2>
+          <SignosVitalesForm 
+            initialData={signosVitales as any} 
+            onDataChange={(data) => setSignosVitales(data)} 
+          />
+        </div>
+       {/* ===== CIE-10 ===== */}
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+          <div className="flex justify-between items-center mb-4 border-b pb-2">
+            <h2 className="text-sm font-bold text-slate-800">L. DIAGNÓSTICO (CIE-10)</h2>
+            <button type="button" onClick={() => setDiagnosticos([...diagnosticos, { cie: '', descripcion: '', tipo: 'PRESUNTIVO' }])} className="text-xs text-blue-600 font-bold hover:underline">
+              + Agregar Diagnóstico
+            </button>
+          </div>
+          
+          <div className="space-y-3">
+            {diagnosticos.map((dx, idx) => (
+              <div key={idx} className="flex flex-col md:flex-row gap-3 bg-slate-50 p-3 rounded-lg border border-slate-100 relative">
+                <button type="button" onClick={() => setDiagnosticos(diagnosticos.filter((_, i) => i !== idx))} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold shadow-sm hover:bg-red-600">&times;</button>
+                <div className="flex-1">
+                  <BuscadorCIE10 
+                    valorActual={dx.descripcion ? `${dx.cie} - ${dx.descripcion}` : ''} 
+                    onSeleccionar={(codigo, descripcion) => { 
+                      const n = [...diagnosticos]; 
+                      n[idx] = { ...n[idx], cie: codigo, descripcion: descripcion }; 
+                      setDiagnosticos(n); 
+                    }} 
+                  />
+                </div>
+                <select value={dx.tipo} onChange={(e) => { const n = [...diagnosticos]; n[idx].tipo = e.target.value; setDiagnosticos(n); }} className="px-3 py-2 border rounded-lg text-sm bg-white">
+                  <option value="PRESUNTIVO">PRESUNTIVO</option>
+                  <option value="DEFINITIVO">DEFINITIVO</option>
+                </select>
+              </div>
+            ))}
+            {diagnosticos.length === 0 && <p className="text-xs text-slate-500 italic text-center py-2">Ningún diagnóstico agregado aún.</p>}
+          </div>
+        </div>
 
         {/* ===== APTITUD MÉDICA ===== */}
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
