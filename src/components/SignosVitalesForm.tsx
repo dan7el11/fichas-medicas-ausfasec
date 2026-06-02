@@ -39,8 +39,10 @@ export default function SignosVitalesForm({ onDataChange, initialData }: SignosV
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    // BP fields: restrict to 3 digits
-    if ((name === 'presionSistolica' || name === 'presionDiastolica') && value.length > 3) return;
+    // PA: solo dígitos, máximo 3
+    if (name === 'presionSistolica' || name === 'presionDiastolica') {
+      if (!/^\d{0,3}$/.test(value)) return;
+    }
     setDatos(prev => ({ ...prev, [name]: value }));
   };
 
@@ -54,13 +56,13 @@ export default function SignosVitalesForm({ onDataChange, initialData }: SignosV
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3 text-xs">
         <div>
           <label className="block font-medium text-slate-600 mb-1">Presión Sistólica</label>
-          <input type="number" name="presionSistolica" value={datos.presionSistolica} onChange={handleChange} maxLength={3}
+          <input type="text" inputMode="numeric" name="presionSistolica" value={datos.presionSistolica} onChange={handleChange} maxLength={3}
             className={`w-full px-2 py-1.5 border rounded-md outline-none focus:ring-1 focus:ring-blue-500 ${sist >= 140 ? 'border-amber-400 bg-amber-50' : ''}`} placeholder="120" />
           {sist >= 140 && <p className="text-[10px] text-amber-600 mt-0.5">⚠ Sistólica ≥ 140</p>}
         </div>
         <div>
           <label className="block font-medium text-slate-600 mb-1">Presión Diastólica</label>
-          <input type="number" name="presionDiastolica" value={datos.presionDiastolica} onChange={handleChange} maxLength={3}
+          <input type="text" inputMode="numeric" name="presionDiastolica" value={datos.presionDiastolica} onChange={handleChange} maxLength={3}
             className={`w-full px-2 py-1.5 border rounded-md outline-none focus:ring-1 focus:ring-blue-500 ${diast >= 90 ? 'border-amber-400 bg-amber-50' : ''}`} placeholder="80" />
           {diast >= 90 && <p className="text-[10px] text-amber-600 mt-0.5">⚠ Diastólica ≥ 90</p>}
         </div>
