@@ -666,24 +666,25 @@ export default function NuevaEvaluacion() {
       };
 
       if (editEvalId) {
-        // MODO EDICIÓN: Actualizar ficha existente
         await updateDoc(doc(db, 'evaluaciones', editEvalId), {
           ...evaluacionData,
-          updatedAt: hoy
+          updatedAt: hoy,
+          updatedBy: user.uid,
         });
         toast.success('Evaluación actualizada con éxito');
       } else {
-        // MODO CREACIÓN: Ficha nueva estándar
         evaluacionData.fecha = hoy;
         evaluacionData.numeroHistoriaClinica = trabajador.cedula;
         evaluacionData.numeroArchivo = numeroArchivo;
         evaluacionData.createdAt = hoy;
+        evaluacionData.createdBy = user.uid;
 
         const docRef = await addDoc(collection(db, 'evaluaciones'), evaluacionData);
 
         await updateDoc(doc(db, 'trabajadores', trabajadorId), {
           evaluaciones: arrayUnion(docRef.id),
-          updatedAt: hoy
+          updatedAt: hoy,
+          updatedBy: user.uid,
         });
         toast.success('Evaluación guardada exitosamente');
       }
