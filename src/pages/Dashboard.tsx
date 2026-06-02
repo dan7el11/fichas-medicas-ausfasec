@@ -195,7 +195,7 @@ export default function Dashboard() {
               <QuickView
                 trabajador={selected}
                 evals={selectedEvals}
-                onOpenFull={() => setView('full')}
+                onOpenFull={() => handleOpenFullPage()}
                 onNewEval={handleNewEval}
                 onViewEval={(evalId) => handleOpenFullPage(evalId)}
               />
