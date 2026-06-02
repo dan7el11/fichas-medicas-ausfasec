@@ -715,22 +715,22 @@ export default function NuevaEvaluacion() {
       <div className="max-w-5xl mx-auto space-y-6">
 
         {/* ===== ENCABEZADO ===== */}
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-          <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 md:p-6">
+          <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-3">
             <div>
-              <h1 className="text-2xl font-bold text-slate-800">
+              <h1 className="text-lg md:text-2xl font-bold text-slate-800 leading-tight">
                 HISTORIA CLÍNICA OCUPACIONAL: EVALUACIÓN PERIÓDICA
               </h1>
-              <p className="text-slate-500 text-sm mt-1">SO-RE-38 | {DATOS_EMPRESA.institucion} | RUC: {DATOS_EMPRESA.ruc}</p>
+              <p className="text-slate-500 text-xs md:text-sm mt-1">SO-RE-38 | {DATOS_EMPRESA.institucion} | RUC: {DATOS_EMPRESA.ruc}</p>
             </div>
-            <button onClick={() => navigate('/')} className="text-slate-500 hover:text-slate-800 text-sm font-medium bg-slate-100 px-4 py-2 rounded-lg">
+            <button onClick={() => navigate('/')} className="self-start md:self-auto text-slate-500 hover:text-slate-800 text-sm font-medium bg-slate-100 px-4 py-2 rounded-lg">
               Cancelar
             </button>
           </div>
         </div>
 
         {/* ===== A. DATOS DEL ESTABLECIMIENTO Y USUARIO ===== */}
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 md:p-6">
           <h2 className="text-sm font-bold text-slate-800 mb-4 border-b pb-2">A. DATOS DEL ESTABLECIMIENTO - EMPRESA Y USUARIO</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm mb-4">
             <div><span className="font-semibold text-slate-600">Institución:</span> <span className="text-slate-800">{DATOS_EMPRESA.institucion}</span></div>
@@ -750,7 +750,7 @@ export default function NuevaEvaluacion() {
         </div>
 
         {/* ===== B. MOTIVO DE CONSULTA ===== */}
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 md:p-6">
           <h2 className="text-sm font-bold text-slate-800 mb-3 border-b pb-2">B. MOTIVO DE CONSULTA <span className="text-red-500">*</span></h2>
           <input type="text" className={`w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-sm ${!motivoConsulta.trim() ? 'border-red-300 bg-red-50' : 'border-slate-300'}`} value={motivoConsulta} onChange={(e) => setMotivoConsulta(e.target.value)} />
           {!motivoConsulta.trim() && <p className="text-xs text-red-500 mt-1">Campo obligatorio</p>}
@@ -802,7 +802,7 @@ export default function NuevaEvaluacion() {
                         ¿Toma medicación?
                       </label>
                       {ac.tomaMedicacion && (
-                        <div className="grid grid-cols-3 gap-2 ml-5">
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 ml-5">
                           <input type="text" value={ac.medicacionNombre} onChange={(e) => updateClinico(idx, 'medicacionNombre', e.target.value)} className="px-2 py-1.5 border rounded-lg text-xs" placeholder="Medicamento" />
                           <input type="text" value={ac.medicacionDosis} onChange={(e) => updateClinico(idx, 'medicacionDosis', e.target.value)} className="px-2 py-1.5 border rounded-lg text-xs" placeholder="Dosis" />
                           <input type="text" value={ac.medicacionFrecuencia} onChange={(e) => updateClinico(idx, 'medicacionFrecuencia', e.target.value)} className="px-2 py-1.5 border rounded-lg text-xs" placeholder="Frecuencia" />
@@ -953,7 +953,7 @@ export default function NuevaEvaluacion() {
             <div className="space-y-3">
               {habitosToxicos.map((habito, idx) => (
                 <div key={habito.tipo} className="grid grid-cols-2 md:grid-cols-6 gap-2 items-center text-sm bg-slate-50 p-3 rounded-lg">
-                  <span className="font-semibold capitalize col-span-2 md:col-span-1">{habito.tipo}</span>
+                  <span className="font-semibold capitalize col-span-2 md:col-span-1 text-sm">{habito.tipo}</span>
                   <label className="flex items-center gap-1"><input type="checkbox" checked={habito.consume} onChange={(e) => updateHabito(idx, 'consume', e.target.checked)} /><span className="text-xs">Consume</span></label>
                   <input type="text" placeholder="Tiempo (meses)" value={habito.tiempoConsumo} onChange={(e) => updateHabito(idx, 'tiempoConsumo', e.target.value)} className="px-2 py-1 border rounded text-xs" />
                   <input type="text" placeholder="Cantidad" value={habito.cantidad} onChange={(e) => updateHabito(idx, 'cantidad', e.target.value)} className="px-2 py-1 border rounded text-xs" />
@@ -991,7 +991,7 @@ export default function NuevaEvaluacion() {
               ) : (
                 <div className="space-y-1.5 mb-2">
                   {medicacionesHabituales.map((m, idx) => (
-                    <div key={idx} className="grid grid-cols-4 gap-2 items-center">
+                    <div key={idx} className="grid grid-cols-2 sm:grid-cols-4 gap-2 items-center">
                       <input type="text" placeholder="Medicamento" value={m.nombre}
                         onChange={(e) => { const u = [...medicacionesHabituales]; u[idx] = { ...u[idx], nombre: e.target.value }; setMedicacionesHabituales(u); }}
                         className="px-2 py-1 border rounded text-xs" />
@@ -1045,7 +1045,7 @@ export default function NuevaEvaluacion() {
         </div>
 
         {/* ===== D. ANTECEDENTES FAMILIARES ===== */}
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 md:p-6">
           <h2 className="text-sm font-bold text-slate-800 mb-1 border-b pb-2">D. ANTECEDENTES FAMILIARES (Detallar parentesco)</h2>
           <p className="text-xs text-slate-500 mb-4">Seleccione los grupos de enfermedades presentes en familiares. Puede agregar múltiples familiares por grupo.</p>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-5">
@@ -1114,7 +1114,7 @@ export default function NuevaEvaluacion() {
         {/* ============================================================ */}
         {/* ===== E. FACTORES DE RIESGOS DEL PUESTO DE TRABAJO ===== */}
         {/* ============================================================ */}
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 md:p-6">
           <h2 className="text-sm font-bold text-slate-800 mb-1 border-b pb-2">
             E. FACTORES DE RIESGOS DEL PUESTO DE TRABAJO
           </h2>
@@ -1173,13 +1173,13 @@ export default function NuevaEvaluacion() {
         </div>
 
         {/* ===== F. ENFERMEDAD ACTUAL ===== */}
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 md:p-6">
           <h2 className="text-sm font-bold text-slate-800 mb-3 border-b pb-2">F. ENFERMEDAD ACTUAL</h2>
           <textarea className="w-full p-3 border border-slate-300 rounded-lg text-sm" rows={3} value={enfermedadActual} onChange={(e) => setEnfermedadActual(e.target.value)} placeholder="Descripción de la enfermedad actual..." />
         </div>
 
         {/* ===== G. REVISIÓN DE ÓRGANOS Y SISTEMAS ===== */}
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 md:p-6">
           <h2 className="text-sm font-bold text-slate-800 mb-1 border-b pb-2">G. REVISIÓN DE ÓRGANOS Y SISTEMAS</h2>
           <p className="text-xs text-slate-500 mb-3">En caso de existir patología, marcar con "X" y describir por sistema</p>
           <div className="grid grid-cols-2 md:grid-cols-5 gap-2 mb-4">
@@ -1223,7 +1223,7 @@ export default function NuevaEvaluacion() {
         )}
 
         {/* ===== I. EXAMEN FÍSICO REGIONAL ===== */}
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 md:p-6">
           <h2 className="text-sm font-bold text-slate-800 mb-1 border-b pb-2">I. EXAMEN FÍSICO REGIONAL</h2>
           <p className="text-xs text-slate-500 mb-3">Marcar si existe evidencia de patología y describir</p>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
@@ -1260,7 +1260,7 @@ export default function NuevaEvaluacion() {
         </div>
 
        {/* ===== J. EXÁMENES COMPLEMENTARIOS ===== */}
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 md:p-6">
           <div className="flex justify-between items-center mb-3 border-b pb-2">
             <h2 className="text-sm font-bold text-slate-800">J. RESULTADOS DE EXÁMENES</h2>
             <button type="button" onClick={abrirModalExamenes} className="text-xs bg-blue-100 text-blue-700 hover:bg-blue-200 font-bold px-3 py-1.5 rounded-lg flex items-center gap-1 transition-colors">
@@ -1280,7 +1280,7 @@ export default function NuevaEvaluacion() {
           <button type="button" onClick={() => setExamenesComplementarios(prev => [...prev, { nombre: '', fecha: '', resultado: '' }])} className="text-blue-600 text-xs font-medium mt-2 hover:underline">+ Agregar fila vacía</button>
         </div>
        {/* ===== K. DIAGNÓSTICOS ===== */}
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 md:p-6">
           <h2 className="text-sm font-bold text-slate-800 mb-3 border-b pb-2">K. DIAGNÓSTICO <span className="text-red-500">*</span></h2>
           {diagnosticos.map((dx, idx) => (
             <div key={idx} className="grid grid-cols-1 md:grid-cols-4 gap-2 mb-2">
@@ -1313,7 +1313,7 @@ export default function NuevaEvaluacion() {
         </div>
         
         {/* ===== L. APTITUD MÉDICA ===== */}
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 md:p-6">
           <h2 className="text-sm font-bold text-slate-800 mb-3 border-b pb-2">L. APTITUD MÉDICA PARA EL TRABAJO</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
             {[
@@ -1337,7 +1337,7 @@ export default function NuevaEvaluacion() {
         </div>
 
         {/* ===== M. RECOMENDACIONES ===== */}
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 md:p-6">
           <h2 className="text-sm font-bold text-slate-800 mb-3 border-b pb-2">M. RECOMENDACIONES Y/O TRATAMIENTO</h2>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mb-4">
             {OPCIONES_RECOMENDACIONES.map((op) => (
@@ -1362,7 +1362,7 @@ export default function NuevaEvaluacion() {
         </div>
 
         {/* ===== DECLARACIÓN Y FIRMA ===== */}
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 md:p-6">
           <p className="text-xs text-slate-600 italic mb-4">CERTIFICO QUE LO ANTERIORMENTE EXPRESADO EN RELACIÓN A MI ESTADO DE SALUD ES VERDAD. SE ME HA INFORMADO LAS MEDIDAS PREVENTIVAS A TOMAR PARA DISMINUIR O MITIGAR LOS RIESGOS RELACIONADOS CON MI ACTIVIDAD LABORAL.</p>
           <div className="grid grid-cols-2 gap-6 text-sm">
             <div className="bg-slate-50 p-4 rounded-lg">
@@ -1379,8 +1379,11 @@ export default function NuevaEvaluacion() {
         </div>
 
         {/* ===== BOTÓN GUARDAR ===== */}
-        <div className="flex justify-end pb-8">
-          <button onClick={handleGuardar} disabled={guardando} className="bg-blue-600 text-white font-semibold py-3 px-10 rounded-lg hover:bg-blue-700 transition-all disabled:opacity-70 shadow-md text-sm">
+        <div className="flex flex-col sm:flex-row justify-end gap-3 pb-8">
+          <button onClick={() => navigate('/')} className="sm:hidden text-center text-slate-500 hover:text-slate-800 text-sm font-medium bg-slate-100 px-4 py-3 rounded-lg">
+            Cancelar
+          </button>
+          <button onClick={handleGuardar} disabled={guardando} className="w-full sm:w-auto bg-blue-600 text-white font-semibold py-3 px-10 rounded-lg hover:bg-blue-700 transition-all disabled:opacity-70 shadow-md text-sm">
             {guardando ? 'Guardando...' : editEvalId ? 'Guardar Cambios de la Consulta' : 'Guardar Evaluación Definitiva'}
           </button>
         </div>
