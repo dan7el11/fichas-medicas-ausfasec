@@ -624,6 +624,363 @@ export default function DetalleTrabajador() {
     pdf.save(`SO-RE-38_${trabajador.primerApellido}_${trabajador.primerNombre}_${fmtF(ev.fecha)}.pdf`);
   };
 
+  // ============================================================
+  //  GENERADOR PDF SO-RE-40 (RETIRO)
+  // ============================================================
+  const generarPDFRetiro = (evParam?: any) => {
+    const ev: any = evParam || evDrawer;
+    if (!ev || !trabajador) return;
+
+    const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    const W = pdf.internal.pageSize.getWidth();
+    const M = 7;
+    const CW = W - M * 2;
+    let y = 7;
+
+    const colorPrimario = '#ccccff';
+    const colorSecundario = '#ccffcc';
+    const colorTerciario = '#ccffff';
+    const negro: [number, number, number] = [0, 0, 0];
+
+    const base = { lineColor: negro, lineWidth: 0.25, fontSize: 6.5, cellPadding: 1.2, textColor: negro };
+    const head = { fillColor: colorSecundario, textColor: negro, fontStyle: 'bold' as const, fontSize: 6.5, lineColor: negro, lineWidth: 0.25, cellPadding: 1.2 };
+
+    const AT = (opts: any) => { autoTable(pdf, opts); y = (pdf as any).lastAutoTable.finalY; };
+
+    const secHeader = (texto: string, bgColor = colorPrimario) => {
+      pdf.setFillColor(bgColor); pdf.setDrawColor(0);
+      pdf.rect(M, y, CW, 5, 'FD');
+      pdf.setFontSize(7); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(0);
+      pdf.text(texto, M + 1.5, y + 3.5);
+      y += 5;
+    };
+
+    const textoLibreR = (texto: string, minH = 6) => {
+      pdf.setDrawColor(0); pdf.setFontSize(7); pdf.setFont('helvetica', 'normal');
+      const lines = pdf.splitTextToSize(texto || '-', CW - 3);
+      const h = Math.max(minH, lines.length * 3 + 2);
+      pdf.rect(M, y, CW, h, 'S');
+      pdf.text(lines, M + 1.5, y + 3);
+      y += h;
+    };
+
+    const paginaHeader = (pagina: string) => {
+      const tableStartY = y;
+      AT({
+        startY: y, margin: { left: M, right: M }, theme: 'grid',
+        styles: { ...base, halign: 'center', fontSize: 8 },
+        columnStyles: { 0: { cellWidth: 42 }, 2: { cellWidth: 33 } },
+        body: [
+          [{ content: '', rowSpan: 3, styles: { fontSize: 11, valign: 'middle' } },
+           { content: 'HISTORIA CLÍNICA:\nEVALUACIÓN MÉDICA DE RETIRO', rowSpan: 2, styles: { fontStyle: 'bold', fontSize: 9, valign: 'middle' } },
+           { content: 'Código:   SO-RE-40', styles: { fontSize: 7, halign: 'left' } }],
+          [{ content: 'Revisión:  1', styles: { fontSize: 7, halign: 'left' } }],
+          [{ content: 'MACROPROCESO:  PLANIFICACIÓN, SEGURIDAD Y AMBIENTE', styles: { fontSize: 6, fontStyle: 'bold' } },
+           { content: pagina, styles: { fontSize: 7, halign: 'left' } }],
+        ],
+      });
+      pdf.addImage(LOGO_EMPRESA, 'PNG', M + 1, tableStartY + 1, 40, 12);
+      y += 2;
+    };
+
+    const siNoCalificadoR = (calificado: boolean | null, especificacion: string, observaciones: string) => {
+      AT({
+        startY: y, margin: { left: M, right: M }, theme: 'grid',
+        styles: { ...base, fontSize: 6 }, headStyles: head,
+        body: [[
+          { content: 'FUE CALIFICADO POR EL INSTITUTO DE SEGURIDAD SOCIAL CORRESPONDIENTE:', styles: { fontStyle: 'bold', cellWidth: 75 } },
+          { content: 'SI', styles: { fontStyle: 'bold', halign: 'center', cellWidth: 7 } },
+          { content: calificado === true ? 'X' : '', styles: { halign: 'center', fontStyle: 'bold', cellWidth: 7 } },
+          { content: 'ESPECIFICAR:', styles: { fontStyle: 'bold', cellWidth: 22 } },
+          { content: especificacion || '', styles: { cellWidth: 30 } },
+          { content: 'NO', styles: { fontStyle: 'bold', halign: 'center', cellWidth: 7 } },
+          { content: calificado === false ? 'X' : '', styles: { halign: 'center', fontStyle: 'bold', cellWidth: 7 } },
+        ]],
+      });
+      AT({
+        startY: y, margin: { left: M, right: M }, theme: 'grid',
+        styles: { ...base, fontSize: 6 },
+        body: [[{ content: 'Observaciones:', styles: { fontStyle: 'bold', cellWidth: 25 } }, { content: observaciones || 'Ninguno' }]],
+      });
+      pdf.setDrawColor(0); pdf.rect(M, y, CW, 6, 'S'); y += 6;
+    };
+
+    // ════════════════ PÁGINA 1 ════════════════
+    paginaHeader('Página:    1 de 2');
+
+    // A. Datos
+    secHeader('A. DATOS DEL ESTABLECIMIENTO - EMPRESA Y USUARIO');
+    AT({
+      startY: y, margin: { left: M, right: M }, theme: 'grid', styles: base, headStyles: head,
+      head: [['INSTITUCIÓN DEL SISTEMA O NOMBRE DE LA EMPRESA', 'RUC', 'CIIU', 'ESTABLECIMIENTO DE SALUD', 'N° HISTORIA CLÍNICA', 'N° ARCHIVO']],
+      body: [['CEM AUSTROGAS', '190070301001', '4661', 'MEDICINA OCUPACIONAL', ev.numeroHistoriaClinica || trabajador.cedula, ev.numeroArchivo || '-']],
+    });
+    AT({
+      startY: y, margin: { left: M, right: M }, theme: 'grid', styles: base, headStyles: head,
+      head: [['PRIMER APELLIDO', 'SEGUNDO APELLIDO', 'PRIMER NOMBRE', 'SEGUNDO NOMBRE', 'SEXO', 'FECHA DE INICIO DE LABORES', 'FECHA DE SALIDA', 'TIEMPO\n(meses)', 'PUESTO DE TRABAJO (CIUO)']],
+      body: [[trabajador.primerApellido, (trabajador as any).segundoApellido || '-', trabajador.primerNombre, (trabajador as any).segundoNombre || '-', trabajador.sexo, (trabajador as any).fechaIngreso || '-', ev.fechaSalida || '-', ev.tiempoMeses || '-', trabajador.puestoTrabajo]],
+    });
+    AT({
+      startY: y, margin: { left: M, right: M }, theme: 'grid', styles: base, headStyles: head,
+      head: [['ACTIVIDADES', 'FACTORES DE RIESGO']],
+      body: [[ev.actividadesTexto || '-', ev.factoresRiesgoTexto || '-']],
+      bodyStyles: { minCellHeight: 10 },
+    });
+    y += 2;
+
+    // B. Antecedentes personales
+    secHeader('B. ANTECEDENTES PERSONALES');
+    pdf.setFontSize(6.5); pdf.setFont('helvetica', 'bold');
+    pdf.setFillColor(204, 255, 204); pdf.setDrawColor(0);
+    pdf.rect(M, y, CW, 4, 'FD');
+    pdf.text('ANTECEDENTES CLÍNICOS Y QUIRÚRGICOS', M + 1.5, y + 3);
+    y += 4;
+
+    if (ev.antecedentesClinicosQ === true && ev.antecedentesClinicosLista?.length > 0) {
+      const lClin = ev.antecedentesClinicosLista.map((ac: any) => {
+        let l = `Antecedentes Clínicos: ${ac.enfermedad || '?'}`;
+        if (ac.desdeCuando) l += ` (desde ${ac.desdeCuando})`;
+        if (ac.tomaMedicacion && ac.medicacionNombre) l += ` — Medicación: ${ac.medicacionNombre}${ac.medicacionDosis ? ' ' + ac.medicacionDosis : ''}`;
+        if (ac.complicaciones) l += ` — Comp: ${ac.complicaciones}`;
+        return l;
+      }).join('\n');
+      const lQ = ev.antecedentesQuirurgicosQ === true && ev.antecedentesQuirurgicosLista?.length > 0
+        ? '\nAntecedentes quirúrgicos: ' + ev.antecedentesQuirurgicosLista.map((aq: any) => `${aq.procedimiento || '?'} (${aq.fechaAproximada || '?'})${aq.secuelas ? ', secuelas: ' + aq.secuelas : ''}`).join('; ')
+        : '\nAntecedentes quirúrgicos: Ninguno';
+      const lAl = ev.alergiasTiene === true && ev.alergias?.length > 0
+        ? '\nAlergias: ' + ev.alergias.map((al: any) => `${al.alergeno || '?'} — ${al.intensidadReaccion || '?'}`).join('; ')
+        : '\nAlergias: Ninguna';
+      textoLibreR(lClin + lQ + lAl, 8);
+    } else if (ev.antecedentesClinicosQ === false) {
+      const lQ = ev.antecedentesQuirurgicosQ === true && ev.antecedentesQuirurgicosLista?.length > 0
+        ? 'Antecedentes quirúrgicos: ' + ev.antecedentesQuirurgicosLista.map((aq: any) => `${aq.procedimiento || '?'} (${aq.fechaAproximada || '?'})`).join('; ')
+        : 'Antecedentes quirúrgicos: Ninguno';
+      const lAl = ev.alergiasTiene === true && ev.alergias?.length > 0
+        ? '\nAlergias: ' + ev.alergias.map((al: any) => `${al.alergeno || '?'} — ${al.intensidadReaccion || '?'}`).join('; ')
+        : '\nAlergias: Ninguna';
+      textoLibreR('Sin antecedentes clínicos.\n' + lQ + lAl, 8);
+    } else {
+      textoLibreR(ev.antecedentesClinicosQuirurgicos || 'Sin antecedentes personales relevantes reportados.', 8);
+    }
+    y += 1;
+
+    // Accidentes de trabajo
+    pdf.setFontSize(6.5); pdf.setFont('helvetica', 'bold');
+    pdf.setFillColor(204, 255, 204); pdf.setDrawColor(0);
+    pdf.rect(M, y, CW, 4, 'FD');
+    pdf.text('ACCIDENTES DE TRABAJO', M + 1.5, y + 3);
+    y += 4;
+    const tieneAcc = ev.tieneAccidente === true;
+    AT({
+      startY: y, margin: { left: M, right: M }, theme: 'grid', styles: { ...base, fontSize: 6.5 },
+      body: [[
+        { content: '¿TUVO ACCIDENTE DE TRABAJO?', styles: { fontStyle: 'bold', cellWidth: 90 } },
+        { content: 'SI', styles: { fontStyle: 'bold', halign: 'center', cellWidth: 12 } },
+        { content: tieneAcc ? 'X' : '', styles: { halign: 'center', fontStyle: 'bold', cellWidth: 12 } },
+        { content: 'NO', styles: { fontStyle: 'bold', halign: 'center', cellWidth: 12 } },
+        { content: !tieneAcc ? 'X' : '', styles: { halign: 'center', fontStyle: 'bold' } },
+      ]],
+    });
+    if (tieneAcc) {
+      textoLibreR(ev.accidentesTrabajo?.descripcion || '-', 8);
+      siNoCalificadoR(ev.accidentesTrabajo?.calificado ?? null, ev.accidentesTrabajo?.especificacion || '', ev.accidentesTrabajo?.observaciones || 'Ninguno');
+    } else {
+      textoLibreR('NINGUNO', 5);
+      AT({ startY: y, margin: { left: M, right: M }, theme: 'grid', styles: { ...base, fontSize: 6 }, body: [[{ content: 'Observaciones:', styles: { fontStyle: 'bold', cellWidth: 25 } }, { content: 'Ninguno' }]] });
+      pdf.setDrawColor(0); pdf.rect(M, y, CW, 6, 'S'); y += 6;
+    }
+    y += 1;
+
+    // Enfermedades profesionales
+    pdf.setFontSize(6.5); pdf.setFont('helvetica', 'bold');
+    pdf.setFillColor(204, 255, 204); pdf.setDrawColor(0);
+    pdf.rect(M, y, CW, 4, 'FD');
+    pdf.text('ENFERMEDADES PROFESIONALES', M + 1.5, y + 3);
+    y += 4;
+    const tieneEnf = ev.tieneEnfermedad === true;
+    AT({
+      startY: y, margin: { left: M, right: M }, theme: 'grid', styles: { ...base, fontSize: 6.5 },
+      body: [[
+        { content: '¿TUVO ENFERMEDAD PROFESIONAL?', styles: { fontStyle: 'bold', cellWidth: 90 } },
+        { content: 'SI', styles: { fontStyle: 'bold', halign: 'center', cellWidth: 12 } },
+        { content: tieneEnf ? 'X' : '', styles: { halign: 'center', fontStyle: 'bold', cellWidth: 12 } },
+        { content: 'NO', styles: { fontStyle: 'bold', halign: 'center', cellWidth: 12 } },
+        { content: !tieneEnf ? 'X' : '', styles: { halign: 'center', fontStyle: 'bold' } },
+      ]],
+    });
+    if (tieneEnf) {
+      textoLibreR(ev.enfermedadesProfesionales?.descripcion || '-', 8);
+      siNoCalificadoR(ev.enfermedadesProfesionales?.calificada ?? null, ev.enfermedadesProfesionales?.especificacion || '', ev.enfermedadesProfesionales?.observaciones || 'Ninguno');
+    } else {
+      textoLibreR('NINGUNA', 5);
+      AT({ startY: y, margin: { left: M, right: M }, theme: 'grid', styles: { ...base, fontSize: 6 }, body: [[{ content: 'Observaciones:', styles: { fontStyle: 'bold', cellWidth: 25 } }, { content: 'Ninguno' }]] });
+      pdf.setDrawColor(0); pdf.rect(M, y, CW, 6, 'S'); y += 6;
+    }
+    y += 2;
+
+    // C. Constantes vitales
+    secHeader('C. CONSTANTES VITALES Y ANTROPOMETRÍA');
+    const sv = ev.signosVitales || {};
+    AT({
+      startY: y, margin: { left: M, right: M }, theme: 'grid', styles: base, headStyles: head,
+      head: [['PRESIÓN ARTERIAL\n(mmHg)', 'TEMPERATURA\n(°C)', 'FRECUENCIA CARDIACA\n(l/min)', 'SATURACIÓN DE\nOXÍGENO (%)', 'FRECUENCIA\nRESPIRATORIA (fr/min)', 'PESO\n(Kg)', 'TALLA\n(cm)', 'ÍNDICE DE MASA\nCORPORAL (kg/m²)', 'PERÍMETRO\nABDOMINAL (cm)']],
+      body: [[`${sv.presionSistolica || '-'}/${sv.presionDiastolica || '-'}`, sv.temperatura || '-', sv.frecuenciaCardiaca || '-', sv.saturacion || '-', sv.frecuenciaRespiratoria || '-', sv.peso || '-', sv.talla || '-', sv.imc ? Number(sv.imc).toFixed(1) : '-', sv.perimetroAbdominal || '-']],
+      columnStyles: { 0: { halign: 'center' }, 1: { halign: 'center' }, 2: { halign: 'center' }, 3: { halign: 'center' }, 4: { halign: 'center' }, 5: { halign: 'center' }, 6: { halign: 'center' }, 7: { halign: 'center' }, 8: { halign: 'center' } },
+    });
+    y += 2;
+
+    // D. Examen físico
+    secHeader('D. EXAMEN FÍSICO REGIONAL');
+    const pdfFisicoRowsR = FISICO_ROWS.map(row => row.map((cell: any) => {
+      if (cell.type === 'reg') return { content: '', textToRotate: cell.txt, rowSpan: cell.rs, styles: { fillColor: colorTerciario, halign: 'center', valign: 'middle' } };
+      if (cell.type === 'sub') return { content: cell.txt, styles: { fillColor: '#ffffff' } };
+      if (cell.type === 'chk') return { content: hasFisico(ev, cell.code) ? 'X' : '', styles: { halign: 'center', fontStyle: 'bold', fillColor: '#ffffff' } };
+      if (cell.type === 'empty') return { content: '', rowSpan: cell.rs || 1, colSpan: cell.cs || 1, styles: { fillColor: '#ffffff', lineWidth: 0 } };
+      if (cell.type === 'instr') return { content: cell.txt, colSpan: cell.cs, styles: { fillColor: '#f8f8f8', textColor: negro, halign: 'center', valign: 'middle', fontStyle: 'bold', fontSize: 5.5 } };
+      return { content: '' };
+    }));
+    AT({
+      startY: y, margin: { left: M, right: M }, theme: 'grid',
+      styles: { ...base, fontSize: 5.5, cellPadding: 0.8 },
+      bodyStyles: { minCellHeight: 6.5 },
+      headStyles: { fillColor: colorTerciario, textColor: negro, fontSize: 6 },
+      columnStyles: {
+        0: { cellWidth: 9 }, 1: { cellWidth: 23 }, 2: { cellWidth: 4, halign: 'center' },
+        3: { cellWidth: 9 }, 4: { cellWidth: 23 }, 5: { cellWidth: 4, halign: 'center' },
+        6: { cellWidth: 9 }, 7: { cellWidth: 23 }, 8: { cellWidth: 4, halign: 'center' },
+        9: { cellWidth: 9 }, 10: { cellWidth: 23 }, 11: { cellWidth: 4, halign: 'center' },
+        12: { cellWidth: 9 }, 13: { cellWidth: 23 }, 14: { cellWidth: 4, halign: 'center' },
+      },
+      head: [[{ content: 'REGIONES', colSpan: 15, styles: { halign: 'left', fillColor: colorTerciario } }]],
+      body: pdfFisicoRowsR as any,
+      didDrawCell: (data: any) => {
+        const raw = data.cell.raw as any;
+        if (data.section === 'body' && raw?.textToRotate) {
+          pdf.setTextColor(0); pdf.setFontSize(5.5); pdf.setFont('helvetica', 'bold');
+          const str = String(raw.textToRotate);
+          const realHeight = 6.5 * (raw.rowSpan || 1);
+          const textWidth = pdf.getTextWidth(str);
+          const cx = data.cell.x + data.cell.width / 2;
+          const cy = data.cell.y + realHeight / 2;
+          if (textWidth > realHeight - 2) {
+            const lineas = pdf.splitTextToSize(str, realHeight - 2);
+            pdf.text(lineas[0], cx + 1.5, cy + pdf.getTextWidth(lineas[0]) / 2, { angle: 90 });
+            if (lineas[1]) pdf.text(lineas[1], cx - 0.5, cy + pdf.getTextWidth(lineas[1]) / 2, { angle: 90 });
+          } else {
+            pdf.text(str, cx + 0.8, cy + textWidth / 2, { angle: 90 });
+          }
+        }
+      },
+    });
+    const hallazgos = ev.examenFisicoHallazgos || [];
+    if (hallazgos.length > 0) {
+      textoLibreR('Observaciones:\n' + hallazgos.map((h: any) => `${h.codigo}. ${h.region}, ${h.subregion}: ${h.descripcion || '-'}`).join('\n'), 6);
+    } else {
+      textoLibreR('Observaciones: Sin hallazgos patológicos al examen físico regional.', 5);
+    }
+
+    // Rellenar espacio restante de página 1 con líneas en blanco
+    const pageH1 = pdf.internal.pageSize.getHeight() - 10;
+    while (y < pageH1 - 5) {
+      pdf.setDrawColor(0);
+      pdf.rect(M, y, CW, 6, 'S');
+      y += 6;
+    }
+
+    // ════════════════ PÁGINA 2 ════════════════
+    pdf.addPage(); y = 7;
+    paginaHeader('Página:    2 de 2');
+
+    // E. Exámenes
+    secHeader('E. RESULTADOS DE EXÁMENES GENERALES Y ESPECÍFICOS DE ACUERDO AL RIESGO Y PUESTO DE TRABAJO (IMAGEN, LABORATORIO Y OTROS)');
+    const examsValidos = (ev.examenesComplementarios || []).filter((e: any) => e.nombre?.trim());
+    if (examsValidos.length > 0) {
+      AT({
+        startY: y, margin: { left: M, right: M }, theme: 'grid', styles: { ...base, fontSize: 6.5 }, headStyles: { ...head, fontSize: 6 },
+        head: [['EXAMEN', 'FECHA\naaaa / mm / dd', 'RESULTADO']],
+        body: examsValidos.map((e: any) => [e.nombre, e.fecha || '-', e.resultado || '-']),
+      });
+    } else {
+      textoLibreR('Sin exámenes complementarios registrados.', 8);
+    }
+    pdf.setDrawColor(0); pdf.rect(M, y, CW, 6, 'S');
+    pdf.setFontSize(6.5); pdf.setFont('helvetica', 'bold');
+    pdf.text('Observaciones:', M + 1.5, y + 3.5);
+    y += 7;
+
+    // F. Diagnóstico
+    const dxValidos = (ev.diagnosticos || []).filter((d: any) => d.descripcion?.trim());
+    secHeader('F. DIAGNÓSTICO                    PRE= PRESUNTIVO          DEF= DEFINITIVO');
+    if (dxValidos.length > 0) {
+      AT({
+        startY: y, margin: { left: M, right: M }, theme: 'grid', styles: { ...base, fontSize: 6.5, halign: 'center' }, headStyles: { ...head, fontSize: 6, halign: 'center' },
+        head: [['N°', 'DESCRIPCIÓN', 'CIE', 'PRE', 'DEF']],
+        body: dxValidos.map((dx: any, i: number) => [`${i + 1}`, { content: dx.descripcion, styles: { halign: 'left' } }, dx.cie || '-', dx.tipo === 'presuntivo' ? 'X' : '', dx.tipo === 'definitivo' ? 'X' : '']),
+        columnStyles: { 0: { cellWidth: 8 }, 3: { cellWidth: 10 }, 4: { cellWidth: 10 } },
+      });
+    } else {
+      AT({
+        startY: y, margin: { left: M, right: M }, theme: 'grid', styles: { ...base, fontSize: 6.5, halign: 'center' }, headStyles: { ...head, fontSize: 6, halign: 'center' },
+        head: [['N°', 'DESCRIPCIÓN', 'CIE', 'PRE', 'DEF']],
+        body: [[1, 'Sin diagnósticos registrados', '-', '', ''], [2, '', '', '', ''], [3, '', '', '', '']],
+        columnStyles: { 0: { cellWidth: 8 }, 3: { cellWidth: 10 }, 4: { cellWidth: 10 } },
+        bodyStyles: { minCellHeight: 7 },
+      });
+    }
+    y += 1;
+
+    // G. Evaluación médica de retiro
+    secHeader('G. EVALUACIÓN MÉDICA DE RETIRO');
+    AT({
+      startY: y, margin: { left: M, right: M }, theme: 'grid', styles: { ...base, fontSize: 6.5 }, headStyles: head,
+      body: [[
+        { content: 'SE REALIZÓ LA EVALUACIÓN', styles: { fontStyle: 'bold', cellWidth: 90 } },
+        { content: 'SI', styles: { fontStyle: 'bold', halign: 'center', cellWidth: 12 } },
+        { content: ev.evaluacionRealizada ? 'X' : '', styles: { halign: 'center', fontStyle: 'bold', cellWidth: 12 } },
+        { content: 'NO', styles: { fontStyle: 'bold', halign: 'center', cellWidth: 12 } },
+        { content: !ev.evaluacionRealizada ? 'X' : '', styles: { halign: 'center', fontStyle: 'bold' } },
+      ]],
+    });
+    pdf.setDrawColor(0);
+    pdf.rect(M, y, CW, 5, 'S');
+    pdf.setFontSize(6.5); pdf.setFont('helvetica', 'bold'); pdf.text('Observaciones:', M + 1.5, y + 3.5);
+    y += 5;
+    const obsLines = pdf.splitTextToSize(ev.observacionesRetiro || '-', CW - 3);
+    const obsH = Math.max(8, obsLines.length * 3 + 2);
+    pdf.setFont('helvetica', 'normal');
+    pdf.rect(M, y, CW, obsH, 'S');
+    pdf.text(obsLines, M + 1.5, y + 3);
+    y += obsH + 2;
+
+    // H. Recomendaciones
+    secHeader('H. RECOMENDACIONES Y/O TRATAMIENTO');
+    const recArr = Array.isArray(ev.recomendaciones) ? ev.recomendaciones : [];
+    const recTexto = recArr.join('; ') + (ev.recomendacionesOtras ? `; ${ev.recomendacionesOtras}` : '') || 'Ninguna particular al momento.';
+    textoLibreR(recTexto, 10);
+    y += 2;
+
+    // Certificado legal
+    pdf.setFillColor(248, 248, 248); pdf.setDrawColor(0);
+    const certText = 'CERTIFICO QUE LO ANTERIORMENTE EXPRESADO EN RELACIÓN A MI ESTADO DE SALUD ES VERDAD. SE ME HA INFORMADO MI ESTADO ACTUAL DE SALUD Y LAS RECOMENDACIONES PERTINENTES.';
+    const certLines = pdf.splitTextToSize(certText, CW - 3);
+    const certH = certLines.length * 3 + 3;
+    pdf.rect(M, y, CW, certH, 'FD');
+    pdf.setFontSize(6.5); pdf.setFont('helvetica', 'bold');
+    pdf.text(certLines, M + 1.5, y + 3);
+    y += certH + 3;
+
+    // I. Datos del profesional / J. Firma del usuario
+    secHeader('I. DATOS DEL PROFESIONAL                                                                             J. FIRMA DEL USUARIO');
+    AT({
+      startY: y, margin: { left: M, right: M }, theme: 'grid', styles: { ...base, fontSize: 6.5, halign: 'center' }, headStyles: { ...head, fontSize: 6, halign: 'center' },
+      head: [['FECHA\naaaa-mm-dd', 'HORA', 'NOMBRES Y APELLIDOS', 'CÓDIGO', 'FIRMA Y SELLO', 'FIRMA DEL USUARIO']],
+      body: [[fmtF(ev.fecha), fmtHora(ev.fecha), (ev.medicoNombre || 'MÉDICO OCUPACIONAL').toUpperCase(), ev.medicoCedula || '-', '', '']],
+      bodyStyles: { minCellHeight: 20, valign: 'bottom', halign: 'center' },
+    });
+
+    pdf.save(`SO-RE-40_RETIRO_${trabajador.primerApellido}_${trabajador.primerNombre}_${fmtF(ev.fecha)}.pdf`);
+  };
+
   const exportarExcel = () => {
     const ev: any = evDrawer;
     if (!ev || !trabajador) return;
@@ -735,7 +1092,7 @@ export default function DetalleTrabajador() {
                         <p className="text-xs text-slate-500">{fmtF(item.fecha).split('/').slice(1).join('/')}</p>
                       </div>
                       <div>
-                        <p className="text-sm font-semibold text-slate-700 group-hover:text-blue-700">{(item as any).motivoConsulta || 'Evaluación periódica'}</p>
+                        <p className="text-sm font-semibold text-slate-700 group-hover:text-blue-700">{(item as any).tipo === 'RETIRO' ? 'Evaluación de retiro' : ((item as any).motivoConsulta || 'Evaluación periódica')}</p>
                         <p className="text-xs text-slate-400 mt-0.5">{dxCount > 0 ? `${dxCount} diagnóstico${dxCount > 1 ? 's' : ''}` : 'Sin diagnósticos'}{(item as any).medicoNombre ? ` · Dr. ${(item as any).medicoNombre}` : ''}</p>
                       </div>
                     </div>
@@ -765,13 +1122,13 @@ export default function DetalleTrabajador() {
               {/* Header drawer */}
               <div className="flex items-center justify-between px-6 py-4 border-b bg-slate-50 shrink-0">
                 <div>
-                  <p className="text-xs text-slate-500 uppercase tracking-wide">Historia Clínica SO-RE-38</p>
+                  <p className="text-xs text-slate-500 uppercase tracking-wide">{(evDrawer as any).tipo === 'RETIRO' ? 'Evaluación de Retiro SO-RE-40' : 'Historia Clínica SO-RE-38'}</p>
                   <p className="text-base font-bold text-slate-800">{fmtFH((evDrawer as any).fecha)}</p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <button onClick={() => navigate(`/evaluar/${trabajadorId}?editId=${(evDrawer as any).id}`)} className="px-3 py-1.5 bg-amber-500 text-white text-xs font-semibold rounded-lg hover:bg-amber-600">✏️ Editar</button>
+                  <button onClick={() => (evDrawer as any).tipo === 'RETIRO' ? navigate(`/evaluar-retiro/${trabajadorId}?editId=${(evDrawer as any).id}`) : navigate(`/evaluar/${trabajadorId}?editId=${(evDrawer as any).id}`)} className="px-3 py-1.5 bg-amber-500 text-white text-xs font-semibold rounded-lg hover:bg-amber-600">✏️ Editar</button>
                   <button onClick={exportarExcel} className="px-3 py-1.5 bg-[#107c41] text-white text-xs font-semibold rounded-lg hover:bg-[#0c5c30]">📊 Excel</button>
-                  <button onClick={() => generarPDF(evDrawer)} className="px-3 py-1.5 bg-red-600 text-white text-xs font-semibold rounded-lg hover:bg-red-700">📄 PDF</button>
+                  <button onClick={() => (evDrawer as any).tipo === 'RETIRO' ? generarPDFRetiro(evDrawer) : generarPDF(evDrawer)} className="px-3 py-1.5 bg-red-600 text-white text-xs font-semibold rounded-lg hover:bg-red-700">📄 PDF</button>
                   <button onClick={() => setEvDrawer(null)} className="ml-2 text-slate-400 hover:text-slate-700 text-2xl leading-none">&times;</button>
                 </div>
               </div>
