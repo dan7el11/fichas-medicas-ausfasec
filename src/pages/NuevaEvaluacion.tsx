@@ -603,6 +603,26 @@ export default function NuevaEvaluacion() {
 
   const handleGuardar = async () => {
     if (!trabajadorId || !user || !trabajador) return;
+
+    // ── Validaciones obligatorias ──────────────────────────────
+    const errores: string[] = [];
+
+    if (!motivoConsulta.trim())
+      errores.push('Motivo de consulta es obligatorio (Sección B).');
+
+    if (!signosVitales.presionSistolica || !signosVitales.presionDiastolica || !signosVitales.frecuenciaCardiaca || !signosVitales.peso || !signosVitales.talla)
+      errores.push('Completa los signos vitales mínimos: PA, FC, Peso y Talla (Sección H).');
+
+    const dxValidos = diagnosticos.filter(d => d.descripcion.trim() !== '');
+    if (dxValidos.length === 0)
+      errores.push('Agrega al menos un diagnóstico (Sección L).');
+
+    if (errores.length > 0) {
+      errores.forEach(e => toast.warning(e));
+      return;
+    }
+    // ──────────────────────────────────────────────────────────
+
     setGuardando(true);
 
     try {
@@ -731,8 +751,9 @@ export default function NuevaEvaluacion() {
 
         {/* ===== B. MOTIVO DE CONSULTA ===== */}
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-          <h2 className="text-sm font-bold text-slate-800 mb-3 border-b pb-2">B. MOTIVO DE CONSULTA</h2>
-          <input type="text" className="w-full px-3 py-2 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-sm" value={motivoConsulta} onChange={(e) => setMotivoConsulta(e.target.value)} />
+          <h2 className="text-sm font-bold text-slate-800 mb-3 border-b pb-2">B. MOTIVO DE CONSULTA <span className="text-red-500">*</span></h2>
+          <input type="text" className={`w-full px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-sm ${!motivoConsulta.trim() ? 'border-red-300 bg-red-50' : 'border-slate-300'}`} value={motivoConsulta} onChange={(e) => setMotivoConsulta(e.target.value)} />
+          {!motivoConsulta.trim() && <p className="text-xs text-red-500 mt-1">Campo obligatorio</p>}
         </div>
 
         {/* ===== C. ANTECEDENTES PERSONALES ===== */}
@@ -1197,6 +1218,9 @@ export default function NuevaEvaluacion() {
 
         {/* ===== H. SIGNOS VITALES ===== */}
         <SignosVitalesForm onDataChange={handleSignosChange} initialData={signosVitales} />
+        {(!signosVitales.presionSistolica || !signosVitales.presionDiastolica || !signosVitales.frecuenciaCardiaca || !signosVitales.peso || !signosVitales.talla) && (
+          <p className="text-xs text-red-500 mt-1 px-1">⚠ PA, FC, Peso y Talla son obligatorios</p>
+        )}
 
         {/* ===== I. EXAMEN FÍSICO REGIONAL ===== */}
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
@@ -1257,7 +1281,7 @@ export default function NuevaEvaluacion() {
         </div>
        {/* ===== K. DIAGNÓSTICOS ===== */}
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-          <h2 className="text-sm font-bold text-slate-800 mb-3 border-b pb-2">K. DIAGNÓSTICO</h2>
+          <h2 className="text-sm font-bold text-slate-800 mb-3 border-b pb-2">K. DIAGNÓSTICO <span className="text-red-500">*</span></h2>
           {diagnosticos.map((dx, idx) => (
             <div key={idx} className="grid grid-cols-1 md:grid-cols-4 gap-2 mb-2">
               
@@ -1283,6 +1307,9 @@ export default function NuevaEvaluacion() {
             </div>
           ))}
           <button type="button" onClick={() => setDiagnosticos(prev => [...prev, { descripcion: '', cie: '', tipo: 'definitivo' }])} className="text-blue-600 text-xs font-medium mt-2 hover:underline">+ Agregar diagnóstico</button>
+          {diagnosticos.filter(d => d.descripcion.trim() !== '').length === 0 && (
+            <p className="text-xs text-red-500 mt-2">⚠ Se requiere al menos un diagnóstico</p>
+          )}
         </div>
         
         {/* ===== L. APTITUD MÉDICA ===== */}
