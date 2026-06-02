@@ -18,7 +18,8 @@ export default function SignosVitalesForm({ onDataChange, initialData }: SignosV
     peso: initialData?.peso || '',
     talla: initialData?.talla || '',
     imc: initialData?.imc || 0,
-    perimetroAbdominal: initialData?.perimetroAbdominal || ''
+    perimetroAbdominal: initialData?.perimetroAbdominal || '',
+    glucosaCapilar: initialData?.glucosaCapilar || '',
   });
 
   // Precargar la talla de evaluaciones anteriores si existe
@@ -32,10 +33,8 @@ export default function SignosVitalesForm({ onDataChange, initialData }: SignosV
     const pesoNum = parseFloat(datos.peso);
     const tallaNum = parseFloat(datos.talla);
     const nuevoImc = calcularIMC(pesoNum, tallaNum);
-    
-    // Enviamos siempre los datos más frescos al padre
     onDataChange({ ...datos, imc: nuevoImc });
-  }, [datos.peso, datos.talla, datos.presionSistolica, datos.presionDiastolica, datos.temperatura, datos.frecuenciaCardiaca, datos.frecuenciaRespiratoria, datos.saturacion, datos.perimetroAbdominal, onDataChange]);
+  }, [datos.peso, datos.talla, datos.presionSistolica, datos.presionDiastolica, datos.temperatura, datos.frecuenciaCardiaca, datos.frecuenciaRespiratoria, datos.saturacion, datos.perimetroAbdominal, datos.glucosaCapilar, onDataChange]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -99,6 +98,10 @@ export default function SignosVitalesForm({ onDataChange, initialData }: SignosV
         <div>
           <label className="block font-medium text-slate-600 mb-1">Perímetro Abd.</label>
           <input type="number" name="perimetroAbdominal" value={datos.perimetroAbdominal} onChange={handleChange} className="w-full px-2 py-1.5 border rounded-md outline-none focus:ring-1 focus:ring-blue-500" placeholder="cm" />
+        </div>
+        <div>
+          <label className="block font-medium text-slate-600 mb-1">Glucosa capilar <span className="text-[10px] text-slate-400">(mg/dL)</span></label>
+          <input type="number" name="glucosaCapilar" value={datos.glucosaCapilar} onChange={handleChange} className="w-full px-2 py-1.5 border rounded-md outline-none focus:ring-1 focus:ring-blue-500" placeholder="opcional" />
         </div>
       </div>
       {bpAlerta && (
