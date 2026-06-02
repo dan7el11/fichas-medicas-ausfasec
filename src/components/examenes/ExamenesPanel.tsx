@@ -46,6 +46,7 @@ export default function ExamenesPanel({ trabajadorId, trabajadorNombre, evaluaci
   const [examenes, setExamenes] = useState<ExamenComplementarioDoc[]>([]);
   const [cargando, setCargando] = useState(true);
   const [subiendo, setSubiendo] = useState(false);
+  const [confirmarEliminar, setConfirmarEliminar] = useState<ExamenComplementarioDoc | null>(null);
 
   // Filtros
   const [filtroTipo, setFiltroTipo] = useState<string>('Todos');
@@ -241,13 +242,17 @@ export default function ExamenesPanel({ trabajadorId, trabajadorNombre, evaluaci
 
   // ===== ELIMINAR EXAMEN =====
   const eliminarExamen = async (examen: ExamenComplementarioDoc) => {
-    if (!confirm(`¿Eliminar "${examen.nombreExamen}" del ${fmtF(examen.fecha)}?`)) return;
+    setConfirmarEliminar(examen);
+  };
+
+  const confirmarEliminarExamen = async () => {
+    const examen = confirmarEliminar;
+    if (!examen) return;
+    setConfirmarEliminar(null);
     try {
-      // Eliminar archivo de Storage
       if (examen.archivoPath) {
         try { await deleteObject(ref(storage, examen.archivoPath)); } catch {}
       }
-      // Eliminar documento de Firestore
       if (examen.id) await deleteDoc(doc(db, 'examenes', examen.id));
       await cargarExamenes();
     } catch (err) {
@@ -595,6 +600,23 @@ export default function ExamenesPanel({ trabajadorId, trabajadorNombre, evaluaci
                   </button>
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+      {confirmarEliminar && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-6 space-y-4">
+            <h3 className="text-base font-bold text-slate-800">¿Eliminar examen?</h3>
+            <p className="text-sm text-slate-600">
+              Se eliminará <span className="font-semibold">"{confirmarEliminar.nombreExamen}"</span> del{' '}
+              <span className="font-semibold">{fmtF(confirmarEliminar.fecha)}</span>.
+              {confirmarEliminar.archivoPath && <span className="block mt-1 text-xs text-red-600">También se eliminará el archivo adjunto.</span>}
+              Esta acción no se puede deshacer.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button onClick={() => setConfirmarEliminar(null)} className="px-4 py-2 text-sm font-medium bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200">Cancelar</button>
+              <button onClick={confirmarEliminarExamen} className="px-4 py-2 text-sm font-semibold bg-red-600 text-white rounded-lg hover:bg-red-700">Eliminar</button>
             </div>
           </div>
         </div>
