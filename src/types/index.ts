@@ -33,6 +33,21 @@ export interface SignosVitales {
   talla: string;
   imc: number;
   perimetroAbdominal: string;
+  glucosaCapilar?: string;
+}
+
+export interface Reposo {
+  id?: string;
+  trabajadorId: string;
+  tipo: 'reposo' | 'incapacidad' | 'permiso';
+  fechaInicio: string;
+  diasReposo: number;
+  fechaFin: string;
+  diagnostico: string;
+  codigoCIE?: string;
+  observaciones?: string;
+  emitidoPor?: string;
+  createdAt: any;
 }
 
 export interface HabitoToxico {
