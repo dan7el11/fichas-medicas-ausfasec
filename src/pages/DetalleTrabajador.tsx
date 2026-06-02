@@ -662,8 +662,8 @@ export default function DetalleTrabajador() {
           <div className="flex gap-3 flex-wrap">
             <button onClick={() => navigate('/')} className="px-4 py-2 bg-slate-100 text-slate-700 font-semibold rounded-lg hover:bg-slate-200 text-sm">Volver</button>
             <button onClick={abrirModalEditar} className="px-4 py-2 bg-amber-100 text-amber-800 font-semibold rounded-lg hover:bg-amber-200 text-sm">✏️ Editar datos</button>
-            <button onClick={() => navigate(`/evaluar/${trabajador.id}`)} className="px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 shadow-sm text-sm">+ Nueva Evaluación Periódica</button>
-            <button onClick={() => navigate(`/preocupacional/${trabajadorId}`)}className="px-4 py-2 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 transition-colors shadow-sm flex items-center gap-2">➕ Nueva Preocupacional</button>
+            <button onClick={() => navigate(`/evaluar/${trabajador.id}`)} className="px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 shadow-sm text-sm">+ Eval. Periódica</button>
+            <button onClick={() => navigate(`/evaluar-retiro/${trabajador.id}`)} className="px-4 py-2 bg-orange-600 text-white font-semibold rounded-lg hover:bg-orange-700 shadow-sm text-sm">+ Eval. Retiro</button>
           </div>
         </div>
 
@@ -723,6 +723,10 @@ export default function DetalleTrabajador() {
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
+                      {(item as any).tipo === 'RETIRO'
+                        ? <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-orange-100 text-orange-700">RETIRO</span>
+                        : <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-blue-100 text-blue-700">PERIÓDICA</span>
+                      }
                       <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${aptitudColor}`}>{aptitudLabel}</span>
                       <span className="text-slate-300 group-hover:text-blue-400 text-lg">›</span>
                     </div>
