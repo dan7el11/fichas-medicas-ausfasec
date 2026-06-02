@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { DetalleSkeleton } from '../components/Skeleton';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { doc, getDoc, collection, query, where, getDocs, orderBy } from 'firebase/firestore';
 import { db } from '../services/firebase';
@@ -590,7 +591,7 @@ export default function DetalleTrabajador() {
     document.body.appendChild(link); link.click(); document.body.removeChild(link);
   };
 
-  if (cargando) return <div className="min-h-screen p-8 text-center text-slate-500 font-bold">Cargando expediente...</div>;
+  if (cargando) return <DetalleSkeleton />;
   if (!trabajador) return <div className="min-h-screen p-8 text-center text-red-500 font-bold">Trabajador no encontrado</div>;
   const ev: any = evaluaciones[pestanaActiva] || null;
 
