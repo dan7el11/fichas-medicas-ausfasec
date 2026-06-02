@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { doc, getDoc, collection, addDoc, updateDoc, arrayUnion, query, where, orderBy, getDocs, limit } from 'firebase/firestore';
 import { db } from '../services/firebase';
 import { useAuth } from '../contexts/AuthContext';
@@ -118,6 +118,8 @@ const emptyEnfermedad = (): EnfermedadProfesional => ({ descripcion: '', calific
 export default function NuevaEvaluacionRetiro() {
   const { trabajadorId } = useParams<{ trabajadorId: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const editEvalId = searchParams.get('editId');
   const { user } = useAuth();
   const toast = useToast();
   const { empresa: DATOS_EMPRESA } = useEmpresa();
@@ -181,23 +183,60 @@ export default function NuevaEvaluacionRetiro() {
       if (trabDoc.exists()) setTrabajador({ id: trabDoc.id, ...trabDoc.data() } as Trabajador);
       const medicoDoc = await getDoc(doc(db, 'usuarios', user.uid));
       if (medicoDoc.exists()) setMedicoData(medicoDoc.data() as Usuario);
-      const q = query(collection(db, 'evaluaciones'), where('trabajadorId', '==', trabajadorId), orderBy('fecha', 'desc'), limit(1));
-      const snap = await getDocs(q);
-      if (!snap.empty) {
-        const u = snap.docs[0].data();
-        if (u.antecedentesClinicosQ !== undefined) setAntecedentesClinicosQ(u.antecedentesClinicosQ);
-        if (u.antecedentesClinicosLista) setAntecedentesClinicosLista(u.antecedentesClinicosLista);
-        if (u.antecedentesQuirurgicosQ !== undefined) setAntecedentesQuirurgicosQ(u.antecedentesQuirurgicosQ);
-        if (u.antecedentesQuirurgicosLista) setAntecedentesQuirurgicosLista(u.antecedentesQuirurgicosLista);
-        if (u.alergiasTiene !== undefined) setAlergiasTiene(u.alergiasTiene);
-        if (u.alergias) setAlergias(u.alergias);
-        if (u.accidentesTrabajo?.descripcion) { setTieneAccidente(true); setAccidenteTrabajo(u.accidentesTrabajo); }
-        if (u.enfermedadesProfesionales?.descripcion) { setTieneEnfermedad(true); setEnfermedadProfesional(u.enfermedadesProfesionales); }
-        if (u.signosVitales?.talla) setSignosVitales(prev => ({ ...prev, talla: u.signosVitales.talla }));
-        if (u.factoresRiesgo?.actividades) setActividadesTexto(u.factoresRiesgo.actividades);
+
+      if (editEvalId) {
+        // Modo edición: cargar la evaluación existente
+        const evalDoc = await getDoc(doc(db, 'evaluaciones', editEvalId));
+        if (evalDoc.exists()) {
+          const u = evalDoc.data();
+          if (u.numeroHistoriaClinica) setNumeroHistoriaClinica(u.numeroHistoriaClinica);
+          if (u.numeroArchivo) setNumeroArchivo(u.numeroArchivo);
+          if (u.fechaSalida) setFechaSalida(u.fechaSalida);
+          if (u.tiempoMeses) setTiempoMeses(u.tiempoMeses);
+          if (u.actividadesTexto) setActividadesTexto(u.actividadesTexto);
+          if (u.factoresRiesgoTexto) setFactoresRiesgoTexto(u.factoresRiesgoTexto);
+          if (u.antecedentesClinicosQ !== undefined) setAntecedentesClinicosQ(u.antecedentesClinicosQ);
+          if (u.antecedentesClinicosLista?.length) setAntecedentesClinicosLista(u.antecedentesClinicosLista);
+          if (u.antecedentesQuirurgicosQ !== undefined) setAntecedentesQuirurgicosQ(u.antecedentesQuirurgicosQ);
+          if (u.antecedentesQuirurgicosLista?.length) setAntecedentesQuirurgicosLista(u.antecedentesQuirurgicosLista);
+          if (u.alergiasTiene !== undefined) setAlergiasTiene(u.alergiasTiene);
+          if (u.alergias?.length) setAlergias(u.alergias);
+          if (u.tieneAccidente !== undefined) setTieneAccidente(u.tieneAccidente);
+          if (u.accidentesTrabajo) setAccidenteTrabajo(u.accidentesTrabajo);
+          if (u.tieneEnfermedad !== undefined) setTieneEnfermedad(u.tieneEnfermedad);
+          if (u.enfermedadesProfesionales) setEnfermedadProfesional(u.enfermedadesProfesionales);
+          if (u.signosVitales) setSignosVitales(u.signosVitales);
+          if (u.examenFisicoHallazgos) {
+            setExamenFisicoHallazgos(u.examenFisicoHallazgos);
+            setExamenFisicoSeleccionados(new Set(u.examenFisicoHallazgos.map((h: any) => h.codigo)));
+          }
+          if (u.examenesComplementarios?.length) setExamenesComplementarios(u.examenesComplementarios);
+          if (u.diagnosticos?.length) setDiagnosticos(u.diagnosticos);
+          if (u.evaluacionRealizada !== undefined) setEvaluacionRealizada(u.evaluacionRealizada);
+          if (u.observacionesRetiro) setObservacionesRetiro(u.observacionesRetiro);
+          if (u.recomendaciones?.length) setRecomendaciones(u.recomendaciones);
+          if (u.recomendacionesOtras) setRecomendacionesOtras(u.recomendacionesOtras);
+        }
+      } else {
+        // Modo nuevo: pre-cargar antecedentes de la última evaluación
+        const q = query(collection(db, 'evaluaciones'), where('trabajadorId', '==', trabajadorId), orderBy('fecha', 'desc'), limit(1));
+        const snap = await getDocs(q);
+        if (!snap.empty) {
+          const u = snap.docs[0].data();
+          if (u.antecedentesClinicosQ !== undefined) setAntecedentesClinicosQ(u.antecedentesClinicosQ);
+          if (u.antecedentesClinicosLista) setAntecedentesClinicosLista(u.antecedentesClinicosLista);
+          if (u.antecedentesQuirurgicosQ !== undefined) setAntecedentesQuirurgicosQ(u.antecedentesQuirurgicosQ);
+          if (u.antecedentesQuirurgicosLista) setAntecedentesQuirurgicosLista(u.antecedentesQuirurgicosLista);
+          if (u.alergiasTiene !== undefined) setAlergiasTiene(u.alergiasTiene);
+          if (u.alergias) setAlergias(u.alergias);
+          if (u.accidentesTrabajo?.descripcion) { setTieneAccidente(true); setAccidenteTrabajo(u.accidentesTrabajo); }
+          if (u.enfermedadesProfesionales?.descripcion) { setTieneEnfermedad(true); setEnfermedadProfesional(u.enfermedadesProfesionales); }
+          if (u.signosVitales?.talla) setSignosVitales(prev => ({ ...prev, talla: u.signosVitales.talla }));
+          if (u.factoresRiesgo?.actividades) setActividadesTexto(u.factoresRiesgo.actividades);
+        }
       }
     })();
-  }, [trabajadorId, user]);
+  }, [trabajadorId, user, editEvalId]);
 
   // ── Handlers ─────────────────────────────────────────────────────────────
 
@@ -272,14 +311,18 @@ export default function NuevaEvaluacionRetiro() {
         createdAt: new Date(),
         createdBy: user.uid,
       };
-      const ref = await addDoc(collection(db, 'evaluaciones'), payload);
-      await updateDoc(doc(db, 'trabajadores', trabajadorId), {
-        evaluaciones: arrayUnion(ref.id),
-        ultimaEvaluacion: new Date(),
-        updatedAt: new Date(),
-        updatedBy: user.uid,
-      });
-      toast.success('Evaluación de retiro guardada correctamente.');
+      if (editEvalId) {
+        await updateDoc(doc(db, 'evaluaciones', editEvalId), { ...payload, updatedAt: new Date(), updatedBy: user.uid });
+      } else {
+        const ref = await addDoc(collection(db, 'evaluaciones'), payload);
+        await updateDoc(doc(db, 'trabajadores', trabajadorId), {
+          evaluaciones: arrayUnion(ref.id),
+          ultimaEvaluacion: new Date(),
+          updatedAt: new Date(),
+          updatedBy: user.uid,
+        });
+      }
+      toast.success(editEvalId ? 'Evaluación actualizada correctamente.' : 'Evaluación de retiro guardada correctamente.');
       navigate(`/trabajador/${trabajadorId}`);
     } catch (err) {
       console.error(err);
@@ -744,7 +787,7 @@ export default function NuevaEvaluacionRetiro() {
             <button onClick={() => navigate(`/trabajador/${trabajadorId}`)} className="px-4 py-2 bg-slate-100 text-slate-700 font-semibold rounded-lg hover:bg-slate-200 text-sm">Cancelar</button>
             <button onClick={generarPDF} className="px-4 py-2 bg-orange-100 text-orange-800 font-semibold rounded-lg hover:bg-orange-200 text-sm">🖨 Vista previa PDF</button>
             <button onClick={guardar} disabled={guardando} className="px-4 py-2 bg-orange-600 text-white font-semibold rounded-lg hover:bg-orange-700 disabled:opacity-50 text-sm shadow-sm">
-              {guardando ? 'Guardando...' : 'Guardar Evaluación de Retiro'}
+              {guardando ? 'Guardando...' : editEvalId ? 'Guardar Cambios' : 'Guardar Evaluación de Retiro'}
             </button>
           </div>
         </div>
@@ -961,7 +1004,7 @@ export default function NuevaEvaluacionRetiro() {
         {/* Botón final */}
         <div className="flex justify-end pb-6">
           <button onClick={guardar} disabled={guardando} className="w-full md:w-auto px-8 py-3 bg-orange-600 text-white font-bold rounded-xl hover:bg-orange-700 disabled:opacity-50 text-sm shadow-md">
-            {guardando ? 'Guardando evaluación...' : 'Guardar Evaluación de Retiro'}
+            {guardando ? 'Guardando evaluación...' : editEvalId ? 'Guardar Cambios' : 'Guardar Evaluación de Retiro'}
           </button>
         </div>
       </div>
