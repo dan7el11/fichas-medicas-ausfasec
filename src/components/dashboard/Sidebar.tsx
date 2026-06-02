@@ -124,10 +124,26 @@ export default function Sidebar({
         </div>
         <div className="grid grid-cols-4 gap-1 mt-2.5">
           <MiniStat color="#10a05a" v={stats.aptos} label="Aptos" active={statusFilter === 'Apto vigente'} onClick={() => setStatusFilter(statusFilter === 'Apto vigente' ? 'Todos' : 'Apto vigente')} />
-          <MiniStat color="#e08a2c" v={stats.porVencer} label="Por vencer" active={statusFilter === 'Por vencer'} onClick={() => setStatusFilter(statusFilter === 'Por vencer' ? 'Todos' : 'Por vencer')} />
+          <MiniStat color="#e08a2c" v={stats.porVencer} label="Por vencer" active={statusFilter === 'Por vencer'} onClick={() => setStatusFilter(statusFilter === 'Por vencer' ? 'Todos' : 'Por vencer')} pulse={stats.porVencer > 0} />
           <MiniStat color="#dc2e3c" v={stats.vencidasONoApto} label="Vencidas" active={statusFilter === 'Vencida'} onClick={() => setStatusFilter(statusFilter === 'Vencida' ? 'Todos' : 'Vencida')} />
-          <MiniStat color="#94a2b3" v={stats.sinEval} label="Sin eval." active={statusFilter === 'Sin evaluación'} onClick={() => setStatusFilter(statusFilter === 'Sin evaluación' ? 'Todos' : 'Sin evaluación')} />
+          <MiniStat color={stats.sinEval > 0 ? '#d97706' : '#94a2b3'} v={stats.sinEval} label="Sin eval." active={statusFilter === 'Sin evaluación'} onClick={() => setStatusFilter(statusFilter === 'Sin evaluación' ? 'Todos' : 'Sin evaluación')} pulse={stats.sinEval > 0} />
         </div>
+        {(stats.porVencer > 0 || stats.sinEval > 0) && (
+          <div className="mt-2.5 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 flex flex-col gap-1">
+            {stats.porVencer > 0 && (
+              <button onClick={() => setStatusFilter('Por vencer')} className="flex items-center gap-1.5 text-left w-full hover:opacity-80">
+                <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse shrink-0" />
+                <span className="text-[11px] font-semibold text-amber-800">{stats.porVencer} evaluaci{stats.porVencer === 1 ? 'ón vence' : 'ones vencen'} en ≤30 días</span>
+              </button>
+            )}
+            {stats.sinEval > 0 && (
+              <button onClick={() => setStatusFilter('Sin evaluación')} className="flex items-center gap-1.5 text-left w-full hover:opacity-80">
+                <span className="w-2 h-2 rounded-full bg-orange-500 shrink-0" />
+                <span className="text-[11px] font-semibold text-orange-800">{stats.sinEval} trabajador{stats.sinEval === 1 ? ' sin' : 'es sin'} evaluación</span>
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Búsqueda + filtros */}
@@ -231,12 +247,14 @@ function MiniStat({
   label,
   active,
   onClick,
+  pulse = false,
 }: {
   color: string;
   v: number;
   label: string;
   active: boolean;
   onClick: () => void;
+  pulse?: boolean;
 }) {
   return (
     <button
@@ -247,7 +265,10 @@ function MiniStat({
         border: `1px solid ${active ? `${color}50` : '#eef1f5'}`,
       }}
     >
-      <div className="text-sm font-bold" style={{ color }}>{v}</div>
+      <div className="relative inline-block">
+        <div className="text-sm font-bold" style={{ color }}>{v}</div>
+        {pulse && v > 0 && <span className="absolute -top-0.5 -right-1.5 w-1.5 h-1.5 rounded-full bg-current animate-pulse" style={{ color }} />}
+      </div>
       <div className="text-[9px] text-slate-500 mt-px">{label}</div>
     </button>
   );
