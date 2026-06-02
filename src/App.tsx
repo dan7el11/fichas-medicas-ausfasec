@@ -1,4 +1,5 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Login from './pages/Login';
 import Inicio from './pages/Inicio';
@@ -13,7 +14,14 @@ import ConsultaDiaria from './pages/ConsultaDiaria';
 import Permisos from './pages/Permisos';
 import AgendaExamenes from './pages/AgendaExamenes';
 import ExpedienteResumen from './pages/ExpedienteResumen';
+import ConfiguracionEmpresa from './pages/ConfiguracionEmpresa';
 import { ToastProvider } from './components/Toast';
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: { staleTime: 1000 * 60 * 5, retry: 1 },
+  },
+});
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
@@ -35,44 +43,49 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
 function App() {
   return (
-    <AuthProvider>
-      <ToastProvider>
-        <Router>
-          <Routes>
-            {/* Pública */}
-            <Route path="/login" element={<Login />} />
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <ToastProvider>
+          <Router>
+            <Routes>
+              {/* Pública */}
+              <Route path="/login" element={<Login />} />
 
-            {/* Hub principal */}
-            <Route path="/" element={<ProtectedRoute><Inicio /></ProtectedRoute>} />
+              {/* Hub principal */}
+              <Route path="/" element={<ProtectedRoute><Inicio /></ProtectedRoute>} />
 
-            {/* Trabajadores */}
-            <Route path="/trabajadores" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-            <Route path="/nuevo-trabajador" element={<ProtectedRoute><NuevoTrabajador /></ProtectedRoute>} />
-            <Route path="/trabajador/:trabajadorId" element={<ProtectedRoute><DetalleTrabajador /></ProtectedRoute>} />
-            <Route path="/expediente/:id" element={<ProtectedRoute><ExpedienteResumen /></ProtectedRoute>} />
+              {/* Trabajadores */}
+              <Route path="/trabajadores" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+              <Route path="/nuevo-trabajador" element={<ProtectedRoute><NuevoTrabajador /></ProtectedRoute>} />
+              <Route path="/trabajador/:trabajadorId" element={<ProtectedRoute><DetalleTrabajador /></ProtectedRoute>} />
+              <Route path="/expediente/:id" element={<ProtectedRoute><ExpedienteResumen /></ProtectedRoute>} />
 
-            {/* Evaluaciones */}
-            <Route path="/evaluar/:trabajadorId" element={<ProtectedRoute><NuevaEvaluacion /></ProtectedRoute>} />
+              {/* Evaluaciones */}
+              <Route path="/evaluar/:trabajadorId" element={<ProtectedRoute><NuevaEvaluacion /></ProtectedRoute>} />
 
-            {/* Consulta diaria */}
-            <Route path="/consulta-diaria" element={<ProtectedRoute><ConsultaDiaria /></ProtectedRoute>} />
+              {/* Consulta diaria */}
+              <Route path="/consulta-diaria" element={<ProtectedRoute><ConsultaDiaria /></ProtectedRoute>} />
 
-            {/* Reposos y permisos */}
-            <Route path="/reposo/:trabajadorId" element={<ProtectedRoute><NuevoReposo /></ProtectedRoute>} />
-            <Route path="/permisos" element={<ProtectedRoute><Permisos /></ProtectedRoute>} />
+              {/* Reposos y permisos */}
+              <Route path="/reposo/:trabajadorId" element={<ProtectedRoute><NuevoReposo /></ProtectedRoute>} />
+              <Route path="/permisos" element={<ProtectedRoute><Permisos /></ProtectedRoute>} />
 
-            {/* Exámenes */}
-            <Route path="/agenda-examenes" element={<ProtectedRoute><AgendaExamenes /></ProtectedRoute>} />
+              {/* Exámenes */}
+              <Route path="/agenda-examenes" element={<ProtectedRoute><AgendaExamenes /></ProtectedRoute>} />
 
-            {/* Reportes y perfil */}
-            <Route path="/reportes" element={<ProtectedRoute><Reportes /></ProtectedRoute>} />
-            <Route path="/perfil" element={<ProtectedRoute><UserProfile /></ProtectedRoute>} />
+              {/* Reportes y perfil */}
+              <Route path="/reportes" element={<ProtectedRoute><Reportes /></ProtectedRoute>} />
+              <Route path="/perfil" element={<ProtectedRoute><UserProfile /></ProtectedRoute>} />
 
-            <Route path="*" element={<Navigate to="/" />} />
-          </Routes>
-        </Router>
-      </ToastProvider>
-    </AuthProvider>
+              {/* Configuración */}
+              <Route path="/configuracion" element={<ProtectedRoute><ConfiguracionEmpresa /></ProtectedRoute>} />
+
+              <Route path="*" element={<Navigate to="/" />} />
+            </Routes>
+          </Router>
+        </ToastProvider>
+      </AuthProvider>
+    </QueryClientProvider>
   );
 }
 
