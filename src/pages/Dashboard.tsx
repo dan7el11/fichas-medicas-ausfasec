@@ -197,6 +197,7 @@ export default function Dashboard() {
                 evals={selectedEvals}
                 onOpenFull={() => setView('full')}
                 onNewEval={handleNewEval}
+                onViewEval={(evalId) => handleOpenFullPage(evalId)}
               />
             ) : (
               <FullFicha
