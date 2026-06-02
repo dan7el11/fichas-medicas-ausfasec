@@ -182,7 +182,11 @@ export default function QuickView({
               </div>
               <div className="text-right">
                 <button
-                  onClick={() => ev.id && onViewEval?.(ev.id)}
+                  onClick={() => {
+                    if (!ev.id) return;
+                    if (onViewEval) onViewEval(ev.id);
+                    else onOpenFull();
+                  }}
                   className="px-2.5 py-1 bg-white border border-slate-300 rounded-md text-[11px] cursor-pointer hover:bg-slate-50"
                 >
                   Ver
