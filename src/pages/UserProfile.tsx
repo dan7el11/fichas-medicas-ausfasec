@@ -3,10 +3,12 @@ import { doc, setDoc } from 'firebase/firestore';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { db } from '../services/firebase';
+import { useToast } from '../components/Toast';
 
 export default function UserProfile() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const toast = useToast();
   const [nombreCompleto, setNombreCompleto] = useState('');
   const [cedula, setCedula] = useState('');
   const [guardando, setGuardando] = useState(false);
@@ -28,7 +30,7 @@ export default function UserProfile() {
       navigate('/'); // Redirige al Dashboard tras guardar
     } catch (error) {
       console.error("Error al guardar el perfil", error);
-      alert("Hubo un error al guardar los datos.");
+      toast.error("Hubo un error al guardar los datos.");
     } finally {
       setGuardando(false);
     }
