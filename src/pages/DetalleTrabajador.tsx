@@ -9,6 +9,7 @@ const LOGO_EMPRESA = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAhYAAACdCAYA
 import type { Trabajador, EvaluacionMedica } from '../types';
 import ExamenesPanel from '../components/examenes/ExamenesPanel';
 import { useToast } from '../components/Toast';
+import { useAuth } from '../contexts/AuthContext';
 
 // ============================================================================
 // CONSTANTES DE CATÁLOGOS Y MATRIZ FÍSICA
@@ -95,6 +96,7 @@ export default function DetalleTrabajador() {
   const [searchParams] = useSearchParams();
   const evalIdParam = searchParams.get('evalId');
   const toast = useToast();
+  const { user } = useAuth();
 
   const [trabajador, setTrabajador] = useState<Trabajador | null>(null);
   const [evaluaciones, setEvaluaciones] = useState<EvaluacionMedica[]>([]);
@@ -140,7 +142,7 @@ export default function DetalleTrabajador() {
     }
     setGuardandoEdicion(true);
     try {
-      await updateDoc(doc(db, 'trabajadores', trabajadorId), { ...datosEdicion, updatedAt: new Date() });
+      await updateDoc(doc(db, 'trabajadores', trabajadorId), { ...datosEdicion, updatedAt: new Date(), updatedBy: user?.uid || '' });
       setTrabajador(prev => prev ? { ...prev, ...datosEdicion } as any : prev);
       setModalEditar(false);
       toast.success('Datos del trabajador actualizados.');
