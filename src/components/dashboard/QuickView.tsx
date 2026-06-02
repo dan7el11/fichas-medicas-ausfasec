@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { Trabajador, EvaluacionMedica } from '../../types';
 import {
   apellidos,
@@ -20,6 +21,7 @@ interface QuickViewProps {
   reposos?: any[];
   onOpenFull: () => void;
   onNewEval: () => void;
+  onNewEvalRetiro?: () => void;
   onNewReposo?: () => void;
   onViewEval?: (evalId: string) => void;
 }
@@ -110,9 +112,11 @@ export default function QuickView({
   reposos = [],
   onOpenFull,
   onNewEval,
+  onNewEvalRetiro,
   onNewReposo,
   onViewEval,
 }: QuickViewProps) {
+  const [menuEvalOpen, setMenuEvalOpen] = useState(false);
   const status = workerStatus(evals);
   const sorted = sortEvaluacionesDesc(evals);
   const lastEv = sorted[0] ?? null;
@@ -188,13 +192,36 @@ export default function QuickView({
             >
               Ver ficha completa ↗
             </button>
-            <button
-              onClick={onNewEval}
-              className="px-3.5 py-2 text-white border-none rounded-[7px] text-xs font-semibold cursor-pointer"
-              style={{ background: '#0a6b3b' }}
-            >
-              + Nueva evaluación
-            </button>
+            <div className="relative">
+              <button
+                onClick={() => setMenuEvalOpen(o => !o)}
+                className="px-3.5 py-2 text-white border-none rounded-[7px] text-xs font-semibold cursor-pointer flex items-center gap-1"
+                style={{ background: '#0a6b3b' }}
+              >
+                + Nueva evaluación <span style={{ opacity: 0.7, fontSize: 9 }}>▾</span>
+              </button>
+              {menuEvalOpen && (
+                <>
+                  <div className="fixed inset-0 z-30" onClick={() => setMenuEvalOpen(false)} />
+                  <div className="absolute right-0 mt-1 z-40 bg-white rounded-xl shadow-xl border border-slate-200 overflow-hidden" style={{ minWidth: 190 }}>
+                    <button
+                      onClick={() => { setMenuEvalOpen(false); onNewEval(); }}
+                      className="w-full text-left px-4 py-3 text-xs font-semibold hover:bg-blue-50 flex items-center gap-2 border-b border-slate-100 cursor-pointer"
+                    >
+                      <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded font-bold">PERIÓDICA</span> SO-RE-38
+                    </button>
+                    {onNewEvalRetiro && (
+                      <button
+                        onClick={() => { setMenuEvalOpen(false); onNewEvalRetiro(); }}
+                        className="w-full text-left px-4 py-3 text-xs font-semibold hover:bg-orange-50 flex items-center gap-2 cursor-pointer"
+                      >
+                        <span className="text-[10px] bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded font-bold">RETIRO</span> SO-RE-40
+                      </button>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </div>
 
