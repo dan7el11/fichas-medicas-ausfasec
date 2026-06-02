@@ -2,14 +2,14 @@
 // Archivo NUEVO.
 import type { ReactNode } from 'react';
 import { useState, useEffect } from 'react';
-import { CalendarPlus, X, Search, Check, Layers, FileText, Upload } from 'lucide-react';
+import { CalendarPlus, X, Search, Check, Layers, FileText, Upload, Trash2 } from 'lucide-react';
 import { Timestamp } from 'firebase/firestore';
 import type { Trabajador } from '../../types';
 import type { TipoExamen } from '../../types';
 import { NOMBRES_EXAMEN_COMUNES, TIPOS_EXAMEN } from '../../types';
 import type { OrdenExamen, ExamenItem, TipoEvaluacionExamen } from '../../types/examenPlan';
 import { TIPOS_EVALUACION_EXAMEN } from '../../types/examenPlan';
-import { crearOrden, actualizarOrden, estadoOrden, fmtFecha, progresoOrden } from '../../services/examenesPlan';
+import { crearOrden, actualizarOrden, eliminarOrden, estadoOrden, fmtFecha, progresoOrden } from '../../services/examenesPlan';
 import { protocoloDePuesto } from '../../services/protocolos';
 import { EstadoChip } from './OrdenCard';
 
@@ -171,9 +171,12 @@ export function ProgramarExamenModal({ trabajadores, protocolos, medicoId, medic
 // ════════════════════════════════════════════════════════════════════════════
 // GESTIONAR ORDEN (marcar realizados)
 // ════════════════════════════════════════════════════════════════════════════
-export function OrdenDetalleModal({ orden, onClose, onSaved }: { orden: OrdenExamen; onClose: () => void; onSaved: () => void }) {
+export function OrdenDetalleModal({ orden, onClose, onSaved, onDeleted }: {
+  orden: OrdenExamen; onClose: () => void; onSaved: () => void; onDeleted?: () => void;
+}) {
   const [examenes, setExamenes] = useState<ExamenItem[]>(orden.examenes);
   const [guardando, setGuardando] = useState(false);
+  const [eliminando, setEliminando] = useState(false);
   const st = estadoOrden({ ...orden, examenes });
   const pr = progresoOrden({ ...orden, examenes });
 
@@ -188,6 +191,13 @@ export function OrdenDetalleModal({ orden, onClose, onSaved }: { orden: OrdenExa
     catch (err) { console.error(err); alert('No se pudo actualizar.'); setGuardando(false); }
   };
 
+  const eliminar = async () => {
+    if (!orden.id || !window.confirm('¿Eliminar este examen programado? Esta acción no se puede deshacer.')) return;
+    setEliminando(true);
+    try { await eliminarOrden(orden.id); onDeleted ? onDeleted() : onSaved(); }
+    catch (err) { console.error(err); alert('No se pudo eliminar.'); setEliminando(false); }
+  };
+
   return (
     <Backdrop onClose={onClose}>
       <div className="w-[560px] max-w-full max-h-[92vh] overflow-y-auto bg-white rounded-[18px] shadow-2xl">
@@ -199,6 +209,9 @@ export function OrdenDetalleModal({ orden, onClose, onSaved }: { orden: OrdenExa
             <div className="text-[16px] font-extrabold tracking-tight">{orden.apellidos} {orden.nombres}</div>
             <div className="text-[12.5px] text-slate-500">{orden.puesto}</div>
           </div>
+          <button onClick={eliminar} disabled={eliminando} title="Eliminar orden" className="bg-transparent border-none cursor-pointer text-red-400 hover:text-red-600 p-1 disabled:opacity-50">
+            <Trash2 size={17} />
+          </button>
           <button onClick={onClose} className="bg-transparent border-none cursor-pointer text-slate-400 p-1"><X size={20} /></button>
         </div>
 
