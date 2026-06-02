@@ -106,6 +106,8 @@ export default function Inicio() {
               <p className="m-0 text-[13px] text-slate-500 leading-snug">Crea sin entrar al módulo</p>
               <div className="mt-auto pt-4 flex flex-col gap-2">
                 <Quick label="Nuevo trabajador" onClick={() => navigate('/nuevo-trabajador')} />
+                <Quick label="Eval. periódica (SO-RE-38)" onClick={() => navigate('/trabajadores')} color="#1d4fad" />
+                <Quick label="Eval. retiro (SO-RE-40)" onClick={() => navigate('/trabajadores')} color="#c2410c" />
                 <Quick label="Nueva atención" onClick={() => navigate('/consulta-diaria')} />
                 <Quick label="Registrar permiso" onClick={() => navigate('/permisos')} />
               </div>
@@ -138,10 +140,10 @@ function ModuloTarjeta({ m, onGo }: { m: ModuloCard; onGo: () => void }) {
   );
 }
 
-function Quick({ label, onClick }: { label: string; onClick: () => void }) {
+function Quick({ label, onClick, color }: { label: string; onClick: () => void; color?: string }) {
   return (
-    <button onClick={onClick} className="flex items-center gap-2 w-full text-left px-3 py-2 rounded-lg border border-slate-200 bg-white text-[13px] font-semibold text-slate-700 cursor-pointer hover:bg-slate-50">
-      <Plus size={14} className="text-slate-400" /> {label}
+    <button onClick={onClick} className="flex items-center gap-2 w-full text-left px-3 py-2 rounded-lg border border-slate-200 bg-white text-[13px] font-semibold cursor-pointer hover:bg-slate-50 transition-colors" style={{ color: color || '#374151' }}>
+      <Plus size={14} style={{ color: color || '#9ca3af' }} /> {label}
     </button>
   );
 }
