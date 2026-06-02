@@ -134,6 +134,7 @@ export default function Dashboard() {
   const handleLogout = async () => { try { await signOut(auth); } catch (err) { console.error(err); } };
   const handleNewWorker = () => navigate('/nuevo-trabajador');
   const handleNewEval = () => { if (selected?.id) navigate(`/evaluar/${selected.id}`); };
+  const handleNewEvalRetiro = () => { if (selected?.id) navigate(`/evaluar-retiro/${selected.id}`); };
   const handleNewReposo = () => { if (selected?.id) navigate(`/reposo/${selected.id}`); };
   const handleOpenFullPage = (evalId?: string) => {
     if (selected?.id) navigate(evalId ? `/trabajador/${selected.id}?evalId=${evalId}` : `/trabajador/${selected.id}`);
@@ -168,13 +169,14 @@ export default function Dashboard() {
                 reposos={selectedReposos}
                 onOpenFull={() => handleOpenFullPage()}
                 onNewEval={handleNewEval}
+                onNewEvalRetiro={handleNewEvalRetiro}
                 onNewReposo={handleNewReposo}
                 onViewEval={(evalId) => handleOpenFullPage(evalId)}
               />
             ) : (
               <FullFicha
                 trabajador={selected} evals={selectedEvals}
-                onClose={() => setView('quick')} onNewEval={handleNewEval}
+                onClose={() => setView('quick')} onNewEval={handleNewEval} onNewEvalRetiro={handleNewEvalRetiro}
                 onEdit={() => handleOpenFullPage()} onPrintPdf={() => handleOpenFullPage()}
                 onViewEval={(evalId) => handleOpenFullPage(evalId)}
               />
