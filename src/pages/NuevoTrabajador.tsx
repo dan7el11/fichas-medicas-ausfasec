@@ -3,9 +3,11 @@ import { collection, addDoc, getDocs, query, where } from 'firebase/firestore';
 import { useNavigate } from 'react-router-dom';
 import { db } from '../services/firebase';
 import { validarCedula } from '../utils/calculations';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function NuevoTrabajador() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState('');
   const [cedulaTocada, setCedulaTocada] = useState(false);
@@ -67,6 +69,7 @@ export default function NuevoTrabajador() {
         evaluaciones: [],
         createdAt: new Date(),
         updatedAt: new Date(),
+        createdBy: user?.uid || '',
       });
       navigate('/');
     } catch {
