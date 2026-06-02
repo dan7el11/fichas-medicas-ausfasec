@@ -2,7 +2,7 @@
 // Archivo NUEVO. Colección Firestore: `permisos`.
 
 import {
-  collection, getDocs, addDoc, updateDoc, doc, orderBy, query as fbQuery, Timestamp,
+  collection, getDocs, addDoc, updateDoc, deleteDoc, doc, orderBy, query as fbQuery, Timestamp,
 } from 'firebase/firestore';
 import { db } from './firebase';
 import {
@@ -52,6 +52,14 @@ export async function crearPermiso(data: Omit<PermisoMedico, 'id' | 'createdAt'>
 
 export async function marcarCertificado(id: string, nombreArchivo: string): Promise<void> {
   await updateDoc(doc(db, COL, id), { certAdjunto: true, certNombreArchivo: nombreArchivo });
+}
+
+export async function actualizarPermiso(id: string, patch: Partial<PermisoMedico>): Promise<void> {
+  await updateDoc(doc(db, COL, id), patch as any);
+}
+
+export async function eliminarPermiso(id: string): Promise<void> {
+  await deleteDoc(doc(db, COL, id));
 }
 
 // ── Estado calculado ─────────────────────────────────────────────────────────
