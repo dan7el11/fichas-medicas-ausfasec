@@ -107,7 +107,8 @@ export default function DetalleTrabajador() {
   const [tabPrincipal, setTabPrincipal] = useState<'evaluaciones' | 'examenes'>(searchParams.get('tab') === 'examenes' ? 'examenes' : 'evaluaciones');
   const [totalPatologicos, setTotalPatologicos] = useState(0);
 
-  // Modal edición
+  // Modal edición + dropdown evaluación
+  const [menuEvalOpen, setMenuEvalOpen] = useState(false);
   const [modalEditar, setModalEditar] = useState(false);
   const [guardandoEdicion, setGuardandoEdicion] = useState(false);
   const [datosEdicion, setDatosEdicion] = useState({
@@ -662,9 +663,24 @@ export default function DetalleTrabajador() {
           <div className="flex gap-3 flex-wrap">
             <button onClick={() => navigate('/')} className="px-4 py-2 bg-slate-100 text-slate-700 font-semibold rounded-lg hover:bg-slate-200 text-sm">Volver</button>
             <button onClick={abrirModalEditar} className="px-4 py-2 bg-amber-100 text-amber-800 font-semibold rounded-lg hover:bg-amber-200 text-sm">✏️ Editar datos</button>
-            <button onClick={() => navigate(`/evaluar/${trabajador.id}`)} className="px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 shadow-sm text-sm">+ Eval. Periódica</button>
-            <button onClick={() => navigate(`/evaluar-retiro/${trabajador.id}`)} className="px-4 py-2 bg-orange-600 text-white font-semibold rounded-lg hover:bg-orange-700 shadow-sm text-sm">+ Eval. Retiro</button>
-            <button onClick={() => navigate(`/preocupacional/${trabajadorId}`)} className="px-4 py-2 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 transition-colors shadow-sm flex items-center gap-2">+ Nueva Preocupacional</button>
+            <div className="relative">
+              <button onClick={() => setMenuEvalOpen(o => !o)} className="px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 shadow-sm text-sm flex items-center gap-1">
+                + Nueva Evaluación <span className="text-blue-200 text-xs">▾</span>
+              </button>
+              {menuEvalOpen && (
+                <>
+                  <div className="fixed inset-0 z-30" onClick={() => setMenuEvalOpen(false)} />
+                  <div className="absolute right-0 mt-1 z-40 bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden min-w-[190px]">
+                    <button onClick={() => { setMenuEvalOpen(false); navigate(`/evaluar/${trabajador.id}`); }} className="w-full text-left px-4 py-3 text-sm font-semibold hover:bg-blue-50 flex items-center gap-2 border-b border-slate-100">
+                      <span className="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded font-bold">PERIÓDICA</span> SO-RE-38
+                    </button>
+                    <button onClick={() => { setMenuEvalOpen(false); navigate(`/evaluar-retiro/${trabajador.id}`); }} className="w-full text-left px-4 py-3 text-sm font-semibold hover:bg-orange-50 flex items-center gap-2">
+                      <span className="text-xs bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded font-bold">RETIRO</span> SO-RE-40
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </div>
 
