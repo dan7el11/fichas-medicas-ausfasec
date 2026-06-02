@@ -244,6 +244,7 @@ export interface ExamenComplementarioDoc {
 
 export interface EvaluacionMedica {
   id?: string;
+  tipo?: 'PERIODICA' | 'RETIRO';
   trabajadorId: string;
   medicoId: string;
   medicoNombre: string;
