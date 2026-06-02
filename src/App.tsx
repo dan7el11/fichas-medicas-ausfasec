@@ -65,6 +65,7 @@ function App() {
               {/* Evaluaciones */}
               <Route path="/evaluar/:trabajadorId" element={<ProtectedRoute><NuevaEvaluacion /></ProtectedRoute>} />
               <Route path="/evaluar-retiro/:trabajadorId" element={<ProtectedRoute><NuevaEvaluacionRetiro /></ProtectedRoute>} />
+              <Route path="/preocupacional/:trabajadorId" element={<ProtectedRoute><NuevaPreocupacional /></ProtectedRoute>} />
 
               {/* Consulta diaria */}
               <Route path="/consulta-diaria" element={<ProtectedRoute><ConsultaDiaria /></ProtectedRoute>} />
