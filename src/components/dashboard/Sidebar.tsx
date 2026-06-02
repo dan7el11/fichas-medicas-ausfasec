@@ -10,7 +10,9 @@ import {
 import {
   areaDeTrabajador,
   dashboardStats,
+  fmtDate,
   iniciales,
+  lastEval,
   TONE_STYLES,
   workerStatus,
 } from '../../utils/medicalHelpers';
@@ -56,6 +58,38 @@ export default function Sidebar({
 }: SidebarProps) {
   const searchRef = useRef<HTMLInputElement>(null);
   const stats = dashboardStats(trabajadores, evalsPorTrabajador);
+
+  const exportarCSV = () => {
+    const filas = filtered.map((w) => {
+      const evals = evalsPorTrabajador.get(w.id ?? '') ?? [];
+      const ultima = lastEval(evals);
+      const status = workerStatus(evals);
+      const aptitud = ultima?.aptitudMedica ?? '-';
+      const aptitudLabel: Record<string, string> = {
+        apto: 'Apto', aptoObservacion: 'Apto en observación',
+        aptoLimitaciones: 'Apto con limitaciones', noApto: 'No apto',
+      };
+      return [
+        w.cedula,
+        `${w.primerApellido} ${w.segundoApellido || ''}`.trim(),
+        `${w.primerNombre} ${w.segundoNombre || ''}`.trim(),
+        w.puestoTrabajo,
+        areaDeTrabajador(w),
+        status.label,
+        ultima ? fmtDate(ultima.fecha) : 'Sin evaluación',
+        aptitudLabel[aptitud] ?? aptitud,
+      ];
+    });
+    const encabezado = ['CÉDULA', 'APELLIDOS', 'NOMBRES', 'PUESTO', 'ÁREA', 'ESTADO', 'ÚLTIMA EVAL.', 'APTITUD'];
+    const csv = '﻿' + [encabezado, ...filas].map(r => r.map(c => `"${c}"`).join(';')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.setAttribute('download', `trabajadores_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -177,7 +211,11 @@ export default function Sidebar({
         >
           <span className="text-sm leading-none">+</span> Agregar trabajador
         </button>
-        <button className="bg-transparent border-none text-[11px] cursor-pointer p-0 text-slate-500">
+        <button
+          onClick={exportarCSV}
+          title={`Exportar ${filtered.length} trabajador(es) a CSV`}
+          className="bg-transparent border-none text-[11px] cursor-pointer p-0 text-slate-500 hover:text-slate-800 transition-colors"
+        >
           Exportar ↓
         </button>
       </div>
