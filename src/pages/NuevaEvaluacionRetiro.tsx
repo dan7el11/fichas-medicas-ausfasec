@@ -341,21 +341,22 @@ export default function NuevaEvaluacionRetiro() {
 
     // Bloque de encabezado reutilizable (páginas 1 y 2)
     const paginaHeader = (pagina: string) => {
+      const tableStartY = y;
       AT({
         startY: y, margin: { left: M, right: M }, theme: 'grid',
         styles: { ...base, halign: 'center', fontSize: 8 },
         columnStyles: { 0: { cellWidth: 42 }, 2: { cellWidth: 33 } },
         body: [
           [{ content: '', rowSpan: 3, styles: { fontSize: 11, valign: 'middle' } },
-           { content: 'HISTORIA CLÍNICA OCUPACIONAL:\nEVALUACIÓN DE RETIRO', rowSpan: 2, styles: { fontStyle: 'bold', fontSize: 9, valign: 'middle' } },
+           { content: 'HISTORIA CLÍNICA:\nEVALUACIÓN MÉDICA DE RETIRO', rowSpan: 2, styles: { fontStyle: 'bold', fontSize: 9, valign: 'middle' } },
            { content: 'Código:   SO-RE-40', styles: { fontSize: 7, halign: 'left' } }],
           [{ content: 'Revisión:  1', styles: { fontSize: 7, halign: 'left' } }],
           [{ content: 'MACROPROCESO:  PLANIFICACIÓN, SEGURIDAD Y AMBIENTE', styles: { fontSize: 6, fontStyle: 'bold' } },
            { content: pagina, styles: { fontSize: 7, halign: 'left' } }],
         ],
       });
-      // Logo sobre la primera celda
-      pdf.addImage(LOGO_EMPRESA, 'PNG', M + 1, y - (pdf as any).lastAutoTable.finalY + (pdf as any).lastAutoTable.finalY - 13, 40, 12);
+      // Logo dentro de la primera celda del encabezado
+      pdf.addImage(LOGO_EMPRESA, 'PNG', M + 1, tableStartY + 1, 40, 12);
       y += 2;
     };
 
@@ -456,17 +457,39 @@ export default function NuevaEvaluacionRetiro() {
     pdf.setFontSize(6.5); pdf.setFont('helvetica', 'bold');
     pdf.setFillColor(204, 255, 204); pdf.setDrawColor(0);
     pdf.rect(M, y, CW, 4, 'FD');
-    pdf.text('ACCIDENTES DE TRABAJO (DESCRIPCIÓN)', M + 1.5, y + 3);
+    pdf.text('ACCIDENTES DE TRABAJO', M + 1.5, y + 3);
     y += 4;
-    textoLibre(tieneAccidente ? accidenteTrabajo.descripcion || '-' : 'NINGUNO', 8);
-    siNoCalificado(
-      tieneAccidente ? accidenteTrabajo.calificado : false,
-      tieneAccidente ? accidenteTrabajo.especificacion : '',
-      tieneAccidente ? accidenteTrabajo.fechaDia : '',
-      tieneAccidente ? accidenteTrabajo.fechaMes : '',
-      tieneAccidente ? accidenteTrabajo.fechaAnio : '',
-      tieneAccidente ? accidenteTrabajo.observaciones : 'Ninguno',
-    );
+    // SI/NO — ¿tuvo accidente?
+    AT({
+      startY: y, margin: { left: M, right: M }, theme: 'grid',
+      styles: { ...base, fontSize: 6.5 },
+      body: [[
+        { content: '¿TUVO ACCIDENTE DE TRABAJO?', styles: { fontStyle: 'bold', cellWidth: 90 } },
+        { content: 'SI', styles: { fontStyle: 'bold', halign: 'center', cellWidth: 12 } },
+        { content: tieneAccidente === true ? 'X' : '', styles: { halign: 'center', fontStyle: 'bold', cellWidth: 12 } },
+        { content: 'NO', styles: { fontStyle: 'bold', halign: 'center', cellWidth: 12 } },
+        { content: tieneAccidente !== true ? 'X' : '', styles: { halign: 'center', fontStyle: 'bold' } },
+      ]],
+    });
+    if (tieneAccidente === true) {
+      textoLibre(accidenteTrabajo.descripcion || '-', 8);
+      siNoCalificado(
+        accidenteTrabajo.calificado,
+        accidenteTrabajo.especificacion,
+        accidenteTrabajo.fechaDia,
+        accidenteTrabajo.fechaMes,
+        accidenteTrabajo.fechaAnio,
+        accidenteTrabajo.observaciones || 'Ninguno',
+      );
+    } else {
+      textoLibre('NINGUNO', 5);
+      AT({
+        startY: y, margin: { left: M, right: M }, theme: 'grid',
+        styles: { ...base, fontSize: 6 },
+        body: [[{ content: 'Observaciones:', styles: { fontStyle: 'bold', cellWidth: 25 } }, { content: 'Ninguno' }]],
+      });
+      pdf.setDrawColor(0); pdf.rect(M, y, CW, 6, 'S'); y += 6;
+    }
     y += 1;
 
     // Enfermedades profesionales
@@ -475,15 +498,37 @@ export default function NuevaEvaluacionRetiro() {
     pdf.rect(M, y, CW, 4, 'FD');
     pdf.text('ENFERMEDADES PROFESIONALES', M + 1.5, y + 3);
     y += 4;
-    textoLibre(tieneEnfermedad ? enfermedadProfesional.descripcion || '-' : 'NINGUNA', 8);
-    siNoCalificado(
-      tieneEnfermedad ? enfermedadProfesional.calificada : false,
-      tieneEnfermedad ? enfermedadProfesional.especificacion : '',
-      tieneEnfermedad ? enfermedadProfesional.fechaDia : '',
-      tieneEnfermedad ? enfermedadProfesional.fechaMes : '',
-      tieneEnfermedad ? enfermedadProfesional.fechaAnio : '',
-      tieneEnfermedad ? enfermedadProfesional.observaciones : 'Ninguno',
-    );
+    // SI/NO — ¿tuvo enfermedad profesional?
+    AT({
+      startY: y, margin: { left: M, right: M }, theme: 'grid',
+      styles: { ...base, fontSize: 6.5 },
+      body: [[
+        { content: '¿TUVO ENFERMEDAD PROFESIONAL?', styles: { fontStyle: 'bold', cellWidth: 90 } },
+        { content: 'SI', styles: { fontStyle: 'bold', halign: 'center', cellWidth: 12 } },
+        { content: tieneEnfermedad === true ? 'X' : '', styles: { halign: 'center', fontStyle: 'bold', cellWidth: 12 } },
+        { content: 'NO', styles: { fontStyle: 'bold', halign: 'center', cellWidth: 12 } },
+        { content: tieneEnfermedad !== true ? 'X' : '', styles: { halign: 'center', fontStyle: 'bold' } },
+      ]],
+    });
+    if (tieneEnfermedad === true) {
+      textoLibre(enfermedadProfesional.descripcion || '-', 8);
+      siNoCalificado(
+        enfermedadProfesional.calificada,
+        enfermedadProfesional.especificacion,
+        enfermedadProfesional.fechaDia,
+        enfermedadProfesional.fechaMes,
+        enfermedadProfesional.fechaAnio,
+        enfermedadProfesional.observaciones || 'Ninguno',
+      );
+    } else {
+      textoLibre('NINGUNA', 5);
+      AT({
+        startY: y, margin: { left: M, right: M }, theme: 'grid',
+        styles: { ...base, fontSize: 6 },
+        body: [[{ content: 'Observaciones:', styles: { fontStyle: 'bold', cellWidth: 25 } }, { content: 'Ninguno' }]],
+      });
+      pdf.setDrawColor(0); pdf.rect(M, y, CW, 6, 'S'); y += 6;
+    }
     y += 2;
 
     // C. Constantes vitales
@@ -547,6 +592,14 @@ export default function NuevaEvaluacionRetiro() {
       textoLibre('Observaciones:\n' + examenFisicoHallazgos.map(h => `${h.codigo}. ${h.region}, ${h.subregion}: ${h.descripcion || '-'}`).join('\n'), 6);
     } else {
       textoLibre('Observaciones: Sin hallazgos patológicos al examen físico regional.', 5);
+    }
+
+    // Rellenar espacio restante de página 1 con líneas en blanco
+    const pageH1 = pdf.internal.pageSize.getHeight() - 10;
+    while (y < pageH1 - 5) {
+      pdf.setDrawColor(0);
+      pdf.rect(M, y, CW, 6, 'S');
+      y += 6;
     }
 
     // ════════════════════════════════════════════════════════════
