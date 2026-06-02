@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useToast } from '../components/Toast';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { doc, getDoc, collection, addDoc, updateDoc, arrayUnion, query, where, orderBy, getDocs, limit } from 'firebase/firestore';
 import { db } from '../services/firebase';
@@ -257,6 +258,7 @@ const emptyAlergia = (): Alergia => ({
 export default function NuevaEvaluacion() {
   const { trabajadorId } = useParams();
   const navigate = useNavigate();
+  const toast = useToast();
   const [searchParams] = useSearchParams();
   const editEvalId = searchParams.get('editId'); // Captura el ID si venimos a editar
   const { user } = useAuth();
@@ -649,7 +651,7 @@ export default function NuevaEvaluacion() {
           ...evaluacionData,
           updatedAt: hoy
         });
-        alert('Evaluación actualizada con éxito');
+        toast.success('Evaluación actualizada con éxito');
       } else {
         // MODO CREACIÓN: Ficha nueva estándar
         evaluacionData.fecha = hoy;
@@ -663,13 +665,13 @@ export default function NuevaEvaluacion() {
           evaluaciones: arrayUnion(docRef.id),
           updatedAt: hoy
         });
-        alert('Evaluación guardada exitosamente');
+        toast.success('Evaluación guardada exitosamente');
       }
 
       navigate(`/trabajador/${trabajadorId}`);
     } catch (error) {
       console.error('Error al guardar:', error);
-      alert('Hubo un error al procesar la evaluación.');
+      toast.error('Hubo un error al procesar la evaluación.');
     } finally {
       setGuardando(false);
     }
