@@ -12,8 +12,9 @@ import { useToast } from '../Toast';
 import { useAuth } from '../../contexts/AuthContext';
 import { LOGO_EMPRESA } from '../../assets/logoEmpresa';
 import { getOrdenes, eliminarOrden } from '../../services/examenesPlan';
-import { estadoPermiso, duracionPermiso, fmtFecha as fmtPF, toDate } from '../../services/permisos';
+import { estadoPermiso, duracionPermiso, fmtFecha as fmtPF, toDate, actualizarPermiso, eliminarPermiso } from '../../services/permisos';
 import { TIPOS_PERMISO } from '../../types/permiso';
+import type { TipoPermiso } from '../../types/permiso';
 import type { OrdenExamen } from '../../types/examenPlan';
 import type { PermisoMedico } from '../../types/permiso';
 
@@ -147,6 +148,11 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
   const certInputRef = useRef<HTMLInputElement>(null);
   const [subiendoCert, setSubiendoCert] = useState<string | null>(null);
 
+  // Editar / eliminar permiso
+  const [editPermiso, setEditPermiso] = useState<PermisoMedico | null>(null);
+  const [editPatch, setEditPatch] = useState<{ desde: string; dias: number; horas: number; motivo: string; tipo: TipoPermiso }>({ desde: '', dias: 1, horas: 3, motivo: '', tipo: 'reposo_interno' });
+  const [guardandoPermiso, setGuardandoPermiso] = useState(false);
+
   // Dropdown nueva evaluación
   const [menuEvalOpen, setMenuEvalOpen] = useState(false);
 
@@ -274,6 +280,60 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
       await eliminarOrden(id);
       setOrdenes(prev => prev.filter(o => o.id !== id));
       toast.success('Examen eliminado.');
+    } catch {
+      toast.error('No se pudo eliminar.');
+    }
+  };
+
+  // ----------------------------------------------------------------
+  // EDITAR / ELIMINAR PERMISO
+  // ----------------------------------------------------------------
+  const abrirEditPermiso = (p: PermisoMedico) => {
+    setEditPatch({
+      tipo: p.tipo,
+      desde: toDate(p.desde).toISOString().slice(0, 10),
+      dias: p.dias || 1,
+      horas: p.horas || 3,
+      motivo: p.motivo || '',
+    });
+    setEditPermiso(p);
+  };
+
+  const guardarEditPermiso = async () => {
+    if (!editPermiso?.id) return;
+    setGuardandoPermiso(true);
+    try {
+      const meta = TIPOS_PERMISO[editPatch.tipo];
+      const dDesde = new Date(editPatch.desde + 'T08:00:00');
+      const dHasta = new Date(dDesde);
+      if (editPatch.tipo !== 'cita' && editPatch.dias > 1) dHasta.setDate(dHasta.getDate() + editPatch.dias - 1);
+      const { Timestamp } = await import('firebase/firestore');
+      const patch: Partial<PermisoMedico> = {
+        tipo: editPatch.tipo,
+        desde: Timestamp.fromDate(dDesde),
+        hasta: Timestamp.fromDate(dHasta),
+        dias: editPatch.tipo === 'cita' ? 0 : editPatch.dias,
+        horas: editPatch.tipo === 'cita' ? editPatch.horas : 0,
+        motivo: editPatch.motivo,
+        certAdjunto: !meta.requiereCert ? true : editPermiso.certAdjunto,
+      };
+      await actualizarPermiso(editPermiso.id, patch);
+      setPermisos(prev => prev.map(p => p.id === editPermiso.id ? { ...p, ...patch } as PermisoMedico : p));
+      setEditPermiso(null);
+      toast.success('Permiso actualizado.');
+    } catch {
+      toast.error('No se pudo actualizar.');
+    } finally {
+      setGuardandoPermiso(false);
+    }
+  };
+
+  const handleEliminarPermiso = async (id: string) => {
+    if (!window.confirm('¿Eliminar este permiso? Esta acción no se puede deshacer.')) return;
+    try {
+      await eliminarPermiso(id);
+      setPermisos(prev => prev.filter(p => p.id !== id));
+      toast.success('Permiso eliminado.');
     } catch {
       toast.error('No se pudo eliminar.');
     }
@@ -994,12 +1054,16 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
                       <p className="text-xs text-slate-600 mt-1">{p.motivo || '—'}</p>
                       <p className="text-[11px] text-slate-400 mt-0.5">{fmtPF(p.desde)}{p.hasta && p.hasta !== p.desde ? ` → ${fmtPF(p.hasta)}` : ''}</p>
                     </div>
-                    <div className="shrink-0">
+                    <div className="shrink-0 flex items-center gap-1.5">
                       {p.certAdjunto ? (
-                        <a href={(p as any).certUrl || '#'} target="_blank" rel="noopener noreferrer"
-                          className="text-[11px] px-2.5 py-1 bg-green-100 text-green-700 rounded-lg font-semibold hover:bg-green-200 inline-flex items-center gap-1">
-                          ✓ Certificado
-                        </a>
+                        p.certUrl ? (
+                          <a href={p.certUrl} target="_blank" rel="noopener noreferrer"
+                            className="text-[11px] px-2.5 py-1 bg-green-100 text-green-700 rounded-lg font-semibold hover:bg-green-200 inline-flex items-center gap-1">
+                            ✓ Ver PDF
+                          </a>
+                        ) : (
+                          <span className="text-[11px] px-2.5 py-1 bg-green-100 text-green-700 rounded-lg font-semibold inline-flex items-center gap-1">✓ Certificado</span>
+                        )
                       ) : meta.requiereCert ? (
                         <button
                           disabled={subiendoCert === p.id}
@@ -1013,6 +1077,16 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
                           {subiendoCert === p.id ? 'Subiendo…' : '⬆ Subir PDF'}
                         </button>
                       ) : null}
+                      <button
+                        onClick={() => abrirEditPermiso(p)}
+                        className="text-[11px] px-2 py-1 bg-slate-100 text-slate-600 rounded-lg font-semibold hover:bg-slate-200"
+                        title="Editar permiso"
+                      >✏️</button>
+                      <button
+                        onClick={() => handleEliminarPermiso(p.id!)}
+                        className="text-[11px] px-2 py-1 bg-red-50 text-red-500 rounded-lg font-semibold hover:bg-red-100"
+                        title="Eliminar permiso"
+                      >✕</button>
                     </div>
                   </div>
                 );
@@ -1120,7 +1194,82 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
             setOrdenDetalle(null);
             getOrdenes().then(ords => setOrdenes((ords as OrdenExamen[]).filter(o => o.trabajadorId === trabajadorId)));
           }}
+          onDeleted={() => {
+            setOrdenDetalle(null);
+            getOrdenes().then(ords => setOrdenes((ords as OrdenExamen[]).filter(o => o.trabajadorId === trabajadorId)));
+          }}
         />
+      )}
+
+      {/* ── MODAL EDITAR PERMISO ── */}
+      {editPermiso && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
+            <div className="flex justify-between items-center p-5 border-b">
+              <h2 className="text-base font-bold text-slate-800">Editar permiso médico</h2>
+              <button onClick={() => setEditPermiso(null)} className="text-slate-400 hover:text-slate-700 text-2xl leading-none">&times;</button>
+            </div>
+            <div className="p-5 space-y-3">
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">Tipo de permiso</label>
+                <select
+                  value={editPatch.tipo}
+                  onChange={e => setEditPatch(prev => ({ ...prev, tipo: e.target.value as TipoPermiso }))}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                >
+                  {Object.entries(TIPOS_PERMISO).map(([k, v]) => (
+                    <option key={k} value={k}>{v.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">Fecha de inicio</label>
+                <input
+                  type="date"
+                  value={editPatch.desde}
+                  onChange={e => setEditPatch(prev => ({ ...prev, desde: e.target.value }))}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              {editPatch.tipo === 'cita' ? (
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">Duración (horas)</label>
+                  <input
+                    type="number" min={1} max={8}
+                    value={editPatch.horas}
+                    onChange={e => setEditPatch(prev => ({ ...prev, horas: Number(e.target.value) }))}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              ) : (
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">Días de reposo</label>
+                  <input
+                    type="number" min={1} max={365}
+                    value={editPatch.dias}
+                    onChange={e => setEditPatch(prev => ({ ...prev, dias: Number(e.target.value) }))}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              )}
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">Motivo / diagnóstico</label>
+                <input
+                  type="text"
+                  value={editPatch.motivo}
+                  onChange={e => setEditPatch(prev => ({ ...prev, motivo: e.target.value }))}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+            <div className="flex justify-end gap-3 p-5 border-t">
+              <button onClick={() => setEditPermiso(null)} className="px-4 py-2 text-sm font-medium bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200">Cancelar</button>
+              <button onClick={guardarEditPermiso} disabled={guardandoPermiso} className="px-5 py-2 text-sm font-semibold bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
+                {guardandoPermiso ? 'Guardando...' : 'Guardar cambios'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* ── DRAWER EVALUACIÓN ── */}
