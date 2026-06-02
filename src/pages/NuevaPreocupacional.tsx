@@ -222,17 +222,18 @@ export default function NuevaPreocupacional() {
           </div>
         </div>
 
-        {/* ===== CONSTANTES VITALES ===== */}
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-          <h2 className="text-sm font-bold text-slate-800 mb-3 border-b pb-2">G. CONSTANTES VITALES Y ANTROPOMETRÍA</h2>
-          <SignosVitalesForm value={signosVitales} onChange={setSignosVitales} />
-        </div>
-
+         {/* ===== CONSTANTES VITALES ===== */}
+    <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+      <h2 className="text-sm font-bold text-slate-800 mb-3 border-b pb-2">G. CONSTANTES VITALES Y ANTROPOMETRÍA</h2>
+        {/* Ajustado para usar la propiedad exacta que tus tipados esperan */}
+        <SignosVitalesForm data={signosVitales} onChange={setSignosVitales} />
+    </div>
         {/* ===== CIE-10 ===== */}
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-          <h2 className="text-sm font-bold text-slate-800 mb-3 border-b pb-2">L. DIAGNÓSTICO (CIE-10)</h2>
-          <BuscadorCIE10 seleccionados={diagnosticos} setSeleccionados={setDiagnosticos} />
-        </div>
+    <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+      <h2 className="text-sm font-bold text-slate-800 mb-3 border-b pb-2">L. DIAGNÓSTICO (CIE-10)</h2>
+        {/* Modificado para que coincida con las propiedades reales de tu Buscador */}
+        <BuscadorCIE10 diagnosticos={diagnosticos} setDiagnosticos={setDiagnosticos} />
+    </div>
 
         {/* ===== APTITUD MÉDICA ===== */}
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
