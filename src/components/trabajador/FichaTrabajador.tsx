@@ -17,6 +17,7 @@ import { TIPOS_PERMISO } from '../../types/permiso';
 import type { TipoPermiso } from '../../types/permiso';
 import type { OrdenExamen } from '../../types/examenPlan';
 import type { PermisoMedico } from '../../types/permiso';
+import SeguimientoSignos from './SeguimientoSignos';
 
 // ============================================================================
 // CONSTANTES
@@ -1159,7 +1160,28 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
         );
       })()}
 
-      {/* ── SECCIÓN 5: CONSULTAS MÉDICAS ── */}
+      {/* ── SECCIÓN 5: SEGUIMIENTO DE SIGNOS ── */}
+      <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        <div className="flex items-center gap-2 px-5 py-3.5 border-b border-slate-100 bg-slate-50">
+          <span className="text-red-600 text-lg">❤️</span>
+          <span className="font-bold text-slate-800 text-sm">Seguimiento de signos vitales</span>
+        </div>
+        <SeguimientoSignos
+          trabajadorId={trabajadorId}
+          nombreCompleto={nombreCompleto}
+          medicoId={user?.uid}
+          tallaMetros={
+            (() => {
+              const talla = evaluaciones
+                .map((e: any) => parseFloat(e.signosVitales?.talla || '0'))
+                .find(t => t > 0);
+              return talla ? talla / 100 : 1.65;
+            })()
+          }
+        />
+      </div>
+
+      {/* ── SECCIÓN 6: CONSULTAS MÉDICAS ── */}
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
         <div className="flex items-center gap-2 px-5 py-3.5 border-b border-slate-100 bg-slate-50">
           <span className="text-green-600 text-lg">🩺</span>
