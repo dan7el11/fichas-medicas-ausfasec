@@ -67,6 +67,11 @@ export default function FichaLayout(props: FichaLayoutProps) {
   const apt = ultEval ? aptInfo(ultEval.aptitudMedica) : null;
   const ini = ((t.primerApellido?.[0] ?? '') + (t.primerNombre?.[0] ?? '')).toUpperCase();
   const futuros = ordenes.filter((o) => toDate(o.fechaProgramada) >= new Date());
+  const proximoExamen = [...futuros].sort((a, b) => toDate(a.fechaProgramada).getTime() - toDate(b.fechaProgramada).getTime())[0] ?? null;
+  const anio = new Date().getFullYear();
+  const diasReposoAnio = permisos
+    .filter((p) => p.tipo !== 'cita' && toDate(p.desde).getFullYear() === anio)
+    .reduce((s, p) => s + (p.dias || 0), 0);
 
   const tabs: { key: Tab; label: string; icon: ReactNode; n?: number }[] = [
     { key: 'resumen', label: 'Resumen', icon: <Sparkles size={15} /> },
@@ -119,6 +124,13 @@ export default function FichaLayout(props: FichaLayoutProps) {
               </div>
             </div>
           </div>
+          {/* MINI-KPIS DEL HERO */}
+          <div className="flex gap-2.5 pb-4">
+            <HeroKpi v={`${evaluaciones.length}`} l="Evaluaciones" />
+            <HeroKpi v={proximoExamen ? fmtPF(proximoExamen.fechaProgramada) : '—'} l="Próximo examen" color="#0e7490" />
+            <HeroKpi v={`${diasReposoAnio} d`} l="Reposo (año)" color="#7c5cf2" />
+            <HeroKpi v={apt ? apt.label : '—'} l="Aptitud actual" color={apt ? apt.fg : undefined} />
+          </div>
           {/* TABS */}
           <div className="flex gap-0.5">
             {tabs.map((tb) => {
@@ -170,6 +182,14 @@ function SecCard({ icon, color, title, n, action, children, pad = true }: { icon
 }
 function Empty({ children }: { children: ReactNode }) { return <div className="p-4 text-center text-slate-400 text-[12.5px] bg-slate-50 rounded-[10px]">{children}</div>; }
 function Link({ children, onClick }: { children: ReactNode; onClick: () => void }) { return <button onClick={onClick} className="inline-flex items-center gap-1 bg-transparent border-none cursor-pointer text-[12.5px] font-bold p-0" style={{ color: BRAND }}>{children} <ArrowRight size={13} /></button>; }
+function HeroKpi({ v, l, color }: { v: string; l: string; color?: string }) {
+  return (
+    <div className="flex-1 bg-white border border-slate-200 rounded-xl p-[10px_14px] shadow-sm">
+      <div className="text-[18px] font-extrabold tracking-tight" style={{ color: color ?? '#0d1b2a' }}>{v}</div>
+      <div className="text-[11px] text-slate-400 font-semibold mt-0.5">{l}</div>
+    </div>
+  );
+}
 
 // ── Tab Resumen ──────────────────────────────────────────────────────────────
 function Resumen(p: FichaLayoutProps & { ultEval: any; apt: any; futuros: number; setTab: (t: Tab) => void }) {
