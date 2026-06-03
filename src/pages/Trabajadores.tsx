@@ -149,7 +149,7 @@ export default function Trabajadores() {
         </div>
       </main>
 
-      {sel && <Drawer entry={sel} onClose={() => setSel(null)} onFicha={(id) => navigate(`/expediente/${id}`)} />}
+      {sel && <Drawer entry={sel} onClose={() => setSel(null)} onFicha={(id) => navigate(`/trabajador/${id}`)} />}
     </div>
   );
 }
