@@ -14,7 +14,6 @@ import type { PermisoMedico } from '../../types/permiso';
 import type { OrdenExamen } from '../../types/examenPlan';
 import SeguimientoSignos from './SeguimientoSignos';
 
-
 const BRAND = '#0a6b3b';
 
 // Mapeo aptitud (enum Firestore → label + tono)
@@ -141,12 +140,12 @@ export default function FichaLayout(props: FichaLayoutProps) {
         {tab === 'resumen' && <Resumen {...props} ultEval={ultEval} apt={apt} futuros={futuros.length} setTab={setTab} />}
         {tab === 'evaluaciones' && <Evaluaciones {...props} />}
         {tab === 'signos' && (
-  <SeguimientoSignos
-    trabajadorId={t.id}
-    tallaMetros={(Number(evaluaciones[0]?.signosVitales?.talla) / 100) || 1.65}
-    nombreCompleto={nombreCompleto}
-  />
-)}
+          <SeguimientoSignos
+            trabajadorId={t.id}
+            tallaMetros={(Number(evaluaciones[0]?.signosVitales?.talla) / 100) || 1.65}
+            nombreCompleto={nombreCompleto}
+          />
+        )}
         {tab === 'consultas' && <Consultas atenciones={atenciones} />}
         {tab === 'examenes' && <Examenes {...props} />}
         {tab === 'permisos' && <Permisos {...props} />}
