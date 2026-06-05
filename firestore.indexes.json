@@ -1,0 +1,53 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "signos",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "trabajadorId", "order": "ASCENDING" },
+        { "fieldPath": "fecha", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "examenes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "trabajadorId", "order": "ASCENDING" },
+        { "fieldPath": "fecha", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "examenes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "trabajadorId", "order": "ASCENDING" },
+        { "fieldPath": "estado", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "atenciones",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "trabajadorId", "order": "ASCENDING" },
+        { "fieldPath": "fecha", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "evaluaciones",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "trabajadorId", "order": "ASCENDING" },
+        { "fieldPath": "fecha", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "permisos",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "trabajadorId", "order": "ASCENDING" },
+        { "fieldPath": "fechaEmision", "order": "DESCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}
