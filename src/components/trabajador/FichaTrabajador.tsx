@@ -1196,6 +1196,20 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
           </div>
         </div>
       )}
+      {pdfVisor && (
+  <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4" onClick={() => setPdfVisor(null)}>
+    <div className="bg-white rounded-xl shadow-2xl flex flex-col w-full max-w-4xl" style={{ height: '90vh' }} onClick={e => e.stopPropagation()}>
+      <div className="flex items-center justify-between px-5 py-3 border-b shrink-0">
+        <span className="text-sm font-semibold text-slate-700 truncate">{pdfVisor.nombre}</span>
+        <div className="flex items-center gap-2 shrink-0">
+          <a href={pdfVisor.url} download={pdfVisor.nombre} target="_blank" rel="noopener noreferrer" className="text-xs px-3 py-1.5 bg-slate-100 text-slate-700 rounded-lg font-semibold hover:bg-slate-200">⬇ Descargar</a>
+          <button onClick={() => setPdfVisor(null)} className="text-slate-400 hover:text-slate-700 text-2xl leading-none">&times;</button>
+        </div>
+      </div>
+      <iframe src={pdfVisor.url} className="flex-1 w-full rounded-b-xl" title={pdfVisor.nombre} />
+    </div>
+  </div>
+)}
     </div>
   );
 }
@@ -1214,20 +1228,6 @@ function KV({ k, v }: { k: string; v: string }) {
     <div>
       <span className="font-semibold block text-slate-500 text-[10px] uppercase">{k}</span>
       {v}
-      {pdfVisor && (
-  <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4" onClick={() => setPdfVisor(null)}>
-    <div className="bg-white rounded-xl shadow-2xl flex flex-col w-full max-w-4xl" style={{ height: '90vh' }} onClick={e => e.stopPropagation()}>
-      <div className="flex items-center justify-between px-5 py-3 border-b shrink-0">
-        <span className="text-sm font-semibold text-slate-700 truncate">{pdfVisor.nombre}</span>
-        <div className="flex items-center gap-2 shrink-0">
-          <a href={pdfVisor.url} download={pdfVisor.nombre} target="_blank" rel="noopener noreferrer" className="text-xs px-3 py-1.5 bg-slate-100 text-slate-700 rounded-lg font-semibold hover:bg-slate-200">⬇ Descargar</a>
-          <button onClick={() => setPdfVisor(null)} className="text-slate-400 hover:text-slate-700 text-2xl leading-none">&times;</button>
-        </div>
-      </div>
-      <iframe src={pdfVisor.url} className="flex-1 w-full rounded-b-xl" title={pdfVisor.nombre} />
-    </div>
-  </div>
-)}
     </div>
   );
 }
