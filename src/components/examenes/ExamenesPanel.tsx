@@ -13,7 +13,6 @@ interface ExamenesPanelProps {
   evaluaciones: EvaluacionMedica[];
 }
 
-// Archivos en cola para carga masiva
 interface ArchivoEnCola {
   file: File;
   nombreExamen: string;
@@ -63,7 +62,9 @@ export default function ExamenesPanel({ trabajadorId, trabajadorNombre, evaluaci
   // Modal evolución
   const [evolucionNombre, setEvolucionNombre] = useState<string | null>(null);
 
-  // Cargar exámenes
+  // Visor PDF flotante
+  const [pdfVisor, setPdfVisor] = useState<{ url: string; nombre: string } | null>(null);
+
   const cargarExamenes = useCallback(async () => {
     if (!trabajadorId) return;
     setCargando(true);
@@ -86,7 +87,6 @@ export default function ExamenesPanel({ trabajadorId, trabajadorNombre, evaluaci
 
   useEffect(() => { cargarExamenes(); }, [cargarExamenes]);
 
-  // Filtrado
   const examenesFiltrados = examenes.filter(ex => {
     if (filtroTipo !== 'Todos' && ex.tipoExamen !== filtroTipo) return false;
     if (filtroGrupo !== 'Todos' && ex.grupoExamen !== filtroGrupo) return false;
@@ -95,14 +95,10 @@ export default function ExamenesPanel({ trabajadorId, trabajadorNombre, evaluaci
     return true;
   });
 
-  // Stats
   const totalPatologicos = examenes.filter(e => e.estado === 'patologico').length;
   const totalNormales = examenes.filter(e => e.estado === 'normal').length;
-
-  // Nombres únicos para evolución
   const nombresUnicos = [...new Set(examenes.map(e => e.nombreExamen))].sort();
 
-  // ===== DRAG AND DROP =====
   const handleDragOver = (e: React.DragEvent) => { e.preventDefault(); setDragging(true); };
   const handleDragLeave = () => setDragging(false);
   const handleDrop = (e: React.DragEvent) => {
@@ -156,7 +152,6 @@ export default function ExamenesPanel({ trabajadorId, trabajadorNombre, evaluaci
     });
   };
 
-  // Validación de fecha contra evaluación vinculada
   const validarFecha = (item: ArchivoEnCola): string | null => {
     if (!item.evaluacionId || !item.fecha) return null;
     const eval_ = evaluaciones.find(e => e.id === item.evaluacionId);
@@ -169,11 +164,8 @@ export default function ExamenesPanel({ trabajadorId, trabajadorNombre, evaluaci
     return null;
   };
 
-  // ===== SUBIR EXÁMENES =====
   const subirExamenes = async () => {
     if (!user) return;
-
-    // Validaciones
     for (let i = 0; i < cola.length; i++) {
       const item = cola[i];
       if (!item.nombreExamen.trim()) { toast.warning(`Archivo ${i + 1}: Ingrese el nombre del examen`); return; }
@@ -185,21 +177,17 @@ export default function ExamenesPanel({ trabajadorId, trabajadorNombre, evaluaci
       const errorFecha = validarFecha(item);
       if (errorFecha) { toast.warning(`Archivo ${i + 1}: ${errorFecha}`); return; }
     }
-
     setSubiendo(true);
     try {
       for (const item of cola) {
-        // 1. Subir archivo a Storage
         const ext = item.file.name.split('.').pop() || 'pdf';
         const storagePath = `examenes/${trabajadorId}/${Date.now()}_${item.nombreExamen.replace(/\s+/g, '_')}.${ext}`;
         const storageRef = ref(storage, storagePath);
         await uploadBytes(storageRef, item.file);
         const url = await getDownloadURL(storageRef);
-
-       // 2. Guardar documento en Firestore
         const docData: Omit<ExamenComplementarioDoc, 'id'> = {
           trabajadorId,
-          evaluacionId: item.evaluacionId || "", // <--- AQUÍ ESTÁ LA MAGIA (quitamos el undefined)
+          evaluacionId: item.evaluacionId || "",
           tipoExamen: item.tipoExamen,
           nombreExamen: item.nombreExamen,
           grupoExamen: item.grupoExamen,
@@ -216,8 +204,6 @@ export default function ExamenesPanel({ trabajadorId, trabajadorNombre, evaluaci
           createdAt: new Date(),
         };
         const exRef = await addDoc(collection(db, 'examenes'), docData);
-
-        // 3. Si tiene evaluación vinculada, agregar referencia
         if (item.evaluacionId) {
           const evalRef = doc(db, 'evaluaciones', item.evaluacionId);
           const evalDoc = (evaluaciones || []).find(e => e.id === item.evaluacionId);
@@ -225,8 +211,6 @@ export default function ExamenesPanel({ trabajadorId, trabajadorNombre, evaluaci
           await updateDoc(evalRef, { examenesVinculados: [...existing, exRef.id] });
         }
       }
-
-      // Limpiar
       cola.forEach(item => { if (item.preview) URL.revokeObjectURL(item.preview); });
       setCola([]);
       setMostrarUpload(false);
@@ -240,7 +224,6 @@ export default function ExamenesPanel({ trabajadorId, trabajadorNombre, evaluaci
     }
   };
 
-  // ===== ELIMINAR EXAMEN =====
   const eliminarExamen = async (examen: ExamenComplementarioDoc) => {
     setConfirmarEliminar(examen);
   };
@@ -261,20 +244,18 @@ export default function ExamenesPanel({ trabajadorId, trabajadorNombre, evaluaci
     }
   };
 
-  // ===== EVOLUCIÓN HISTÓRICA =====
   const examenesEvolucion = evolucionNombre
     ? examenes.filter(e => e.nombreExamen === evolucionNombre).sort((a, b) => {
         const dA = a.fecha?.seconds ? a.fecha.seconds : new Date(a.fecha).getTime() / 1000;
         const dB = b.fecha?.seconds ? b.fecha.seconds : new Date(b.fecha).getTime() / 1000;
-        return dA - dB; // cronológico ascendente
+        return dA - dB;
       })
     : [];
 
-  // ===== RENDER =====
   return (
     <div className="space-y-4">
 
-      {/* ====== HEADER + STATS ====== */}
+      {/* HEADER + STATS */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-lg font-bold text-slate-800">Exámenes Complementarios</h2>
@@ -296,7 +277,7 @@ export default function ExamenesPanel({ trabajadorId, trabajadorNombre, evaluaci
         </div>
       </div>
 
-      {/* ====== FILTROS ====== */}
+      {/* FILTROS */}
       <div className="bg-white rounded-xl border border-slate-200 p-4">
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           <div>
@@ -335,7 +316,7 @@ export default function ExamenesPanel({ trabajadorId, trabajadorNombre, evaluaci
         </div>
       </div>
 
-      {/* ====== EVOLUCIÓN HISTÓRICA ====== */}
+      {/* EVOLUCIÓN HISTÓRICA */}
       {evolucionNombre && examenesEvolucion.length > 0 && (
         <div className="bg-white rounded-xl border border-blue-200 p-4">
           <div className="flex items-center justify-between mb-3">
@@ -355,7 +336,7 @@ export default function ExamenesPanel({ trabajadorId, trabajadorNombre, evaluaci
                 </tr>
               </thead>
               <tbody>
-                {examenesEvolucion.map((ex, i) => {
+                {examenesEvolucion.map((ex) => {
                   const evalVinc = evaluaciones.find(e => e.id === ex.evaluacionId);
                   return (
                     <tr key={ex.id} className={`border-b border-slate-100 ${ex.estado === 'patologico' ? 'bg-red-50' : ''}`}>
@@ -385,7 +366,7 @@ export default function ExamenesPanel({ trabajadorId, trabajadorNombre, evaluaci
         </div>
       )}
 
-      {/* ====== LISTA DE EXÁMENES ====== */}
+      {/* LISTA DE EXÁMENES */}
       {cargando ? (
         <div className="text-center py-10 text-slate-400 text-sm">Cargando exámenes...</div>
       ) : examenesFiltrados.length === 0 ? (
@@ -402,14 +383,11 @@ export default function ExamenesPanel({ trabajadorId, trabajadorNombre, evaluaci
               <div key={ex.id} className={`bg-white rounded-xl border p-4 flex items-start gap-4 transition-all hover:shadow-md ${
                 ex.estado === 'patologico' ? 'border-red-300 bg-red-50/30' : 'border-slate-200'
               }`}>
-                {/* Icono tipo */}
                 <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-lg flex-shrink-0 ${
                   ex.archivoTipo === 'application/pdf' ? 'bg-red-100' : 'bg-blue-100'
                 }`}>
                   {ex.archivoTipo === 'application/pdf' ? '📄' : '🖼️'}
                 </div>
-
-                {/* Info */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <h4 className="font-semibold text-sm text-slate-800">{ex.nombreExamen}</h4>
@@ -429,13 +407,13 @@ export default function ExamenesPanel({ trabajadorId, trabajadorNombre, evaluaci
                   {ex.resultado && <p className="text-xs text-slate-700 mt-1">Resultado: {ex.resultado}</p>}
                   {ex.observacion && <p className="text-xs text-red-700 mt-1 italic">Obs: {ex.observacion}</p>}
                 </div>
-
-                {/* Acciones */}
                 <div className="flex gap-1.5 flex-shrink-0">
-                  <a href={ex.archivoUrl} target="_blank" rel="noopener noreferrer"
-                    className="px-3 py-1.5 bg-slate-100 text-slate-700 rounded-lg text-xs font-medium hover:bg-slate-200">
+                  <button
+                    onClick={() => setPdfVisor({ url: ex.archivoUrl, nombre: ex.archivoNombre })}
+                    className="px-3 py-1.5 bg-slate-100 text-slate-700 rounded-lg text-xs font-medium hover:bg-slate-200"
+                  >
                     Ver
-                  </a>
+                  </button>
                   <button onClick={() => eliminarExamen(ex)}
                     className="px-3 py-1.5 bg-red-50 text-red-600 rounded-lg text-xs font-medium hover:bg-red-100">
                     ×
@@ -447,7 +425,7 @@ export default function ExamenesPanel({ trabajadorId, trabajadorNombre, evaluaci
         </div>
       )}
 
-      {/* ====== MODAL DE CARGA MASIVA ====== */}
+      {/* MODAL DE CARGA MASIVA */}
       {mostrarUpload && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-white rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto shadow-2xl">
@@ -459,9 +437,7 @@ export default function ExamenesPanel({ trabajadorId, trabajadorNombre, evaluaci
               <button onClick={() => { setMostrarUpload(false); cola.forEach(item => { if (item.preview) URL.revokeObjectURL(item.preview); }); setCola([]); }}
                 className="text-slate-400 hover:text-slate-600 text-2xl leading-none">×</button>
             </div>
-
             <div className="p-6 space-y-5">
-              {/* Zona de drop */}
               <div
                 onDragOver={handleDragOver}
                 onDragLeave={handleDragLeave}
@@ -476,8 +452,6 @@ export default function ExamenesPanel({ trabajadorId, trabajadorNombre, evaluaci
                 <p className="text-xs text-slate-400 mt-1">PDF, JPG o PNG · Máx. 10 MB por archivo</p>
                 <input ref={fileInputRef} type="file" multiple accept=".pdf,.jpg,.jpeg,.png" onChange={handleFileSelect} className="hidden" />
               </div>
-
-              {/* Cola de archivos */}
               {cola.map((item, idx) => {
                 const errorFecha = validarFecha(item);
                 return (
@@ -492,9 +466,7 @@ export default function ExamenesPanel({ trabajadorId, trabajadorNombre, evaluaci
                       </div>
                       <button onClick={() => eliminarDeCola(idx)} className="text-red-400 hover:text-red-600 text-lg">×</button>
                     </div>
-
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                      {/* Nombre del examen */}
                       <div className="md:col-span-2">
                         <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Nombre del examen *</label>
                         <input
@@ -509,37 +481,27 @@ export default function ExamenesPanel({ trabajadorId, trabajadorNombre, evaluaci
                           {NOMBRES_EXAMEN_COMUNES.map(n => <option key={n} value={n} />)}
                         </datalist>
                       </div>
-
-                      {/* Tipo */}
                       <div>
                         <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Tipo</label>
                         <select value={item.tipoExamen} onChange={e => actualizarCola(idx, 'tipoExamen', e.target.value)} className="w-full px-2 py-1.5 border border-slate-300 rounded-lg text-xs">
                           {TIPOS_EXAMEN.map(t => <option key={t}>{t}</option>)}
                         </select>
                       </div>
-
-                      {/* Grupo */}
                       <div>
                         <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Grupo</label>
                         <select value={item.grupoExamen} onChange={e => actualizarCola(idx, 'grupoExamen', e.target.value)} className="w-full px-2 py-1.5 border border-slate-300 rounded-lg text-xs">
                           {GRUPOS_EXAMEN.map(g => <option key={g}>{g}</option>)}
                         </select>
                       </div>
-
-                      {/* Fecha */}
                       <div>
                         <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Fecha del examen *</label>
                         <input type="date" value={item.fecha} onChange={e => actualizarCola(idx, 'fecha', e.target.value)} className="w-full px-2 py-1.5 border border-slate-300 rounded-lg text-xs" />
                         {errorFecha && <p className="text-[10px] text-red-600 mt-0.5">{errorFecha}</p>}
                       </div>
-
-                      {/* Resultado */}
                       <div>
                         <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Resultado</label>
                         <input type="text" value={item.resultado} onChange={e => actualizarCola(idx, 'resultado', e.target.value)} placeholder="Valor/Descripción" className="w-full px-2 py-1.5 border border-slate-300 rounded-lg text-xs" />
                       </div>
-
-                      {/* Estado (Semáforo) */}
                       <div>
                         <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Estado *</label>
                         <div className="flex gap-2">
@@ -557,8 +519,6 @@ export default function ExamenesPanel({ trabajadorId, trabajadorNombre, evaluaci
                           </label>
                         </div>
                       </div>
-
-                      {/* Vincular a evaluación */}
                       <div>
                         <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Vincular a evaluación</label>
                         <select value={item.evaluacionId} onChange={e => actualizarCola(idx, 'evaluacionId', e.target.value)} className="w-full px-2 py-1.5 border border-slate-300 rounded-lg text-xs">
@@ -569,8 +529,6 @@ export default function ExamenesPanel({ trabajadorId, trabajadorNombre, evaluaci
                         </select>
                       </div>
                     </div>
-
-                    {/* Observación (obligatoria si patológico) */}
                     {item.estado === 'patologico' && (
                       <div className="bg-red-50 border border-red-200 rounded-lg p-3">
                         <label className="block text-[10px] font-bold text-red-700 uppercase mb-1">⚠ Observación / Interpretación (OBLIGATORIA)</label>
@@ -586,8 +544,6 @@ export default function ExamenesPanel({ trabajadorId, trabajadorNombre, evaluaci
                   </div>
                 );
               })}
-
-              {/* Botón de subida */}
               {cola.length > 0 && (
                 <div className="flex justify-end gap-3 pt-3 border-t border-slate-200">
                   <button onClick={() => { setMostrarUpload(false); cola.forEach(item => { if (item.preview) URL.revokeObjectURL(item.preview); }); setCola([]); }}
@@ -604,6 +560,8 @@ export default function ExamenesPanel({ trabajadorId, trabajadorNombre, evaluaci
           </div>
         </div>
       )}
+
+      {/* CONFIRMAR ELIMINAR */}
       {confirmarEliminar && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-6 space-y-4">
@@ -621,6 +579,26 @@ export default function ExamenesPanel({ trabajadorId, trabajadorNombre, evaluaci
           </div>
         </div>
       )}
+
+      {/* VISOR PDF FLOTANTE */}
+      {pdfVisor && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4" onClick={() => setPdfVisor(null)}>
+          <div className="bg-white rounded-xl shadow-2xl flex flex-col w-full max-w-4xl" style={{ height: '90vh' }} onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 py-3 border-b shrink-0">
+              <span className="text-sm font-semibold text-slate-700 truncate">{pdfVisor.nombre}</span>
+              <div className="flex items-center gap-2 shrink-0">
+                <a href={pdfVisor.url} download={pdfVisor.nombre} target="_blank" rel="noopener noreferrer"
+                  className="text-xs px-3 py-1.5 bg-slate-100 text-slate-700 rounded-lg font-semibold hover:bg-slate-200">
+                  ⬇ Descargar
+                </a>
+                <button onClick={() => setPdfVisor(null)} className="text-slate-400 hover:text-slate-700 text-2xl leading-none">&times;</button>
+              </div>
+            </div>
+            <iframe src={pdfVisor.url} className="flex-1 w-full rounded-b-xl" title={pdfVisor.nombre} />
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
