@@ -54,6 +54,7 @@ export interface FichaLayoutProps {
   subiendoCert: string | null;
   onVerOrden: (o: OrdenExamen) => void;
   onDeleteOrden: (id: string) => void;
+  onVerPdf?: (url: string, nombre: string) => void;
 }
 
 type Tab = 'resumen' | 'evaluaciones' | 'signos' | 'consultas' | 'examenes' | 'permisos';
@@ -356,7 +357,7 @@ function Permisos(p: FichaLayoutProps) {
             <div className="shrink-0 flex items-center gap-1.5">
               {pm.certAdjunto ? (
                 (pm as any).certUrl
-                  ? <a href={(pm as any).certUrl} target="_blank" rel="noopener noreferrer" className="text-[11.5px] px-2.5 py-1 bg-green-100 text-green-700 rounded-lg font-semibold inline-flex items-center gap-1 no-underline"><Check size={12} /> Ver PDF</a>
+                  ? <button onClick={() => p.onVerPdf?.((pm as any).certUrl, pm.certNombreArchivo || 'certificado.pdf')} className="text-[11.5px] px-2.5 py-1 bg-green-100 text-green-700 rounded-lg font-semibold cursor-pointer border-none inline-flex items-center gap-1"><Check size={12} /> Ver PDF</button>
                   : <span className="text-[11.5px] px-2.5 py-1 bg-green-100 text-green-700 rounded-lg font-semibold inline-flex items-center gap-1"><Check size={12} /> Certificado</span>
               ) : meta.requiereCert ? (
                 <button disabled={p.subiendoCert === pm.id} onClick={() => p.onPedirCert(pm)} className="text-[11.5px] px-2.5 py-1 bg-amber-100 text-amber-700 rounded-lg font-semibold cursor-pointer border-none disabled:opacity-50 inline-flex items-center gap-1"><Upload size={12} /> {p.subiendoCert === pm.id ? 'Subiendo…' : 'Subir PDF'}</button>
