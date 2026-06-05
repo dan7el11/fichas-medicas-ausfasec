@@ -18,7 +18,6 @@ import type { TipoPermiso } from '../../types/permiso';
 import type { OrdenExamen } from '../../types/examenPlan';
 import type { PermisoMedico } from '../../types/permiso';
 import SeguimientoSignos from './SeguimientoSignos';
-import FichaLayout from './FichaLayout';
 
 // ============================================================================
 // CONSTANTES
@@ -138,7 +137,7 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
   const [ordenes, setOrdenes] = useState<OrdenExamen[]>([]);
   const [totalPatologicos, setTotalPatologicos] = useState(0);
   const [cargando, setCargando] = useState(true);
-  
+
   // Drawer evaluacion
   const [evDrawer, setEvDrawer] = useState<any>(null);
   const [busquedaEval, setBusquedaEval] = useState('');
@@ -154,9 +153,8 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
   const [editPermiso, setEditPermiso] = useState<PermisoMedico | null>(null);
   const [editPatch, setEditPatch] = useState<{ desde: string; dias: number; horas: number; motivo: string; tipo: TipoPermiso }>({ desde: '', dias: 1, horas: 3, motivo: '', tipo: 'reposo_interno' });
   const [guardandoPermiso, setGuardandoPermiso] = useState(false);
-  //PDF en ventana flotante
   const [pdfVisor, setPdfVisor] = useState<{ url: string; nombre: string } | null>(null);
-  
+
   // Dropdown nueva evaluación
   const [menuEvalOpen, setMenuEvalOpen] = useState(false);
 
@@ -174,6 +172,7 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
   // ----------------------------------------------------------------
   useEffect(() => {
     if (!trabajadorId) return;
+    let cancelled = false;
     setCargando(true);
     (async () => {
       try {
@@ -185,6 +184,8 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
           getDocs(query(collection(db, 'examenes'), where('trabajadorId', '==', trabajadorId), where('estado', '==', 'patologico'))).catch(() => ({ size: 0 })),
           getOrdenes().catch(() => [] as OrdenExamen[]),
         ]);
+
+        if (cancelled) return;
 
         if (workerSnap.exists()) {
           setTrabajador({ id: workerSnap.id, ...workerSnap.data() } as Trabajador);
@@ -209,11 +210,12 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
         setOrdenes((ords as OrdenExamen[]).filter(o => o.trabajadorId === trabajadorId));
         setTotalPatologicos((patSnap as any).size ?? 0);
       } catch (err) {
-        console.error('Error al cargar FichaTrabajador:', err);
+        if (!cancelled) console.error('Error al cargar FichaTrabajador:', err);
       } finally {
-        setCargando(false);
+        if (!cancelled) setCargando(false);
       }
     })();
+    return () => { cancelled = true; };
   }, [trabajadorId]);
 
   // ----------------------------------------------------------------
@@ -899,56 +901,317 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
     if (aptitud === 'noApto') return 'NO APTO';
     return 'Sin aptitud';
   };
- return (
-    <div className="w-full min-h-full" style={{ background: '#f5f7fa' }}>
 
-      <FichaLayout
-        trabajador={trabajador}
-        nombreCompleto={nombreCompleto}
-        evaluaciones={evaluaciones}
-        permisos={permisos}
-        atenciones={atenciones}
-        ordenes={ordenes}
-        totalPatologicos={totalPatologicos}
-        examenesPanel={
+  return (
+    <div className="p-5 space-y-5 max-w-4xl mx-auto">
+
+      {/* ── HEADER ── */}
+      <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+          <h1 className="text-xl font-bold text-slate-800">{nombreCompleto}</h1>
+          <p className="text-slate-500 text-sm mt-0.5">CI: {trabajador.cedula} · {trabajador.puestoTrabajo}</p>
+        </div>
+        <div className="flex gap-2 flex-wrap">
+          <button onClick={abrirModalEditar} className="px-3 py-1.5 bg-amber-100 text-amber-800 font-semibold rounded-lg hover:bg-amber-200 text-sm">
+            ✏️ Editar datos
+          </button>
+          <div className="relative">
+            <button onClick={() => setMenuEvalOpen(o => !o)} className="px-3 py-1.5 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 shadow-sm text-sm flex items-center gap-1">
+              + Nueva Evaluación <span className="text-blue-200 text-xs">▾</span>
+            </button>
+            {menuEvalOpen && (
+              <>
+                <div className="fixed inset-0 z-30" onClick={() => setMenuEvalOpen(false)} />
+                <div className="absolute right-0 mt-1 z-40 bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden min-w-[190px]">
+                  <button onClick={() => { setMenuEvalOpen(false); navigate(`/evaluar/${trabajadorId}`); }} className="w-full text-left px-4 py-3 text-sm font-semibold hover:bg-blue-50 flex items-center gap-2 border-b border-slate-100">
+                    <span className="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded font-bold">PERIÓDICA</span> SO-RE-38
+                  </button>
+                  <button onClick={() => { setMenuEvalOpen(false); navigate(`/evaluar-retiro/${trabajadorId}`); }} className="w-full text-left px-4 py-3 text-sm font-semibold hover:bg-orange-50 flex items-center gap-2">
+                    <span className="text-xs bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded font-bold">RETIRO</span> SO-RE-40
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* ── SECCIÓN 1: EVALUACIONES ── */}
+      <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-100 bg-slate-50">
+          <div className="flex items-center gap-2">
+            <span className="text-blue-600 text-lg">📋</span>
+            <span className="font-bold text-slate-800 text-sm">Evaluaciones</span>
+            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700 font-bold">{evaluaciones.length}</span>
+          </div>
+        </div>
+        <div className="px-5 py-2.5 border-b border-slate-100 bg-slate-50">
+          <input
+            type="text"
+            placeholder="Buscar por fecha, motivo, diagnóstico o aptitud..."
+            value={busquedaEval}
+            onChange={e => setBusquedaEval(e.target.value)}
+            className="w-full px-3 py-1.5 text-sm border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+        <div className="overflow-y-auto" style={{ maxHeight: 400 }}>
+          {evsFiltradas.length === 0 ? (
+            <div className="p-8 text-center text-slate-400 text-sm">
+              {q ? `No se encontraron evaluaciones para "${busquedaEval}"` : 'Sin evaluaciones registradas.'}
+            </div>
+          ) : (
+            <div className="divide-y divide-slate-100">
+              {evsFiltradas.map(item => {
+                const dxCount = Array.isArray((item as any).diagnosticos) ? (item as any).diagnosticos.length : 0;
+                return (
+                  <button key={item.id} onClick={() => setEvDrawer(item)} className="w-full text-left px-5 py-3.5 hover:bg-blue-50 transition-colors flex items-center justify-between gap-3 group">
+                    <div className="flex items-center gap-3">
+                      <div className="text-center min-w-[50px]">
+                        <p className="text-base font-bold text-slate-800">{fmtF(item.fecha).split('/')[0]}</p>
+                        <p className="text-[10px] text-slate-500">{fmtF(item.fecha).split('/').slice(1).join('/')}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-slate-700 group-hover:text-blue-700">
+                          {(item as any).tipo === 'RETIRO' ? 'Evaluación de retiro' : ((item as any).motivoConsulta || 'Evaluación periódica')}
+                        </p>
+                        <p className="text-xs text-slate-400 mt-0.5">
+                          {dxCount > 0 ? `${dxCount} diagnóstico${dxCount > 1 ? 's' : ''}` : 'Sin diagnósticos'}
+                          {(item as any).medicoNombre ? ` · Dr. ${(item as any).medicoNombre}` : ''}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      {(item as any).tipo === 'RETIRO'
+                        ? <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-orange-100 text-orange-700">RETIRO</span>
+                        : <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">PERIÓDICA</span>
+                      }
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${aptitudColor(item.aptitudMedica)}`}>{aptitudLabel(item.aptitudMedica)}</span>
+                      <span className="text-slate-300 group-hover:text-blue-400 text-lg">›</span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ── SECCIÓN 2: EXÁMENES ── */}
+      <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        <div className="flex items-center gap-2 px-5 py-3.5 border-b border-slate-100 bg-slate-50">
+          <span className="text-purple-600 text-lg">🔬</span>
+          <span className="font-bold text-slate-800 text-sm">Exámenes Complementarios</span>
+          {totalPatologicos > 0 && (
+            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-red-500 text-white font-bold animate-pulse">{totalPatologicos} ⚠</span>
+          )}
+        </div>
+        <div className="p-5">
           <ExamenesPanel
             trabajadorId={trabajadorId}
             trabajadorNombre={nombreCompleto}
             evaluaciones={evaluaciones}
           />
-        }
-        busquedaEval={busquedaEval}
-        setBusquedaEval={setBusquedaEval}
-        onBack={() => navigate('/trabajadores')}
-        onOpenEval={(ev) => setEvDrawer(ev)}
-        onEditarDatos={abrirModalEditar}
-        onNuevaPeriodica={() => navigate(`/evaluar/${trabajadorId}`)}
-        onNuevaRetiro={() => navigate(`/evaluar-retiro/${trabajadorId}`)}
-        onNuevoPermiso={() => navigate('/permisos')}
-        onEditPermiso={(p) => abrirEditPermiso(p)}
-        onDeletePermiso={(id) => handleEliminarPermiso(id)}
-        onPedirCert={(p) => {
-          if (certInputRef.current) {
-            certInputRef.current.dataset.permisoId = p.id!;
-            certInputRef.current.click();
-          }
-        }}
-        subiendoCert={subiendoCert}
-        onVerOrden={(o) => setOrdenDetalle(o)}
-        onDeleteOrden={(id) => eliminarOrdenExamen(id)}
-        onVerPdf={(url, nombre) => setPdfVisor({ url, nombre })}
-      />
+        </div>
+      </div>
 
-      {/* input oculto del certificado (antes estaba dentro de Permisos) */}
-      <input type="file" accept="application/pdf,image/*" ref={certInputRef} className="hidden"
-        onChange={e => {
-          const file = e.target.files?.[0];
-          const pid = certInputRef.current?.dataset.permisoId;
-          if (file && pid) subirCertificado(pid, file);
-          e.target.value = '';
-        }}
-      />
-  
+      {/* ── SECCIÓN 3: PERMISOS MÉDICOS ── */}
+      <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-100 bg-slate-50">
+          <div className="flex items-center gap-2">
+            <span className="text-amber-600 text-lg">🏥</span>
+            <span className="font-bold text-slate-800 text-sm">Permisos médicos</span>
+            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 font-bold">{permisos.length}</span>
+          </div>
+          <button onClick={() => navigate(`/permisos`)} className="text-xs px-2.5 py-1 bg-amber-500 text-white rounded-lg hover:bg-amber-600 font-semibold">
+            + Nuevo permiso
+          </button>
+        </div>
+        <input type="file" accept="application/pdf,image/*" ref={certInputRef} className="hidden"
+          onChange={e => {
+            const file = e.target.files?.[0];
+            const pid = certInputRef.current?.dataset.permisoId;
+            if (file && pid) subirCertificado(pid, file);
+            e.target.value = '';
+          }}
+        />
+        <div className="overflow-y-auto" style={{ maxHeight: 320 }}>
+          {permisos.length === 0 ? (
+            <div className="p-8 text-center text-slate-400 text-sm">Sin permisos registrados.</div>
+          ) : (
+            <div className="divide-y divide-slate-100">
+              {permisos.map((p) => {
+                const meta = TIPOS_PERMISO[p.tipo];
+                const estado = estadoPermiso(p);
+                const dur = duracionPermiso(p);
+                const estadoColors: Record<string, string> = {
+                  justificado: 'bg-green-100 text-green-700',
+                  activo: 'bg-blue-100 text-blue-700',
+                  pendiente: 'bg-amber-100 text-amber-700',
+                  vencido: 'bg-red-100 text-red-700',
+                };
+                return (
+                  <div key={p.id} className="px-5 py-3 flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-[11px] font-bold px-2 py-0.5 rounded-full" style={{ background: `${meta.color}18`, color: meta.color }}>{meta.label}</span>
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${estadoColors[estado] ?? 'bg-slate-100 text-slate-600'}`}>{estado.charAt(0).toUpperCase() + estado.slice(1)}</span>
+                        <span className="text-[11px] text-slate-500">{dur}</span>
+                      </div>
+                      <p className="text-xs text-slate-600 mt-1">{p.motivo || '—'}</p>
+                      <p className="text-[11px] text-slate-400 mt-0.5">{fmtPF(p.desde)}{p.hasta && p.hasta !== p.desde ? ` → ${fmtPF(p.hasta)}` : ''}</p>
+                    </div>
+                    <div className="shrink-0 flex items-center gap-1.5">
+                      {p.certAdjunto ? (
+                        p.certUrl ? (
+                          <button
+                            onClick={() => setPdfVisor({ url: p.certUrl!, nombre: p.certNombreArchivo || 'certificado.pdf' })}
+                            className="text-[11px] px-2.5 py-1 bg-green-100 text-green-700 rounded-lg font-semibold hover:bg-green-200 inline-flex items-center gap-1">
+                            ✓ Ver PDF
+                          </button>
+                        ) : (
+                          <span className="text-[11px] px-2.5 py-1 bg-green-100 text-green-700 rounded-lg font-semibold inline-flex items-center gap-1">✓ Certificado</span>
+                        )
+                      ) : meta.requiereCert ? (
+                        <button
+                          disabled={subiendoCert === p.id}
+                          onClick={() => {
+                            if (certInputRef.current) {
+                              certInputRef.current.dataset.permisoId = p.id!;
+                              certInputRef.current.click();
+                            }
+                          }}
+                          className="text-[11px] px-2.5 py-1 bg-amber-100 text-amber-700 rounded-lg font-semibold hover:bg-amber-200 disabled:opacity-50">
+                          {subiendoCert === p.id ? 'Subiendo…' : '⬆ Subir PDF'}
+                        </button>
+                      ) : null}
+                      <button
+                        onClick={() => abrirEditPermiso(p)}
+                        className="text-[11px] px-2 py-1 bg-slate-100 text-slate-600 rounded-lg font-semibold hover:bg-slate-200"
+                        title="Editar permiso"
+                      >✏️</button>
+                      <button
+                        onClick={() => handleEliminarPermiso(p.id!)}
+                        className="text-[11px] px-2 py-1 bg-red-50 text-red-500 rounded-lg font-semibold hover:bg-red-100"
+                        title="Eliminar permiso"
+                      >✕</button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ── SECCIÓN 4: EXÁMENES PROGRAMADOS ── */}
+      {(() => {
+        const now = new Date();
+        const pasados = ordenes.filter(o => toDate(o.fechaProgramada) < now).sort((a, b) => toDate(b.fechaProgramada).getTime() - toDate(a.fechaProgramada).getTime());
+        const futuros = ordenes.filter(o => toDate(o.fechaProgramada) >= now).sort((a, b) => toDate(a.fechaProgramada).getTime() - toDate(b.fechaProgramada).getTime());
+        return (
+          <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+            <div className="flex items-center gap-2 px-5 py-3.5 border-b border-slate-100 bg-slate-50">
+              <span className="text-cyan-600 text-lg">📅</span>
+              <span className="font-bold text-slate-800 text-sm">Exámenes programados</span>
+              {futuros.length > 0 && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-cyan-100 text-cyan-700 font-bold">{futuros.length} próximos</span>}
+              {pasados.length > 0 && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-500 font-bold">{pasados.length} realizados</span>}
+            </div>
+            <div className="overflow-y-auto" style={{ maxHeight: 320 }}>
+              {ordenes.length === 0 ? (
+                <div className="p-8 text-center text-slate-400 text-sm">Sin exámenes programados.</div>
+              ) : (
+                <div>
+                  {futuros.length > 0 && (
+                    <>
+                      <div className="px-5 py-2 text-[11px] font-bold uppercase tracking-wide text-cyan-700 bg-cyan-50 border-b border-cyan-100">
+                        Próximos
+                      </div>
+                      {futuros.map(o => (
+                        <div key={o.id} className="px-5 py-3 border-b border-slate-100 flex items-center justify-between gap-2">
+                          <div className="flex-1">
+                            <p className="text-sm font-semibold text-slate-700">{o.tipoEvaluacion} · {o.examenes.length} examen{o.examenes.length !== 1 ? 'es' : ''}</p>
+                            <p className="text-xs text-slate-400 mt-0.5">📅 {fmtPF(o.fechaProgramada)} · {o.examenes.filter(e => e.realizado).length}/{o.examenes.length} realizados</p>
+                          </div>
+                          <div className="flex gap-1.5 shrink-0">
+                            <button onClick={() => setOrdenDetalle(o)} className="text-[11px] px-2.5 py-1 bg-cyan-100 text-cyan-700 rounded-lg font-semibold hover:bg-cyan-200">Ver / Editar</button>
+                            <button onClick={() => eliminarOrdenExamen(o.id!)} className="text-[11px] px-2.5 py-1 bg-red-100 text-red-600 rounded-lg font-semibold hover:bg-red-200">✕</button>
+                          </div>
+                        </div>
+                      ))}
+                    </>
+                  )}
+                  {pasados.length > 0 && (
+                    <>
+                      <div className="px-5 py-2 text-[11px] font-bold uppercase tracking-wide text-slate-500 bg-slate-50 border-b border-slate-100">
+                        Historial
+                      </div>
+                      {pasados.map(o => (
+                        <div key={o.id} className="px-5 py-3 border-b border-slate-100 flex items-center justify-between gap-2 opacity-80">
+                          <div className="flex-1">
+                            <p className="text-sm font-semibold text-slate-600">{o.tipoEvaluacion} · {o.examenes.length} examen{o.examenes.length !== 1 ? 'es' : ''}</p>
+                            <p className="text-xs text-slate-400 mt-0.5">📅 {fmtPF(o.fechaProgramada)} · {o.examenes.filter(e => e.realizado).length}/{o.examenes.length} realizados</p>
+                          </div>
+                          <div className="flex gap-1.5 shrink-0">
+                            <button onClick={() => setOrdenDetalle(o)} className="text-[11px] px-2.5 py-1 bg-slate-100 text-slate-600 rounded-lg font-semibold hover:bg-slate-200">Ver</button>
+                            <button onClick={() => eliminarOrdenExamen(o.id!)} className="text-[11px] px-2.5 py-1 bg-red-100 text-red-600 rounded-lg font-semibold hover:bg-red-200">✕</button>
+                          </div>
+                        </div>
+                      ))}
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ── SECCIÓN 5: SEGUIMIENTO DE SIGNOS ── */}
+      <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        <div className="flex items-center gap-2 px-5 py-3.5 border-b border-slate-100 bg-slate-50">
+          <span className="text-red-600 text-lg">❤️</span>
+          <span className="font-bold text-slate-800 text-sm">Seguimiento de signos vitales</span>
+        </div>
+        <SeguimientoSignos
+          trabajadorId={trabajadorId}
+          nombreCompleto={nombreCompleto}
+          medicoId={user?.uid}
+          tallaMetros={
+            (() => {
+              const talla = evaluaciones
+                .map((e: any) => parseFloat(e.signosVitales?.talla || '0'))
+                .find(t => t > 0);
+              return talla ? talla / 100 : 1.65;
+            })()
+          }
+        />
+      </div>
+
+      {/* ── SECCIÓN 6: CONSULTAS MÉDICAS ── */}
+      <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        <div className="flex items-center gap-2 px-5 py-3.5 border-b border-slate-100 bg-slate-50">
+          <span className="text-green-600 text-lg">🩺</span>
+          <span className="font-bold text-slate-800 text-sm">Consultas médicas</span>
+          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-green-100 text-green-700 font-bold">{atenciones.length}</span>
+        </div>
+        <div className="overflow-y-auto" style={{ maxHeight: 250 }}>
+          {atenciones.length === 0 ? (
+            <div className="p-8 text-center text-slate-400 text-sm">Sin consultas registradas.</div>
+          ) : (
+            <div className="divide-y divide-slate-100">
+              {atenciones.map((a: any) => (
+                <div key={a.id} className="px-5 py-3">
+                  <p className="text-sm font-semibold text-slate-700">{a.motivoConsulta || 'Consulta'}</p>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    {fmtF(a.fecha)}
+                    {a.medicoNombre ? ` · Dr. ${a.medicoNombre}` : ''}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
 
       {/* ── MODAL ORDEN EXAMEN ── */}
       {ordenDetalle && (
@@ -1196,20 +1459,24 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
           </div>
         </div>
       )}
+      {/* ── VISOR PDF FLOTANTE ── */}
       {pdfVisor && (
-  <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4" onClick={() => setPdfVisor(null)}>
-    <div className="bg-white rounded-xl shadow-2xl flex flex-col w-full max-w-4xl" style={{ height: '90vh' }} onClick={e => e.stopPropagation()}>
-      <div className="flex items-center justify-between px-5 py-3 border-b shrink-0">
-        <span className="text-sm font-semibold text-slate-700 truncate">{pdfVisor.nombre}</span>
-        <div className="flex items-center gap-2 shrink-0">
-          <a href={pdfVisor.url} download={pdfVisor.nombre} target="_blank" rel="noopener noreferrer" className="text-xs px-3 py-1.5 bg-slate-100 text-slate-700 rounded-lg font-semibold hover:bg-slate-200">⬇ Descargar</a>
-          <button onClick={() => setPdfVisor(null)} className="text-slate-400 hover:text-slate-700 text-2xl leading-none">&times;</button>
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4" onClick={() => setPdfVisor(null)}>
+          <div className="bg-white rounded-xl shadow-2xl flex flex-col w-full max-w-4xl" style={{ height: '90vh' }} onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 py-3 border-b shrink-0">
+              <span className="text-sm font-semibold text-slate-700 truncate">{pdfVisor.nombre}</span>
+              <div className="flex items-center gap-2 shrink-0">
+                <a href={pdfVisor.url} download={pdfVisor.nombre} target="_blank" rel="noopener noreferrer"
+                  className="text-xs px-3 py-1.5 bg-slate-100 text-slate-700 rounded-lg font-semibold hover:bg-slate-200">
+                  ⬇ Descargar
+                </a>
+                <button onClick={() => setPdfVisor(null)} className="text-slate-400 hover:text-slate-700 text-2xl leading-none">&times;</button>
+              </div>
+            </div>
+            <iframe src={pdfVisor.url} className="flex-1 w-full rounded-b-xl" title={pdfVisor.nombre} />
+          </div>
         </div>
-      </div>
-      <iframe src={pdfVisor.url} className="flex-1 w-full rounded-b-xl" title={pdfVisor.nombre} />
-    </div>
-  </div>
-)}
+      )}
     </div>
   );
 }
