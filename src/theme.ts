@@ -1,6 +1,7 @@
-export const COLORS = {
-  // Marca
-  brand:     '#9a3036',   // rojo AUSTROGAS
+// 1. EL GRAN DICCIONARIO DE COLORES (TODOS EN UNO SOLO)
+export const TONE = {
+  // Marca Austrogas
+  brand:     '#9a3036',   
   brandSoft: '#f4e8e9',
 
   // Semánticos
@@ -10,21 +11,18 @@ export const COLORS = {
   warnBg:    '#fff4e3',
   bad:       '#a01f2a',
   badBg:     '#fce8eb',
-} as const;
 
-export const theme = {
+  // Colores Nuevos
   cyan:      '#0891b2',
   cyanBg:    '#cffafe',
   blue:      '#2563eb',
   blueBg:    '#dbeafe',
   violet:    '#7c3aed',
   violetBg:  '#ede9fe',
-
-  // Verde (módulo Inicio / Trabajadores)
   green:     '#0a6b3b',
   greenBg:   '#e6f6ee',
 
-  // Neutros
+  // Neutros de la interfaz
   bg:        '#f5f7fa',
   panel:     '#ffffff',
   line:      '#e5e9ef',
@@ -33,14 +31,13 @@ export const theme = {
   faint:     '#8a97a8',
 } as const;
 
+// 2. CREAMOS "CLONES" PARA QUE NINGÚN COMPONENTE LLORE
+export const COLORS = TONE;
+export const theme = TONE;
+
+// 3. LAS FUENTES INTACTAS
 export const FONTS = {
   sans:  "'Public Sans', system-ui, sans-serif",
   serif: "'Spectral', Georgia, 'Times New Roman', serif",
   mono:  "'JetBrains Mono', ui-monospace, monospace",
-} as const;
-
-// 👇 LA SUTURA: Unimos todos los colores en un solo cuerpo
-export const TONE = {
-  ...COLORS,
-  ...theme
 } as const;
