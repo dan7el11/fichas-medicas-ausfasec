@@ -1,3 +1,7 @@
+// Página: Reportes y estadísticas. Ruta /reportes.
+// Restyle v2 (tema central): Spectral en títulos, mono en datos, neutros fríos.
+// Acento del módulo: verde. NINGÚN cambio funcional (export PDF/Excel intacto).
+import type { ReactNode } from 'react';
 import { useState, useEffect } from 'react';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '../services/firebase';
@@ -5,8 +9,12 @@ import TopBar from '../components/dashboard/TopBar';
 import { useNavigate } from 'react-router-dom';
 import { workerStatus, lastEval, parseDate } from '../utils/medicalHelpers';
 import type { Trabajador, EvaluacionMedica } from '../types';
+import { FileSpreadsheet, FileText, AlertTriangle, Users, CheckCircle2, Clock, XCircle } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { COLORS, FONTS } from '../theme';
+
+const ACCENT = COLORS.green;
 
 const TONE_COLOR: Record<string, [number, number, number]> = {
   success: [16, 160, 90],
@@ -92,7 +100,7 @@ export default function Reportes() {
       head: [['CÉDULA', 'APELLIDOS', 'NOMBRES', 'PUESTO', 'ESTADO', 'ÚLTIMA EVAL.', 'DÍAS REST.', 'RESTRICCIONES']],
       body,
       styles: { fontSize: 7, cellPadding: 2 },
-      headStyles: { fillColor: [10, 107, 59], textColor: 255, fontStyle: 'bold', fontSize: 7 },
+      headStyles: { fillColor: [154, 48, 54], textColor: 255, fontStyle: 'bold', fontSize: 7 },
       alternateRowStyles: { fillColor: [248, 250, 252] },
       columnStyles: {
         0: { cellWidth: 22 },
@@ -118,77 +126,84 @@ export default function Reportes() {
     pdf.save(`Matriz_Ocupacional_${fecha.replace(/\//g, '-')}.pdf`);
   };
 
-  if (cargando) return <div className="p-10 text-center font-bold text-slate-500">Calculando estadísticas...</div>;
+  if (cargando) return <div className="min-h-screen grid place-items-center font-bold" style={{ background: COLORS.bg, color: COLORS.faint }}>Calculando estadísticas…</div>;
 
   const evals = (t: Trabajador) => evaluaciones.filter(e => e.trabajadorId === t.id);
   const aptos = trabajadores.filter(t => workerStatus(evals(t)).tone === 'success').length;
   const porVencer = trabajadores.filter(t => workerStatus(evals(t)).tone === 'warning').length;
   const vencidas = trabajadores.filter(t => workerStatus(evals(t)).tone === 'danger').length;
   const sinEval = trabajadores.filter(t => workerStatus(evals(t)).label === 'Sin evaluación').length;
+  const hoy = new Date().toLocaleDateString('es-EC', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 
   return (
-    <div className="min-h-screen bg-[#f5f7fa] flex flex-col">
+    <div className="min-h-screen flex flex-col" style={{ background: COLORS.bg, color: COLORS.ink, fontFamily: FONTS.sans }}>
       <TopBar onNewWorker={() => navigate('/nuevo-trabajador')} />
       <div className="p-6 md:p-8 max-w-6xl mx-auto w-full">
-        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-6">
-          <h1 className="text-2xl font-bold text-slate-800">Módulo de Reportes</h1>
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-end gap-3 mb-6">
+          <div>
+            <div className="text-[11px] font-semibold uppercase" style={{ color: COLORS.brand, letterSpacing: '1.4px' }}>
+              {hoy.charAt(0).toUpperCase() + hoy.slice(1)}
+            </div>
+            <h1 className="mt-1.5 mb-0 text-[28px] font-bold tracking-tight" style={{ fontFamily: FONTS.serif }}>Reportes y estadísticas</h1>
+          </div>
           <div className="flex gap-2 flex-wrap">
-            <button onClick={exportarMatrizGlobalExcel} className="px-4 py-2 bg-[#107c41] text-white font-semibold rounded-lg hover:bg-[#0c5c30] shadow-sm flex items-center gap-2 text-sm">
-              📊 Excel
+            <button onClick={exportarMatrizGlobalExcel} className="px-4 py-2.5 text-white font-bold rounded-[9px] shadow-sm flex items-center gap-2 text-[13px] cursor-pointer border-none" style={{ background: ACCENT }}>
+              <FileSpreadsheet size={16} /> Excel
             </button>
-            <button onClick={exportarMatrizPDF} className="px-4 py-2 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 shadow-sm flex items-center gap-2 text-sm">
-              📄 PDF
+            <button onClick={exportarMatrizPDF} className="px-4 py-2.5 text-white font-bold rounded-[9px] shadow-sm flex items-center gap-2 text-[13px] cursor-pointer border-none" style={{ background: COLORS.brand }}>
+              <FileText size={16} /> PDF
             </button>
           </div>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-          <StatCard label="Total Plantilla" value={trabajadores.length} color="text-slate-800" />
-          <StatCard label="Aptos vigentes" value={aptos} color="text-green-600" />
-          <StatCard label="Por vencer / Restric." value={porVencer} color="text-amber-600" pulse={porVencer > 0} />
-          <StatCard label="Vencidas / No aptos" value={vencidas} color="text-red-600" pulse={vencidas > 0} />
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+          <StatCard label="Total plantilla" value={trabajadores.length} icon={<Users size={16} />} tone="muted" />
+          <StatCard label="Aptos vigentes" value={aptos} icon={<CheckCircle2 size={16} />} tone="success" />
+          <StatCard label="Por vencer / restric." value={porVencer} icon={<Clock size={16} />} tone="warning" pulse={porVencer > 0} />
+          <StatCard label="Vencidas / no aptos" value={vencidas} icon={<XCircle size={16} />} tone="danger" pulse={vencidas > 0} />
         </div>
 
         {sinEval > 0 && (
-          <div className="mb-6 bg-orange-50 border border-orange-200 rounded-xl px-5 py-4 flex items-center gap-3">
-            <span className="text-2xl">⚠️</span>
+          <div className="mb-6 rounded-[12px] px-5 py-4 flex items-center gap-3 border" style={{ background: COLORS.warnBg, borderColor: '#ecdcc0' }}>
+            <AlertTriangle size={22} style={{ color: COLORS.warn }} />
             <div>
-              <p className="text-sm font-bold text-orange-800">{sinEval} trabajador{sinEval === 1 ? '' : 'es'} sin evaluación registrada</p>
-              <p className="text-xs text-orange-700 mt-0.5">Estos trabajadores no cuentan con ninguna historia clínica ocupacional en el sistema.</p>
+              <p className="m-0 text-[13px] font-bold" style={{ color: COLORS.warn }}>{sinEval} trabajador{sinEval === 1 ? '' : 'es'} sin evaluación registrada</p>
+              <p className="m-0 text-[12px] mt-0.5" style={{ color: '#a06a2a' }}>Estos trabajadores no cuentan con ninguna historia clínica ocupacional en el sistema.</p>
             </div>
           </div>
         )}
 
-        <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
-          <div className="px-5 py-3 border-b border-slate-100 flex items-center justify-between">
-            <h2 className="text-sm font-bold text-slate-700">Matriz de estado — todos los trabajadores</h2>
-            <span className="text-xs text-slate-400">{trabajadores.length} registros</span>
+        <div className="rounded-[14px] border overflow-hidden" style={{ background: COLORS.panel, borderColor: COLORS.line }}>
+          <div className="px-5 py-3.5 border-b flex items-center gap-2.5" style={{ borderColor: COLORS.line }}>
+            <span className="grid place-items-center w-[28px] h-[28px] rounded-lg" style={{ background: COLORS.greenBg, color: ACCENT }}><Users size={15} /></span>
+            <h2 className="m-0 text-[15px] font-semibold" style={{ fontFamily: FONTS.serif }}>Matriz de estado — todos los trabajadores</h2>
+            <span className="ml-auto text-[12px]" style={{ fontFamily: FONTS.mono, color: COLORS.faint }}>{trabajadores.length} registros</span>
           </div>
           <div className="overflow-x-auto">
-            <table className="w-full text-xs">
+            <table className="w-full text-[12px]">
               <thead>
-                <tr className="bg-slate-50 border-b border-slate-200">
+                <tr className="border-b" style={{ background: COLORS.bg, borderColor: COLORS.line }}>
                   {['Cédula', 'Apellidos', 'Nombres', 'Puesto', 'Estado', 'Última eval.', 'Días rest.', 'Restricciones'].map(h => (
-                    <th key={h} className="px-3 py-2.5 text-left font-semibold text-slate-600 whitespace-nowrap">{h}</th>
+                    <th key={h} className="px-3 py-2.5 text-left font-bold uppercase tracking-wide whitespace-nowrap text-[10.5px]" style={{ color: COLORS.faint }}>{h}</th>
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
-                {trabajadores.map(t => {
+              <tbody>
+                {trabajadores.map((t, i) => {
                   const ev = evals(t);
                   const le = lastEval(ev);
                   const ws = workerStatus(ev);
-                  const colorCls = ws.tone === 'success' ? 'text-green-700 bg-green-50' : ws.tone === 'warning' ? 'text-amber-700 bg-amber-50' : ws.tone === 'danger' ? 'text-red-700 bg-red-50' : 'text-slate-500 bg-slate-50';
+                  const tn = ws.tone === 'success' ? { fg: COLORS.ok, bg: COLORS.okBg } : ws.tone === 'warning' ? { fg: COLORS.warn, bg: COLORS.warnBg } : ws.tone === 'danger' ? { fg: COLORS.bad, bg: COLORS.badBg } : { fg: COLORS.muted, bg: COLORS.bg };
                   return (
-                    <tr key={t.id} className="hover:bg-slate-50 transition-colors">
-                      <td className="px-3 py-2 font-mono text-slate-600">{t.cedula}</td>
-                      <td className="px-3 py-2 font-medium text-slate-800">{t.primerApellido} {t.segundoApellido || ''}</td>
-                      <td className="px-3 py-2 text-slate-700">{t.primerNombre} {(t as any).segundoNombre || ''}</td>
-                      <td className="px-3 py-2 text-slate-600 max-w-[140px] truncate">{t.puestoTrabajo}</td>
-                      <td className="px-3 py-2"><span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold ${colorCls}`}>{ws.label}</span></td>
-                      <td className="px-3 py-2 text-slate-600 whitespace-nowrap">{le ? parseDate(le.fecha).toLocaleDateString('es-EC') : '—'}</td>
-                      <td className="px-3 py-2 text-slate-600 whitespace-nowrap">{ws.dias !== null ? (ws.dias < 0 ? <span className="text-red-600 font-semibold">Venció hace {Math.abs(ws.dias)}d</span> : `${ws.dias}d`) : '—'}</td>
-                      <td className="px-3 py-2 text-slate-500 max-w-[160px] truncate">{le?.aptitudLimitaciones || le?.aptitudObservacion || '—'}</td>
+                    <tr key={t.id} style={{ borderTop: i > 0 ? `1px solid ${COLORS.line}` : 'none' }} className="hover:bg-[#faf7f8] transition-colors">
+                      <td className="px-3 py-2" style={{ fontFamily: FONTS.mono, color: COLORS.muted }}>{t.cedula}</td>
+                      <td className="px-3 py-2 font-semibold" style={{ color: COLORS.ink }}>{t.primerApellido} {t.segundoApellido || ''}</td>
+                      <td className="px-3 py-2" style={{ color: COLORS.muted }}>{t.primerNombre} {(t as any).segundoNombre || ''}</td>
+                      <td className="px-3 py-2 max-w-[140px] truncate" style={{ color: COLORS.muted }}>{t.puestoTrabajo}</td>
+                      <td className="px-3 py-2"><span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold" style={{ color: tn.fg, background: tn.bg }}>{ws.label}</span></td>
+                      <td className="px-3 py-2 whitespace-nowrap" style={{ fontFamily: FONTS.mono, color: COLORS.muted }}>{le ? parseDate(le.fecha).toLocaleDateString('es-EC') : '—'}</td>
+                      <td className="px-3 py-2 whitespace-nowrap" style={{ fontFamily: FONTS.mono, color: COLORS.muted }}>{ws.dias !== null ? (ws.dias < 0 ? <span className="font-semibold" style={{ color: COLORS.bad }}>Venció hace {Math.abs(ws.dias)}d</span> : `${ws.dias}d`) : '—'}</td>
+                      <td className="px-3 py-2 max-w-[160px] truncate" style={{ color: COLORS.faint }}>{le?.aptitudLimitaciones || le?.aptitudObservacion || '—'}</td>
                     </tr>
                   );
                 })}
@@ -201,12 +216,20 @@ export default function Reportes() {
   );
 }
 
-function StatCard({ label, value, color, pulse }: { label: string; value: number; color: string; pulse?: boolean }) {
+function StatCard({ label, value, icon, tone, pulse }: { label: string; value: number; icon: ReactNode; tone: 'success' | 'warning' | 'danger' | 'muted'; pulse?: boolean }) {
+  const map = {
+    success: { fg: COLORS.ok, bg: COLORS.okBg }, warning: { fg: COLORS.warn, bg: COLORS.warnBg },
+    danger: { fg: COLORS.bad, bg: COLORS.badBg }, muted: { fg: COLORS.ink, bg: COLORS.bg },
+  } as const;
+  const t = map[tone];
   return (
-    <div className="bg-white p-5 rounded-xl border shadow-sm relative overflow-hidden">
-      {pulse && value > 0 && <span className="absolute top-3 right-3 w-2 h-2 rounded-full bg-amber-400 animate-ping" />}
-      <h3 className="text-slate-500 font-semibold text-xs">{label}</h3>
-      <p className={`text-3xl font-bold mt-1 ${color}`}>{value}</p>
+    <div className="rounded-[14px] border p-[16px_18px] relative overflow-hidden flex items-center gap-3" style={{ background: COLORS.panel, borderColor: COLORS.line }}>
+      {pulse && value > 0 && <span className="absolute top-3 right-3 w-2 h-2 rounded-full" style={{ background: t.fg }} />}
+      <span className="grid place-items-center w-[34px] h-[34px] rounded-[9px] flex-shrink-0" style={{ background: t.bg, color: t.fg }}>{icon}</span>
+      <div>
+        <p className="m-0 text-[28px] font-bold tracking-tight leading-none" style={{ fontFamily: FONTS.mono, color: t.fg }}>{value}</p>
+        <h3 className="m-0 font-semibold text-[11px] mt-1.5 uppercase tracking-wide" style={{ color: COLORS.faint }}>{label}</h3>
+      </div>
     </div>
   );
 }
