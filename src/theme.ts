@@ -1,5 +1,5 @@
-// 1. EL GRAN DICCIONARIO DE COLORES (TODOS EN UNO SOLO)
-export const TONE = {
+// 1. EL GRAN DICCIONARIO DE COLORES BÁSICOS
+export const COLORS = {
   // Marca Austrogas
   brand:     '#9a3036',   
   brandSoft: '#f4e8e9',
@@ -11,7 +11,9 @@ export const TONE = {
   warnBg:    '#fff4e3',
   bad:       '#a01f2a',
   badBg:     '#fce8eb',
+} as const;
 
+export const theme = {
   // Colores Nuevos
   cyan:      '#0891b2',
   cyanBg:    '#cffafe',
@@ -29,11 +31,29 @@ export const TONE = {
   ink:       '#1a2332',
   muted:     '#4a5568',
   faint:     '#8a97a8',
+
+  // 🚑 SUTURAS DE EMERGENCIA: Agregamos los nombres que busca el compilador
+  info:      '#2563eb',
+  danger:    '#a01f2a',
+  success:   '#0a6b3b',
+  warning:   '#8a4a0a',
 } as const;
 
-// 2. CREAMOS "CLONES" PARA QUE NINGÚN COMPONENTE LLORE
-export const COLORS = TONE;
-export const theme = TONE;
+// 2. UNIFICAMOS TODO Y AÑADIMOS COMPATIBILIDAD CON OBJETOS { bg, fg }
+export const TONE = {
+  ...COLORS,
+  ...theme,
+  // Algunos de tus componentes esperan que TONE.blue sea un objeto {bg, fg} en vez de un texto
+  // Por si acaso, proveemos estas versiones compatibles:
+  blueObj: { bg: theme.blueBg, fg: theme.blue },
+  cyanObj: { bg: theme.cyanBg, fg: theme.cyan },
+  greenObj: { bg: theme.greenBg, fg: theme.green },
+  violetObj: { bg: theme.violetBg, fg: theme.violet },
+  dangerObj: { bg: COLORS.badBg, fg: COLORS.bad },
+  warningObj: { bg: COLORS.warnBg, fg: COLORS.warn },
+  successObj: { bg: COLORS.okBg, fg: COLORS.ok },
+  infoObj: { bg: theme.blueBg, fg: theme.blue },
+} as const;
 
 // 3. LAS FUENTES INTACTAS
 export const FONTS = {
