@@ -1,6 +1,3 @@
-// Página: Consulta Médica Diaria. Ruta /consulta-diaria.
-// Restyle v2 (tema central): Spectral en títulos, mono en datos, neutros fríos.
-// Acento del módulo: azul. NINGÚN cambio funcional.
 import type { ReactNode } from 'react';
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -93,7 +90,7 @@ export default function ConsultaDiaria() {
           {/* Header */}
           <div className="flex items-end gap-3 mb-[20px] flex-wrap">
             <div>
-              <div className="text-[11px] font-semibold uppercase" style={{ color: ACCENT, letterSpacing: '1.4px' }}>
+              <div className="text-[11px] font-semibold uppercase" style={{ color: COLORS.brand, letterSpacing: '1.4px' }}>
                 {fechaLarga.charAt(0).toUpperCase() + fechaLarga.slice(1)}
               </div>
               <h1 className="mt-1.5 mb-0 text-[28px] font-bold tracking-tight" style={{ fontFamily: FONTS.serif }}>Consulta del día</h1>
