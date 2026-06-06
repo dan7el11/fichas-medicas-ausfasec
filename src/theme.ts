@@ -46,7 +46,7 @@ export const FONTS = {
 } as const;
 
 // Mapa de tonos semánticos con bg/fg. Usar en vez de indexar COLORS dinámicamente.
-export const TONES = {
+export const TONE = {
   success: { fg: '#0a6b3b', bg: '#e6f6ee' },
   warning: { fg: '#8a4a0a', bg: '#fff4e3' },
   danger:  { fg: '#a01f2a', bg: '#fce8eb' },
