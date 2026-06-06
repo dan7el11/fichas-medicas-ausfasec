@@ -16,9 +16,8 @@ import Permisos from './pages/Permisos';
 import AgendaExamenes from './pages/AgendaExamenes';
 import ExpedienteResumen from './pages/ExpedienteResumen';
 import ConfiguracionEmpresa from './pages/ConfiguracionEmpresa';
+import Inventario from './pages/Inventario';
 import { ToastProvider } from './components/Toast';
-import NuevaPreocupacional from './pages/NuevaPreocupacional';
-import Trabajadores from './pages/Trabajadores';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -58,16 +57,14 @@ function App() {
               <Route path="/" element={<ProtectedRoute><Inicio /></ProtectedRoute>} />
 
               {/* Trabajadores */}
+              <Route path="/trabajadores" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
               <Route path="/nuevo-trabajador" element={<ProtectedRoute><NuevoTrabajador /></ProtectedRoute>} />
               <Route path="/trabajador/:trabajadorId" element={<ProtectedRoute><DetalleTrabajador /></ProtectedRoute>} />
               <Route path="/expediente/:id" element={<ProtectedRoute><ExpedienteResumen /></ProtectedRoute>} />
-              <Route path="/trabajadores" element={<ProtectedRoute><Trabajadores /></ProtectedRoute>} />
-
 
               {/* Evaluaciones */}
               <Route path="/evaluar/:trabajadorId" element={<ProtectedRoute><NuevaEvaluacion /></ProtectedRoute>} />
               <Route path="/evaluar-retiro/:trabajadorId" element={<ProtectedRoute><NuevaEvaluacionRetiro /></ProtectedRoute>} />
-              <Route path="/preocupacional/:trabajadorId" element={<ProtectedRoute><NuevaPreocupacional /></ProtectedRoute>} />
 
               {/* Consulta diaria */}
               <Route path="/consulta-diaria" element={<ProtectedRoute><ConsultaDiaria /></ProtectedRoute>} />
@@ -82,6 +79,9 @@ function App() {
               {/* Reportes y perfil */}
               <Route path="/reportes" element={<ProtectedRoute><Reportes /></ProtectedRoute>} />
               <Route path="/perfil" element={<ProtectedRoute><UserProfile /></ProtectedRoute>} />
+
+              {/* Inventario */}
+              <Route path="/inventario" element={<ProtectedRoute><Inventario /></ProtectedRoute>} />
 
               {/* Configuración */}
               <Route path="/configuracion" element={<ProtectedRoute><ConfiguracionEmpresa /></ProtectedRoute>} />
