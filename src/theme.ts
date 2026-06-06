@@ -1,63 +1,57 @@
-// 1. EL GRAN DICCIONARIO DE COLORES BÁSICOS
+// Tokens de diseño globales — AUSFASEC / CEM AUSTROGAS
+// Importar como: import { COLORS, FONTS } from '../theme';
+
 export const COLORS = {
-  // Marca Austrogas
-  brand:     '#9a3036',   
+  // Marca
+  brand:   '#9a3036',   // rojo AUSTROGAS
   brandSoft: '#f4e8e9',
 
   // Semánticos
-  ok:        '#0a6b3b',
-  okBg:      '#e6f6ee',
-  warn:      '#8a4a0a',
-  warnBg:    '#fff4e3',
-  bad:       '#a01f2a',
-  badBg:     '#fce8eb',
+  ok:      '#0a6b3b',
+  okBg:    '#e6f6ee',
+  warn:    '#8a4a0a',
+  warnBg:  '#fff4e3',
+  bad:     '#a01f2a',
+  badBg:   '#fce8eb',
+
+  // Verde (módulo Inicio / Trabajadores)
+  green:   '#0a6b3b',
+  greenBg: '#e6f6ee',
+
+  // Azul
+  blue:    '#2563eb',
+  blueBg:  '#dbeafe',
+
+  // Cian (Exámenes)
+  cyan:    '#0891b2',
+  cyanBg:  '#cffafe',
+
+  // Violeta (Permisos)
+  violet:  '#7c3aed',
+  violetBg: '#ede9fe',
+
+  // Neutros
+  bg:      '#f5f7fa',
+  panel:   '#ffffff',
+  line:    '#e5e9ef',
+  ink:     '#1a2332',
+  muted:   '#4a5568',
+  faint:   '#8a97a8',
 } as const;
 
-export const theme = {
-  // Colores Nuevos
-  cyan:      '#0891b2',
-  cyanBg:    '#cffafe',
-  blue:      '#2563eb',
-  blueBg:    '#dbeafe',
-  violet:    '#7c3aed',
-  violetBg:  '#ede9fe',
-  green:     '#0a6b3b',
-  greenBg:   '#e6f6ee',
-
-  // Neutros de la interfaz
-  bg:        '#f5f7fa',
-  panel:     '#ffffff',
-  line:      '#e5e9ef',
-  ink:       '#1a2332',
-  muted:     '#4a5568',
-  faint:     '#8a97a8',
-
-  // 🚑 SUTURAS DE EMERGENCIA: Agregamos los nombres que busca el compilador
-  info:      '#2563eb',
-  danger:    '#a01f2a',
-  success:   '#0a6b3b',
-  warning:   '#8a4a0a',
-} as const;
-
-// 2. UNIFICAMOS TODO Y AÑADIMOS COMPATIBILIDAD CON OBJETOS { bg, fg }
-export const TONE = {
-  ...COLORS,
-  ...theme,
-  // Algunos de tus componentes esperan que TONE.blue sea un objeto {bg, fg} en vez de un texto
-  // Por si acaso, proveemos estas versiones compatibles:
-  blueObj: { bg: theme.blueBg, fg: theme.blue },
-  cyanObj: { bg: theme.cyanBg, fg: theme.cyan },
-  greenObj: { bg: theme.greenBg, fg: theme.green },
-  violetObj: { bg: theme.violetBg, fg: theme.violet },
-  dangerObj: { bg: COLORS.badBg, fg: COLORS.bad },
-  warningObj: { bg: COLORS.warnBg, fg: COLORS.warn },
-  successObj: { bg: COLORS.okBg, fg: COLORS.ok },
-  infoObj: { bg: theme.blueBg, fg: theme.blue },
-} as const;
-
-// 3. LAS FUENTES INTACTAS
 export const FONTS = {
   sans:  "'Public Sans', system-ui, sans-serif",
   serif: "'Spectral', Georgia, 'Times New Roman', serif",
   mono:  "'JetBrains Mono', ui-monospace, monospace",
+} as const;
+
+// Mapa de tonos semánticos con bg/fg. Usar en vez de indexar COLORS dinámicamente.
+export const TONES = {
+  success: { fg: '#0a6b3b', bg: '#e6f6ee' },
+  warning: { fg: '#8a4a0a', bg: '#fff4e3' },
+  danger:  { fg: '#a01f2a', bg: '#fce8eb' },
+  info:    { fg: '#0891b2', bg: '#cffafe' },
+  blue:    { fg: '#2563eb', bg: '#dbeafe' },
+  violet:  { fg: '#7c3aed', bg: '#ede9fe' },
+  muted:   { fg: '#4a5568', bg: '#f5f7fa' },
 } as const;
