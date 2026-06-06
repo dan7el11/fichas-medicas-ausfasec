@@ -3,7 +3,7 @@ import { collection, getDocs } from 'firebase/firestore';
 import { useNavigate } from 'react-router-dom';
 import {
   BarChart3, FileText, Download, Heart, Stethoscope, FlaskConical,
-  AlertTriangle, TrendingDown, Users, Calendar,
+  AlertTriangle, TrendingDown, Users, Calendar, FileSpreadsheet,
 } from 'lucide-react';
 import { db } from '../services/firebase';
 import { useAuth } from '../contexts/AuthContext';
@@ -13,16 +13,17 @@ import type { PermisoMedico } from '../types/permiso';
 import type { AtencionMedica } from '../types/atencion';
 import type { OrdenExamen } from '../types/examenPlan';
 import { workerStatus, lastEval, parseDate, dashboardStats } from '../utils/medicalHelpers';
-import { getPermisos, calcularAusentismo, controlJustificativos, estadoPermiso } from '../services/permisos';
+import { getPermisos, calcularAusentismo, controlJustificativos } from '../services/permisos';
 import { getOrdenes, calcularStats as statsExamenes, estadoOrden } from '../services/examenesPlan';
 import {
   topDiagnosticos, morbilidadCapitulos, ausentismoPorArea, distribucionTipoPermiso,
   tendenciaMensual, perfilMetabolico, patologicosPorTipo, tendenciaConsultas,
 } from '../utils/reporteHelpers';
+import { COLORS, FONTS } from '../theme';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
-const BRAND = '#9a3036';
+const BRAND = COLORS.brand;
 const TONE_COLOR: Record<string, [number, number, number]> = {
   success: [16, 160, 90], warning: [224, 138, 44], danger: [220, 46, 60], muted: [148, 162, 179],
 };
@@ -186,12 +187,12 @@ export default function Reportes() {
 
   if (cargando) {
     return (
-      <div className="w-screen h-screen flex flex-col" style={{ background: '#f5f7fa' }}>
+      <div className="w-screen h-screen flex flex-col" style={{ background: COLORS.bg, fontFamily: FONTS.sans }}>
         <TopBar userInitials={userInitials} userName={user?.email ?? 'Médico'} userRol="Medicina Ocupacional" onNewWorker={() => navigate('/nuevo-trabajador')} />
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center">
             <div className="w-10 h-10 border-4 rounded-full animate-spin mx-auto mb-3" style={{ borderColor: `${BRAND}30`, borderTopColor: BRAND }} />
-            <p className="text-sm font-semibold text-slate-500">Calculando estadísticas…</p>
+            <p className="text-sm font-semibold" style={{ color: COLORS.faint }}>Calculando estadísticas…</p>
           </div>
         </div>
       </div>
@@ -199,7 +200,7 @@ export default function Reportes() {
   }
 
   return (
-    <div className="w-screen h-screen flex flex-col overflow-hidden text-slate-900" style={{ background: '#f5f7fa', fontFamily: "'Public Sans', system-ui, sans-serif" }}>
+    <div className="w-screen h-screen flex flex-col overflow-hidden" style={{ background: COLORS.bg, color: COLORS.ink, fontFamily: FONTS.sans }}>
       <TopBar userInitials={userInitials} userName={user?.email ?? 'Médico'} userRol="Medicina Ocupacional" onNewWorker={() => navigate('/nuevo-trabajador')} />
 
       <div className="flex-1 overflow-y-auto">
@@ -212,8 +213,8 @@ export default function Reportes() {
                 <BarChart3 size={18} className="text-white" />
               </div>
               <div>
-                <h1 className="text-2xl font-extrabold text-white tracking-tight m-0">Reportes y Analítica</h1>
-                <p className="text-sm m-0 mt-0.5" style={{ color: 'rgba(255,255,255,0.7)' }}>Indicadores de medicina ocupacional · AUSFASEC</p>
+                <p className="text-[11px] font-semibold uppercase m-0" style={{ color: 'rgba(255,255,255,0.55)', letterSpacing: '1.4px' }}>CEM AUSTROGAS · Medicina Ocupacional</p>
+                <h1 className="text-[28px] font-bold text-white tracking-tight m-0" style={{ fontFamily: FONTS.serif }}>Reportes y Analítica</h1>
               </div>
             </div>
             <div className="flex gap-3 mt-4 flex-wrap">
@@ -380,18 +381,18 @@ function TabAptitud({ trabajadores, evMap, ds, porVencerProximas }: any) {
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
-                {porVencerProximas.map(({ t, evals }: any) => {
+              <tbody>
+                {porVencerProximas.map(({ t, evals }: any, i: number) => {
                   const ws = workerStatus(evals); const le = lastEval(evals);
-                  const badgeColor = ws.tone === 'danger' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700';
+                  const badge = ws.tone === 'danger' ? { fg: COLORS.bad, bg: COLORS.badBg } : { fg: COLORS.warn, bg: COLORS.warnBg };
                   return (
-                    <tr key={t.id} className="hover:bg-slate-50">
-                      <td className="px-3 py-2 font-medium text-slate-800">{t.primerApellido} {t.primerNombre}</td>
-                      <td className="px-3 py-2 font-mono text-slate-500">{t.cedula}</td>
-                      <td className="px-3 py-2 text-slate-600">{t.puestoTrabajo}</td>
-                      <td className="px-3 py-2"><span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${badgeColor}`}>{ws.label}</span></td>
-                      <td className="px-3 py-2 font-semibold" style={{ color: ws.dias !== null && ws.dias < 0 ? '#a01f2a' : '#8a4a0a' }}>{ws.dias !== null ? (ws.dias < 0 ? `Venció hace ${Math.abs(ws.dias)}d` : `${ws.dias}d`) : '—'}</td>
-                      <td className="px-3 py-2 text-slate-500">{le?.aptitudMedica ?? '—'}</td>
+                    <tr key={t.id} style={{ borderTop: i > 0 ? `1px solid ${COLORS.line}` : 'none' }}>
+                      <td className="px-3 py-2 font-semibold" style={{ color: COLORS.ink }}>{t.primerApellido} {t.primerNombre}</td>
+                      <td className="px-3 py-2" style={{ fontFamily: FONTS.mono, color: COLORS.muted }}>{t.cedula}</td>
+                      <td className="px-3 py-2" style={{ color: COLORS.muted }}>{t.puestoTrabajo}</td>
+                      <td className="px-3 py-2"><span className="px-2 py-0.5 rounded-full text-[10px] font-bold" style={{ color: badge.fg, background: badge.bg }}>{ws.label}</span></td>
+                      <td className="px-3 py-2 font-semibold" style={{ fontFamily: FONTS.mono, color: ws.dias !== null && ws.dias < 0 ? COLORS.bad : COLORS.warn }}>{ws.dias !== null ? (ws.dias < 0 ? `Venció hace ${Math.abs(ws.dias)}d` : `${ws.dias}d`) : '—'}</td>
+                      <td className="px-3 py-2" style={{ color: COLORS.faint }}>{le?.aptitudMedica ?? '—'}</td>
                     </tr>
                   );
                 })}
@@ -653,13 +654,13 @@ function TabExamenes({ exStats, exPatologicos, ordenes }: any) {
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
-                {exPatologicos.map((ex: any) => (
-                  <tr key={ex.tipo} className="hover:bg-slate-50">
-                    <td className="px-3 py-2 font-semibold text-slate-800">{ex.tipo}</td>
-                    <td className="px-3 py-2 text-slate-600">{ex.total}</td>
+              <tbody>
+                {exPatologicos.map((ex: any, i: number) => (
+                  <tr key={ex.tipo} style={{ borderTop: i > 0 ? `1px solid ${COLORS.line}` : 'none' }}>
+                    <td className="px-3 py-2 font-semibold" style={{ color: COLORS.ink }}>{ex.tipo}</td>
+                    <td className="px-3 py-2" style={{ fontFamily: FONTS.mono, color: COLORS.muted }}>{ex.total}</td>
                     <td className="px-3 py-2">
-                      <span className={`font-bold ${ex.patologicos > 0 ? 'text-red-600' : 'text-slate-400'}`}>{ex.patologicos}</span>
+                      <span className="font-bold" style={{ fontFamily: FONTS.mono, color: ex.patologicos > 0 ? COLORS.bad : COLORS.faint }}>{ex.patologicos}</span>
                     </td>
                     <td className="px-3 py-2">
                       <div className="flex items-center gap-2">
@@ -705,25 +706,27 @@ function TabExamenes({ exStats, exPatologicos, ordenes }: any) {
 // ══════════════════════════════════════════════════════════════════════════════
 function TabExportar({ onMatrizCSV, onMatrizPDF, onMorbilidadPDF, onAusentismoPDF, nTrabajadores, nEvaluaciones, nConsultas }: any) {
   const exports = [
-    { title: 'Matriz Ocupacional Global', desc: `${nTrabajadores} trabajadores · estado de aptitud, última evaluación, restricciones`, btnLabel: 'Descargar CSV', btnColor: '#107c41', onClick: onMatrizCSV, icon: '📊' },
-    { title: 'Matriz Ocupacional PDF', desc: `Documento A4 horizontal con colores por estado de aptitud`, btnLabel: 'Descargar PDF', btnColor: BRAND, onClick: onMatrizPDF, icon: '📄' },
-    { title: 'Reporte de Morbilidad', desc: `Top diagnósticos ICD-10 · ${nEvaluaciones} evaluaciones + ${nConsultas} consultas`, btnLabel: 'Descargar PDF', btnColor: '#7c5cf2', onClick: onMorbilidadPDF, icon: '🏥' },
-    { title: 'Indicadores de Ausentismo', desc: 'IF, IG, % ausentismo, días perdidos por área · Resolución CD 513 IESS', btnLabel: 'Descargar PDF', btnColor: '#0e6b7c', onClick: onAusentismoPDF, icon: '📉' },
+    { title: 'Matriz Ocupacional Global', desc: `${nTrabajadores} trabajadores · estado de aptitud, última evaluación, restricciones`, btnLabel: 'Descargar CSV', btnColor: COLORS.green, onClick: onMatrizCSV, Icon: FileSpreadsheet },
+    { title: 'Matriz Ocupacional PDF', desc: 'Documento A4 horizontal con colores por estado de aptitud', btnLabel: 'Descargar PDF', btnColor: BRAND, onClick: onMatrizPDF, Icon: FileText },
+    { title: 'Reporte de Morbilidad', desc: `Top diagnósticos ICD-10 · ${nEvaluaciones} evaluaciones + ${nConsultas} consultas`, btnLabel: 'Descargar PDF', btnColor: '#7c5cf2', onClick: onMorbilidadPDF, Icon: Stethoscope },
+    { title: 'Indicadores de Ausentismo', desc: 'IF, IG, % ausentismo, días perdidos por área · Resolución CD 513 IESS', btnLabel: 'Descargar PDF', btnColor: '#0e6b7c', onClick: onAusentismoPDF, Icon: TrendingDown },
   ];
 
   return (
     <div className="space-y-4 max-w-2xl">
-      <p className="text-sm text-slate-500">Genera y descarga los reportes institucionales en formato PDF o CSV.</p>
+      <p className="text-[13px]" style={{ color: COLORS.faint }}>Genera y descarga los reportes institucionales en formato PDF o CSV.</p>
       {exports.map((e) => (
-        <div key={e.title} className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm flex items-center justify-between gap-4">
+        <div key={e.title} className="rounded-[14px] border p-5 flex items-center justify-between gap-4" style={{ background: COLORS.panel, borderColor: COLORS.line }}>
           <div className="flex items-center gap-3">
-            <span className="text-2xl">{e.icon}</span>
+            <span className="grid place-items-center w-9 h-9 rounded-[10px] flex-shrink-0" style={{ background: `${e.btnColor}15`, color: e.btnColor }}>
+              <e.Icon size={17} />
+            </span>
             <div>
-              <p className="font-bold text-slate-800 text-sm">{e.title}</p>
-              <p className="text-[11px] text-slate-500 mt-0.5">{e.desc}</p>
+              <p className="font-semibold text-[14px] m-0" style={{ fontFamily: FONTS.serif, color: COLORS.ink }}>{e.title}</p>
+              <p className="text-[11px] mt-0.5 m-0" style={{ color: COLORS.faint }}>{e.desc}</p>
             </div>
           </div>
-          <button onClick={e.onClick} className="flex-shrink-0 px-4 py-2 rounded-xl text-white text-sm font-bold border-none cursor-pointer" style={{ background: e.btnColor }}>
+          <button onClick={e.onClick} className="flex-shrink-0 px-4 py-2 rounded-[9px] text-white text-[13px] font-bold border-none cursor-pointer" style={{ background: e.btnColor }}>
             {e.btnLabel}
           </button>
         </div>
@@ -737,21 +740,21 @@ function TabExportar({ onMatrizCSV, onMatrizPDF, onMorbilidadPDF, onAusentismoPD
 // ══════════════════════════════════════════════════════════════════════════════
 function KpiCard({ label, value, sub, color, urgent }: { label: string; value: any; sub: string; color: string; urgent?: boolean }) {
   return (
-    <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm relative overflow-hidden">
-      {urgent && value > 0 && <span className="absolute top-3 right-3 w-2 h-2 rounded-full bg-red-400 animate-ping" />}
-      <div className="text-[11px] font-semibold text-slate-500 mb-1">{label}</div>
-      <div className="text-2xl font-extrabold tracking-tight" style={{ color }}>{value}</div>
-      {sub && <div className="text-[10px] text-slate-400 mt-0.5">{sub}</div>}
+    <div className="rounded-[14px] border p-[14px_18px] relative overflow-hidden" style={{ background: COLORS.panel, borderColor: COLORS.line }}>
+      {urgent && value > 0 && <span className="absolute top-3 right-3 w-2 h-2 rounded-full animate-ping" style={{ background: color }} />}
+      <div className="text-[10.5px] font-bold uppercase tracking-wide mb-1" style={{ color: COLORS.faint }}>{label}</div>
+      <div className="text-[28px] font-bold tracking-tight leading-none" style={{ fontFamily: FONTS.mono, color }}>{value}</div>
+      {sub && <div className="text-[10.5px] mt-1" style={{ color: COLORS.faint }}>{sub}</div>}
     </div>
   );
 }
 
 function SecCard({ title, icon, children }: { title: string; icon: React.ReactNode; children: React.ReactNode }) {
   return (
-    <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
-      <div className="flex items-center gap-2 px-5 py-3.5 border-b border-slate-100 bg-slate-50">
+    <div className="rounded-[14px] border overflow-hidden" style={{ background: COLORS.panel, borderColor: COLORS.line }}>
+      <div className="flex items-center gap-2.5 px-5 py-3.5 border-b" style={{ borderColor: COLORS.line, background: COLORS.bg }}>
         <span style={{ color: BRAND }}>{icon}</span>
-        <h3 className="text-sm font-bold text-slate-800 m-0">{title}</h3>
+        <h3 className="text-[14px] font-semibold m-0" style={{ fontFamily: FONTS.serif, color: COLORS.ink }}>{title}</h3>
       </div>
       <div className="p-5">{children}</div>
     </div>
@@ -794,13 +797,15 @@ function MiniBarChart({ data, color }: { data: { label: string; value: number; s
 }
 
 function AlertBanner({ tone, icon, title, desc }: { tone: 'danger' | 'warning'; icon: React.ReactNode; title: string; desc: string }) {
-  const s = tone === 'danger' ? { bg: '#fce8eb', border: '#f5b8be', text: '#a01f2a' } : { bg: '#fff4e3', border: '#f5d99a', text: '#8a4a0a' };
+  const s = tone === 'danger'
+    ? { bg: COLORS.badBg, border: '#f5b8be', text: COLORS.bad }
+    : { bg: COLORS.warnBg, border: '#ecdcc0', text: COLORS.warn };
   return (
-    <div className="flex items-start gap-3 px-4 py-3 rounded-xl border" style={{ background: s.bg, borderColor: s.border }}>
+    <div className="flex items-start gap-3 px-4 py-3 rounded-[12px] border" style={{ background: s.bg, borderColor: s.border }}>
       <span style={{ color: s.text }} className="mt-0.5">{icon}</span>
       <div>
-        <p className="text-sm font-bold" style={{ color: s.text }}>{title}</p>
-        <p className="text-xs mt-0.5" style={{ color: s.text, opacity: 0.8 }}>{desc}</p>
+        <p className="text-[13px] font-bold m-0" style={{ color: s.text }}>{title}</p>
+        <p className="text-[12px] mt-0.5 m-0" style={{ color: s.text, opacity: 0.8 }}>{desc}</p>
       </div>
     </div>
   );
@@ -816,5 +821,5 @@ function LegDot({ color, label }: { color: string; label: string }) {
 }
 
 function EmptyState({ label }: { label: string }) {
-  return <p className="text-center text-sm text-slate-400 py-6">{label}</p>;
+  return <p className="text-center text-[13px] py-6 m-0" style={{ color: COLORS.faint }}>{label}</p>;
 }
