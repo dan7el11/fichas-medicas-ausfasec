@@ -10,6 +10,17 @@ export const COLORS = {
   warnBg:  '#fff4e3',
   bad:     '#a01f2a',
   badBg:   '#fce8eb',
+  
+} as const;
+
+export const theme = {
+  cyan: "#0891b2",
+  cyanBg: "#cffafe",
+  blue: "#2563eb",
+  blueBg: "#dbeafe",
+  violet: "#7c3aed",
+  violetBg: "#ede9fe",
+
 
   // Verde (módulo Inicio / Trabajadores)
   green:   '#0a6b3b',
@@ -29,3 +40,7 @@ export const FONTS = {
   serif: "'Spectral', Georgia, 'Times New Roman', serif",
   mono:  "'JetBrains Mono', ui-monospace, monospace",
 } as const;
+
+// 👇 AÑADE ESTA LÍNEA AL FINAL ABSOLUTO DEL ARCHIVO:
+export const TONE = theme;
+
