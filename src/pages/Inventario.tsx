@@ -9,24 +9,20 @@ import { cargarEstado } from '../services/inventario';
 import { calcularKpis, consumosMes } from '../utils/inventarioHelpers';
 import type { EstadoInventario, CentroId } from '../types/inventario';
 import { CENTROS } from '../types/inventario';
-import TabConsumo from '../components/inventario/TabConsumo';
 import TabInventario from '../components/inventario/TabInventario';
 import TabMovimientos from '../components/inventario/TabMovimientos';
 import TabAnalisis from '../components/inventario/TabAnalisis';
-import TabConfiguracion from '../components/inventario/TabConfiguracion';
 import { COLORS, FONTS } from '../theme';
 
 const BRAND = COLORS.brand;
 
-type Tab = 'consumo' | 'mi-inventario' | 'general' | 'movimientos' | 'analisis' | 'configuracion';
+type Tab = 'mi-inventario' | 'general' | 'movimientos' | 'analisis';
 
-const TABS_DEF: { key: Tab; label: string; adminOnly?: boolean }[] = [
-  { key: 'consumo', label: 'Consumo' },
+const TABS_DEF: { key: Tab; label: string }[] = [
   { key: 'mi-inventario', label: 'Mi Inventario' },
   { key: 'general', label: 'Inventario General' },
   { key: 'movimientos', label: 'Movimientos' },
   { key: 'analisis', label: 'Análisis' },
-  { key: 'configuracion', label: 'Configuración', adminOnly: true },
 ];
 
 function KpiChip({ label, value, warn }: { label: string; value: string | number; warn?: boolean }) {
@@ -46,7 +42,7 @@ const CENTRO_DEFAULT: CentroId = 'planta_envasado';
 export default function Inventario() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [tab, setTab] = useState<Tab>('consumo');
+  const [tab, setTab] = useState<Tab>('mi-inventario');
   const [estado, setEstado] = useState<EstadoInventario>({ inventario: [], consumos: [], movimientos: [], trabajadores: [], ultimaActualizacion: null });
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState('');
@@ -84,7 +80,7 @@ export default function Inventario() {
   const kpis = useMemo(() => calcularKpis(estado.inventario), [estado.inventario]);
   const nConsumosMes = useMemo(() => consumosMes(estado.consumos), [estado.consumos]);
 
-  const tabs = TABS_DEF.filter((t) => !t.adminOnly || isAdmin);
+  const tabs = TABS_DEF;
 
   if (cargando) {
     return (
@@ -175,18 +171,6 @@ export default function Inventario() {
           </div>
         )}
 
-        {tab === 'consumo' && (
-          <TabConsumo
-            inventario={estado.inventario}
-            consumos={estado.consumos}
-            trabajadores={trabajadoresFirestore}
-            centroDefault={CENTRO_DEFAULT}
-            usuarioNombre={usuarioNombre}
-            isAdmin={isAdmin}
-            onRefresh={cargar}
-          />
-        )}
-
         {tab === 'mi-inventario' && (
           <TabInventario inventario={estado.inventario} centroDefault={CENTRO_DEFAULT} vista="mi-centro" />
         )}
@@ -207,10 +191,6 @@ export default function Inventario() {
 
         {tab === 'analisis' && (
           <TabAnalisis inventario={estado.inventario} consumos={estado.consumos} />
-        )}
-
-        {tab === 'configuracion' && isAdmin && (
-          <TabConfiguracion inventario={estado.inventario} onRefresh={cargar} />
         )}
       </div>
     </div>
