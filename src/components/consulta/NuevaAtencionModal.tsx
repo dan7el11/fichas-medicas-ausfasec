@@ -1,19 +1,29 @@
 // Modal "Nueva atención" — registro rápido + sección expandible.
-// Reutiliza el componente existente BuscadorCIE10. Archivo NUEVO.
-import { useState } from 'react';
+// Integra con el inventario: descuenta stock al guardar la atención.
+import { useState, useEffect } from 'react';
 import {
   Stethoscope, X, Search, ChevronDown, Pill, Plus, Minus, Check, AlertTriangle,
 } from 'lucide-react';
 import { Timestamp } from 'firebase/firestore';
 import BuscadorCIE10 from '../BuscadorCIE10';
 import { crearAtencion } from '../../services/atenciones';
+import { cargarEstado, registrarConsumos } from '../../services/inventario';
 import {
   PROCEDIMIENTOS_CONSULTA, MEDICAMENTOS_DISPENSARIO,
 } from '../../types/atencion';
 import type { AtencionMedica } from '../../types/atencion';
+import type { Medicamento, CentroId } from '../../types/inventario';
+import { CENTROS } from '../../types/inventario';
 import type { Trabajador } from '../../types';
 
 const ACCENT = '#1d4fad';
+const CENTRO_DEFAULT: CentroId = 'planta_envasado';
+
+interface MedItem {
+  codigo?: string; // presente si viene del inventario
+  nombre: string;
+  cantidad: number;
+}
 
 interface Props {
   trabajadores: Trabajador[];
@@ -41,11 +51,54 @@ export default function NuevaAtencionModal({ trabajadores, medicoId, medicoNombr
   const [expanded, setExpanded] = useState(false);
   const [pa, setPa] = useState(''); const [fc, setFc] = useState(''); const [temp, setTemp] = useState(''); const [spo2, setSpo2] = useState('');
   const [procs, setProcs] = useState<Set<string>>(new Set());
-  const [meds, setMeds] = useState<{ nombre: string; cantidad: number }[]>([]);
+  const [meds, setMeds] = useState<MedItem[]>([]);
   const [medQ, setMedQ] = useState('');
+  const [centroMed, setCentroMed] = useState<CentroId>(CENTRO_DEFAULT);
   const [reposo, setReposo] = useState(0);
   const [obs, setObs] = useState('');
   const [guardando, setGuardando] = useState(false);
+
+  // Inventario en tiempo real
+  const [inventarioMeds, setInventarioMeds] = useState<Medicamento[]>([]);
+  const [inventarioCargado, setInventarioCargado] = useState(false);
+
+  useEffect(() => {
+    cargarEstado().then((est) => {
+      setInventarioMeds(est.inventario);
+      setInventarioCargado(true);
+    }).catch(() => {
+      setInventarioCargado(true); // fallback a lista estática
+    });
+  }, []);
+
+  // Construir lista de búsqueda de medicamentos
+  const buildMedSearch = (q: string): MedItem[] => {
+    const usarInventario = inventarioCargado && inventarioMeds.length > 0;
+    if (usarInventario) {
+      const seleccionados = new Set(meds.map((m) => m.codigo ?? m.nombre));
+      return inventarioMeds
+        .filter((m) => {
+          if (seleccionados.has(m.codigo)) return false;
+          const stock = m.stocks[centroMed] ?? 0;
+          if (stock <= 0) return false;
+          const term = q.toLowerCase();
+          return (
+            m.nombre.toLowerCase().includes(term) ||
+            (m.sobrenombre && m.sobrenombre.toLowerCase().includes(term))
+          );
+        })
+        .slice(0, 6)
+        .map((m) => ({ codigo: m.codigo, nombre: m.sobrenombre || m.nombre, cantidad: 1 }));
+    }
+    // Fallback: lista estática
+    const seleccionados = new Set(meds.map((m) => m.nombre));
+    return MEDICAMENTOS_DISPENSARIO
+      .filter((m) => m.toLowerCase().includes(q.toLowerCase()) && !seleccionados.has(m))
+      .slice(0, 6)
+      .map((m) => ({ nombre: m, cantidad: 1 }));
+  };
+
+  const medMatches = medQ ? buildMedSearch(medQ) : [];
 
   const matches = qWorker
     ? trabajadores.filter((w) =>
@@ -53,24 +106,32 @@ export default function NuevaAtencionModal({ trabajadores, medicoId, medicoNombr
           .toLowerCase().includes(qWorker.toLowerCase()),
       ).slice(0, 6)
     : [];
-  const medMatches = medQ
-    ? MEDICAMENTOS_DISPENSARIO.filter((m) => m.toLowerCase().includes(medQ.toLowerCase()) && !meds.find((x) => x.nombre === m)).slice(0, 6)
-    : [];
 
   const elegirWorker = (w: Trabajador) => {
     setWorker(w); setQWorker(''); setSexo(w.sexo ?? '');
   };
   const toggleProc = (p: string) => setProcs((s) => { const n = new Set(s); n.has(p) ? n.delete(p) : n.add(p); return n; });
-  const addMed = (m: string) => { setMeds((l) => [...l, { nombre: m, cantidad: 1 }]); setMedQ(''); };
-  const setCant = (nombre: string, d: number) => setMeds((l) => l.map((x) => x.nombre === nombre ? { ...x, cantidad: Math.max(1, x.cantidad + d) } : x));
-  const rmMed = (nombre: string) => setMeds((l) => l.filter((x) => x.nombre !== nombre));
+  const addMed = (item: MedItem) => { setMeds((l) => [...l, { ...item, cantidad: 1 }]); setMedQ(''); };
+  const setCant = (key: string, d: number) => setMeds((l) => l.map((x) => (x.codigo ?? x.nombre) === key ? { ...x, cantidad: Math.max(1, x.cantidad + d) } : x));
+  const rmMed = (key: string) => setMeds((l) => l.filter((x) => (x.codigo ?? x.nombre) !== key));
+
+  // Verificar stock suficiente para meds del inventario
+  const stockInsuficiente = meds
+    .filter((m) => m.codigo)
+    .filter((m) => {
+      const inv = inventarioMeds.find((i) => i.codigo === m.codigo);
+      return inv && (inv.stocks[centroMed] ?? 0) < m.cantidad;
+    });
 
   const pacienteOk = pacienteTipo === 'trabajador' ? !!worker : extApellidos.trim() || extNombres.trim();
-  const canSave = !!pacienteOk && motivo.trim() && cie && !guardando;
+  const canSave = !!pacienteOk && motivo.trim() && cie && !guardando && stockInsuficiente.length === 0;
 
   const guardar = async () => {
     if (!canSave || !cie) return;
     setGuardando(true);
+
+    const medicacionParaAtencion = meds.map(({ nombre, cantidad }) => ({ nombre, cantidad }));
+
     const data: Omit<AtencionMedica, 'id' | 'createdAt'> = {
       pacienteTipo,
       trabajadorId: pacienteTipo === 'trabajador' ? worker?.id : undefined,
@@ -87,15 +148,35 @@ export default function NuevaAtencionModal({ trabajadores, medicoId, medicoNombr
       relacion,
       signosVitales: { pa, fc, temp, spo2 },
       procedimientos: [...procs],
-      medicacion: meds,
+      medicacion: medicacionParaAtencion,
       reposoDias: reposo,
       observaciones: obs.trim(),
       estado: 'atendido',
       medicoId,
       medicoNombre,
     };
+
     try {
       await crearAtencion(data);
+
+      // Descontar del inventario los medicamentos con código
+      const itemsInventario = meds.filter((m) => m.codigo);
+      if (itemsInventario.length > 0) {
+        const pacienteNombre = data.pacienteTipo === 'trabajador'
+          ? `${data.pacienteApellidos} ${data.pacienteNombres}`.trim()
+          : `${data.pacienteApellidos} ${data.pacienteNombres}`.trim() || 'Externo';
+        try {
+          await registrarConsumos(
+            itemsInventario.map((m) => ({ medicamentoCodigo: m.codigo!, cantidad: m.cantidad })),
+            centroMed,
+            pacienteNombre,
+            medicoNombre,
+          );
+        } catch (invErr) {
+          console.warn('Atención guardada pero no se pudo descontar del inventario:', invErr);
+        }
+      }
+
       onSaved();
     } catch (err) {
       console.error('Error al guardar la atención:', err);
@@ -183,7 +264,7 @@ export default function NuevaAtencionModal({ trabajadores, medicoId, medicoNombr
           <Label>Motivo de consulta</Label>
           <input value={motivo} onChange={(e) => setMotivo(e.target.value)} placeholder="Ej: cefalea desde anoche, dolor lumbar…" className={`${inpCls} mb-4`} />
 
-          {/* Diagnóstico — reutiliza BuscadorCIE10 */}
+          {/* Diagnóstico */}
           <Label>Diagnóstico (CIE-10)</Label>
           <div className="mb-4">
             <BuscadorCIE10
@@ -241,34 +322,76 @@ export default function NuevaAtencionModal({ trabajadores, medicoId, medicoNombr
                 })}
               </div>
 
+              {/* Sede de dispensación */}
+              <Label>Sede</Label>
+              <div className="flex gap-1.5 mb-3">
+                {(Object.entries(CENTROS) as [CentroId, string][]).map(([id, label]) => (
+                  <Seg key={id} active={centroMed === id} onClick={() => { setCentroMed(id); setMeds([]); }} small>{label}</Seg>
+                ))}
+              </div>
+
               {/* Medicación */}
-              <Label>Medicación administrada</Label>
+              <Label>
+                Medicación administrada
+                {inventarioCargado && inventarioMeds.length === 0 && (
+                  <span className="ml-2 text-[10px] font-normal text-amber-600">lista estática (sin inventario)</span>
+                )}
+              </Label>
               <div className="relative mb-2.5">
                 <div className="flex items-center gap-2 p-[9px_12px] rounded-[9px] border border-slate-300 bg-white">
                   <Pill size={15} className="text-slate-400" />
-                  <input value={medQ} onChange={(e) => setMedQ(e.target.value)} placeholder="Buscar medicamento…" className="flex-1 border-none outline-none text-[13px] bg-transparent" />
+                  <input
+                    value={medQ}
+                    onChange={(e) => setMedQ(e.target.value)}
+                    placeholder={inventarioCargado ? 'Buscar medicamento…' : 'Cargando inventario…'}
+                    disabled={!inventarioCargado}
+                    className="flex-1 border-none outline-none text-[13px] bg-transparent disabled:text-slate-400"
+                  />
                 </div>
                 {medMatches.length > 0 && (
                   <div className="absolute top-[calc(100%+4px)] left-0 right-0 bg-white border border-slate-200 rounded-[10px] shadow-xl z-20 overflow-hidden">
-                    {medMatches.map((m) => (
-                      <button key={m} onClick={() => addMed(m)} className="flex items-center w-full text-left p-[9px_12px] border-none border-b border-slate-100 bg-white cursor-pointer hover:bg-slate-50 text-[13px] font-semibold">
-                        {m}
-                      </button>
-                    ))}
+                    {medMatches.map((m) => {
+                      const inv = m.codigo ? inventarioMeds.find((i) => i.codigo === m.codigo) : null;
+                      const stock = inv ? (inv.stocks[centroMed] ?? 0) : null;
+                      return (
+                        <button key={m.codigo ?? m.nombre} onClick={() => addMed(m)}
+                          className="flex items-center justify-between w-full text-left p-[9px_12px] border-none border-b border-slate-100 bg-white cursor-pointer hover:bg-slate-50">
+                          <span className="text-[13px] font-semibold">{m.nombre}</span>
+                          {stock !== null && (
+                            <span className="text-[11px] text-slate-400 font-mono">{stock} u.</span>
+                          )}
+                        </button>
+                      );
+                    })}
                   </div>
                 )}
               </div>
-              {meds.map((x) => (
-                <div key={x.nombre} className="flex items-center gap-2.5 p-[8px_12px] rounded-[9px] bg-slate-50 border border-slate-100 mb-1.5">
-                  <div className="flex-1 text-[13px] font-semibold">{x.nombre}</div>
-                  <div className="flex items-center border border-slate-300 rounded-lg overflow-hidden">
-                    <button onClick={() => setCant(x.nombre, -1)} className="w-7 h-[30px] border-none bg-slate-100 cursor-pointer text-slate-600"><Minus size={13} className="mx-auto" /></button>
-                    <span className="min-w-[28px] text-center text-[13px] font-bold">{x.cantidad}</span>
-                    <button onClick={() => setCant(x.nombre, 1)} className="w-7 h-[30px] border-none bg-slate-100 cursor-pointer text-slate-600"><Plus size={13} className="mx-auto" /></button>
+
+              {meds.map((x) => {
+                const key = x.codigo ?? x.nombre;
+                const inv = x.codigo ? inventarioMeds.find((i) => i.codigo === x.codigo) : null;
+                const stockDisp = inv ? (inv.stocks[centroMed] ?? 0) : null;
+                const insuf = stockDisp !== null && x.cantidad > stockDisp;
+                return (
+                  <div key={key} className="flex items-center gap-2.5 p-[8px_12px] rounded-[9px] mb-1.5 border"
+                    style={{ background: insuf ? '#fff8f8' : '#f8fafc', borderColor: insuf ? '#fca5a5' : '#e2e8f0' }}>
+                    <div className="flex-1">
+                      <div className="text-[13px] font-semibold">{x.nombre}</div>
+                      {stockDisp !== null && (
+                        <div className="text-[11px]" style={{ color: insuf ? '#dc2626' : '#64748b' }}>
+                          Stock: {stockDisp} u.{insuf && ' — insuficiente'}
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex items-center border border-slate-300 rounded-lg overflow-hidden">
+                      <button onClick={() => setCant(key, -1)} className="w-7 h-[30px] border-none bg-slate-100 cursor-pointer text-slate-600"><Minus size={13} className="mx-auto" /></button>
+                      <span className="min-w-[28px] text-center text-[13px] font-bold">{x.cantidad}</span>
+                      <button onClick={() => setCant(key, 1)} className="w-7 h-[30px] border-none bg-slate-100 cursor-pointer text-slate-600"><Plus size={13} className="mx-auto" /></button>
+                    </div>
+                    <button onClick={() => rmMed(key)} className="bg-transparent border-none cursor-pointer text-slate-300"><X size={15} /></button>
                   </div>
-                  <button onClick={() => rmMed(x.nombre)} className="bg-transparent border-none cursor-pointer text-slate-300"><X size={15} /></button>
-                </div>
-              ))}
+                );
+              })}
 
               {/* Reposo */}
               <div className="flex items-center gap-3 my-4">
@@ -292,6 +415,11 @@ export default function NuevaAtencionModal({ trabajadores, medicoId, medicoNombr
           {meds.length > 0 && (
             <span className="text-[12px] text-amber-800 inline-flex items-center gap-1.5">
               <AlertTriangle size={13} /> {meds.reduce((s, x) => s + x.cantidad, 0)} u. dispensadas
+            </span>
+          )}
+          {stockInsuficiente.length > 0 && (
+            <span className="text-[12px] text-red-600 inline-flex items-center gap-1.5">
+              <AlertTriangle size={13} /> Stock insuficiente
             </span>
           )}
           <div className="ml-auto flex gap-2">
