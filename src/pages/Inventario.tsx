@@ -1,6 +1,11 @@
+// Página: Inventario Médico. Ruta /inventario.
+// Restyle v2 (tema central): sin gradiente, sub-header con pestañas, Spectral + mono.
+// NUEVO: pestaña "Consumos" — medicación dispensada desde la atención diaria.
+// NINGÚN cambio funcional en Mi Inventario / General / Movimientos / Análisis.
+import type { ReactNode } from 'react';
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { collection, getDocs } from 'firebase/firestore';
-import { Package, AlertTriangle, TrendingDown, Calendar, ChevronDown } from 'lucide-react';
+import { Package, AlertTriangle, TrendingDown, Pill, CalendarX, Boxes, Activity } from 'lucide-react';
 import { db } from '../services/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -8,45 +13,38 @@ import TopBar from '../components/dashboard/TopBar';
 import { cargarEstado } from '../services/inventario';
 import { calcularKpis, consumosMes } from '../utils/inventarioHelpers';
 import type { EstadoInventario, CentroId } from '../types/inventario';
-import { CENTROS } from '../types/inventario';
 import TabInventario from '../components/inventario/TabInventario';
 import TabMovimientos from '../components/inventario/TabMovimientos';
 import TabAnalisis from '../components/inventario/TabAnalisis';
+import TabConsumos from '../components/inventario/TabConsumos';
 import { COLORS, FONTS } from '../theme';
 
-const BRAND = COLORS.brand;
+// Acento del módulo: ámbar (inventario / suministros)
+const ACCENT = '#9a5b12';
+const ACCENT_BG = '#f8eddc';
 
-type Tab = 'mi-inventario' | 'general' | 'movimientos' | 'analisis';
+type Tab = 'mi-inventario' | 'general' | 'movimientos' | 'consumos' | 'analisis';
 
 const TABS_DEF: { key: Tab; label: string }[] = [
   { key: 'mi-inventario', label: 'Mi Inventario' },
   { key: 'general', label: 'Inventario General' },
   { key: 'movimientos', label: 'Movimientos' },
+  { key: 'consumos', label: 'Consumos' },
   { key: 'analisis', label: 'Análisis' },
 ];
-
-function KpiChip({ label, value, warn }: { label: string; value: string | number; warn?: boolean }) {
-  return (
-    <div style={{
-      background: warn ? 'rgba(255,100,80,0.18)' : 'rgba(255,255,255,0.12)',
-      borderRadius: 10, padding: '8px 16px', minWidth: 110, textAlign: 'center',
-    }}>
-      <div style={{ fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,0.75)', letterSpacing: '0.05em' }}>{label}</div>
-      <div style={{ fontFamily: FONTS.mono, fontSize: 22, fontWeight: 700, color: warn ? '#ffd5d0' : '#fff', lineHeight: 1.2 }}>{value}</div>
-    </div>
-  );
-}
 
 const CENTRO_DEFAULT: CentroId = 'planta_envasado';
 
 export default function Inventario() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [tab, setTab] = useState<Tab>('mi-inventario');
+  const [tab, setTab] = useState<Tab>(() => (localStorage.getItem('inventario-tab') as Tab) || 'mi-inventario');
   const [estado, setEstado] = useState<EstadoInventario>({ inventario: [], consumos: [], movimientos: [], trabajadores: [], ultimaActualizacion: null });
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState('');
-  const [trabajadoresFirestore, setTrabajadoresFirestore] = useState<string[]>([]);
+  const [, setTrabajadoresFirestore] = useState<string[]>([]);
+
+  useEffect(() => { localStorage.setItem('inventario-tab', tab); }, [tab]);
 
   const isAdmin = !!(user?.email?.includes('admin'));
   const usuarioNombre = user?.email?.split('@')[0] ?? 'usuario';
@@ -66,7 +64,6 @@ export default function Inventario() {
         const nombre = [data.primerApellido, data.segundoApellido, data.primerNombre, data.segundoNombre].filter(Boolean).join(' ');
         if (nombre) nombres.push(nombre);
       });
-      // Combinar con trabajadores del estado_actual (legacy)
       const combinados = Array.from(new Set([...nombres, ...(est.trabajadores ?? [])])).sort();
       setTrabajadoresFirestore(combinados);
     } catch (e: any) {
@@ -79,22 +76,21 @@ export default function Inventario() {
 
   const kpis = useMemo(() => calcularKpis(estado.inventario), [estado.inventario]);
   const nConsumosMes = useMemo(() => consumosMes(estado.consumos), [estado.consumos]);
-
-  const tabs = TABS_DEF;
+  const hoy = new Date().toLocaleDateString('es-EC', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 
   if (cargando) {
     return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: COLORS.bg, fontFamily: FONTS.sans }}>
-        <div style={{ textAlign: 'center', color: COLORS.muted }}>
-          <Package size={32} style={{ marginBottom: 12 }} />
-          <div>Cargando inventario…</div>
+      <div className="min-h-screen grid place-items-center" style={{ background: COLORS.bg, fontFamily: FONTS.sans }}>
+        <div className="text-center" style={{ color: COLORS.muted }}>
+          <Package size={32} className="mx-auto mb-3" />
+          <div className="font-semibold">Cargando inventario…</div>
         </div>
       </div>
     );
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: COLORS.bg, fontFamily: FONTS.sans, color: COLORS.ink }}>
+    <div className="w-screen h-screen flex flex-col overflow-hidden" style={{ background: COLORS.bg, fontFamily: FONTS.sans, color: COLORS.ink }}>
       <TopBar
         userInitials={userInitials}
         userName={user?.email ?? 'Médico'}
@@ -102,97 +98,98 @@ export default function Inventario() {
         onNewWorker={() => navigate('/nuevo-trabajador')}
       />
 
-      {/* Hero */}
-      <div style={{ background: `linear-gradient(135deg, ${BRAND} 0%, #7a2028 100%)`, padding: '28px 32px 0' }}>
-        <div style={{ maxWidth: 1180, margin: '0 auto' }}>
-          {/* Título + KPIs */}
-          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16, marginBottom: 24 }}>
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
-                <Package size={22} color="rgba(255,255,255,0.85)" />
-                <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: '#fff', fontFamily: FONTS.serif }}>
-                  Inventario Médico
-                </h1>
-              </div>
-              <p style={{ margin: 0, fontSize: 13, color: 'rgba(255,255,255,0.70)' }}>
-                Control de medicamentos y suministros — CEM AUSTROGAS
-              </p>
-            </div>
-            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-              <KpiChip label="Medicamentos" value={kpis.totalMedicamentos} />
-              <KpiChip label="Consumos mes" value={nConsumosMes} />
-              <KpiChip label="Próx. vencer" value={kpis.proximosVencer} warn={kpis.proximosVencer > 0} />
-              <KpiChip label="Expirados" value={kpis.expirados} warn={kpis.expirados > 0} />
-            </div>
+      {/* Sub-header con pestañas (mismo patrón que Exámenes) */}
+      <div className="border-b px-8 flex items-center gap-1 flex-shrink-0 overflow-x-auto" style={{ background: COLORS.panel, borderColor: COLORS.line }}>
+        <span className="grid place-items-center w-[30px] h-[30px] rounded-lg mr-2.5 flex-shrink-0" style={{ background: ACCENT_BG, color: ACCENT }}><Package size={17} /></span>
+        <span className="text-[15px] font-semibold mr-4 whitespace-nowrap" style={{ fontFamily: FONTS.serif }}>Inventario médico</span>
+        {TABS_DEF.map((t) => {
+          const active = tab === t.key;
+          return (
+            <button key={t.key} onClick={() => setTab(t.key)} className="inline-flex items-center gap-1.5 px-3.5 py-[14px] border-none bg-transparent cursor-pointer text-[13px] -mb-px whitespace-nowrap"
+              style={{ fontWeight: active ? 700 : 600, color: active ? ACCENT : COLORS.muted, borderBottom: `2.5px solid ${active ? ACCENT : 'transparent'}` }}>
+              {t.label}
+            </button>
+          );
+        })}
+      </div>
+
+      <main className="flex-1 overflow-y-auto">
+        <div className="max-w-[1180px] mx-auto p-[24px_32px_80px]">
+          {/* Eyebrow + KPIs */}
+          <div className="text-[11px] font-semibold uppercase mb-3" style={{ color: COLORS.brand, letterSpacing: '1.4px' }}>
+            {hoy.charAt(0).toUpperCase() + hoy.slice(1)}
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+            <Kpi value={kpis.totalMedicamentos} label="Medicamentos" sub="en catálogo" icon={<Boxes size={16} />} fg={ACCENT} bg={ACCENT_BG} />
+            <Kpi value={nConsumosMes} label="Consumos" sub="este mes" icon={<Activity size={16} />} fg={COLORS.blue} bg={COLORS.blueBg} />
+            <Kpi value={kpis.proximosVencer} label="Próx. a vencer" sub="requieren revisión" icon={<CalendarX size={16} />} fg={kpis.proximosVencer > 0 ? COLORS.warn : COLORS.muted} bg={kpis.proximosVencer > 0 ? COLORS.warnBg : COLORS.bg} />
+            <Kpi value={kpis.expirados} label="Expirados" sub="retirar de stock" icon={<AlertTriangle size={16} />} fg={kpis.expirados > 0 ? COLORS.bad : COLORS.muted} bg={kpis.expirados > 0 ? COLORS.badBg : COLORS.bg} />
           </div>
 
           {/* Alertas */}
           {(kpis.expirados > 0 || kpis.sinStock > 0) && (
-            <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
+            <div className="flex gap-2.5 mb-5 flex-wrap">
               {kpis.expirados > 0 && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(220,46,60,0.22)', border: '1px solid rgba(220,46,60,0.40)', borderRadius: 8, padding: '6px 12px', fontSize: 12, color: '#ffd0d0', fontWeight: 600 }}>
-                  <AlertTriangle size={13} /> {kpis.expirados} medicamento{kpis.expirados !== 1 ? 's' : ''} expirado{kpis.expirados !== 1 ? 's' : ''}
-                </div>
+                <Banner fg={COLORS.bad} bg={COLORS.badBg} border="#eccdd1" icon={<AlertTriangle size={14} />}>
+                  {kpis.expirados} medicamento{kpis.expirados !== 1 ? 's' : ''} expirado{kpis.expirados !== 1 ? 's' : ''}
+                </Banner>
               )}
               {kpis.sinStock > 0 && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(200,140,10,0.22)', border: '1px solid rgba(200,140,10,0.40)', borderRadius: 8, padding: '6px 12px', fontSize: 12, color: '#ffe8a0', fontWeight: 600 }}>
-                  <TrendingDown size={13} /> {kpis.sinStock} medicamento{kpis.sinStock !== 1 ? 's' : ''} sin stock
-                </div>
+                <Banner fg={COLORS.warn} bg={COLORS.warnBg} border="#ecdcc0" icon={<TrendingDown size={14} />}>
+                  {kpis.sinStock} medicamento{kpis.sinStock !== 1 ? 's' : ''} sin stock
+                </Banner>
               )}
             </div>
           )}
 
-          {/* Tabs */}
-          <div style={{ display: 'flex', gap: 0 }}>
-            {tabs.map((t) => (
-              <button
-                key={t.key}
-                onClick={() => setTab(t.key)}
-                style={{
-                  padding: '10px 18px', background: 'transparent', border: 'none', cursor: 'pointer',
-                  fontSize: 13, fontWeight: tab === t.key ? 700 : 500,
-                  color: tab === t.key ? '#fff' : 'rgba(255,255,255,0.65)',
-                  borderBottom: tab === t.key ? '3px solid #fff' : '3px solid transparent',
-                  transition: 'all 0.15s',
-                }}
-              >
-                {t.label}
-              </button>
-            ))}
-          </div>
+          {error && (
+            <div className="rounded-[10px] px-4 py-3 mb-5 text-[13px] border" style={{ background: COLORS.badBg, borderColor: COLORS.bad, color: COLORS.bad }}>
+              {error}
+            </div>
+          )}
+
+          {tab === 'mi-inventario' && (
+            <TabInventario inventario={estado.inventario} centroDefault={CENTRO_DEFAULT} vista="mi-centro" />
+          )}
+          {tab === 'general' && (
+            <TabInventario inventario={estado.inventario} centroDefault={CENTRO_DEFAULT} vista="general" />
+          )}
+          {tab === 'movimientos' && (
+            <TabMovimientos
+              inventario={estado.inventario}
+              movimientos={estado.movimientos}
+              usuarioNombre={usuarioNombre}
+              isAdmin={isAdmin}
+              onRefresh={cargar}
+            />
+          )}
+          {tab === 'consumos' && <TabConsumos />}
+          {tab === 'analisis' && (
+            <TabAnalisis inventario={estado.inventario} consumos={estado.consumos} />
+          )}
         </div>
+      </main>
+    </div>
+  );
+}
+
+function Kpi({ value, label, sub, icon, fg, bg }: { value: ReactNode; label: string; sub: string; icon: ReactNode; fg: string; bg: string }) {
+  return (
+    <div className="rounded-[14px] p-[14px_16px] flex items-center gap-3 border" style={{ background: COLORS.panel, borderColor: COLORS.line }}>
+      <span className="grid place-items-center w-[34px] h-[34px] rounded-[9px] flex-shrink-0" style={{ background: bg, color: fg }}>{icon}</span>
+      <div className="min-w-0">
+        <div className="text-[22px] font-bold tracking-tight leading-none" style={{ fontFamily: FONTS.mono, color: fg }}>{value}</div>
+        <div className="text-[12px] font-semibold mt-1" style={{ color: COLORS.ink }}>{label}</div>
+        <div className="text-[10.5px]" style={{ color: COLORS.faint }}>{sub}</div>
       </div>
+    </div>
+  );
+}
 
-      {/* Contenido */}
-      <div style={{ maxWidth: 1180, margin: '0 auto', padding: '28px 32px 80px' }}>
-        {error && (
-          <div style={{ background: COLORS.badBg, border: `1px solid ${COLORS.bad}`, borderRadius: 10, padding: '12px 16px', marginBottom: 20, color: COLORS.bad, fontSize: 13 }}>
-            {error}
-          </div>
-        )}
-
-        {tab === 'mi-inventario' && (
-          <TabInventario inventario={estado.inventario} centroDefault={CENTRO_DEFAULT} vista="mi-centro" />
-        )}
-
-        {tab === 'general' && (
-          <TabInventario inventario={estado.inventario} centroDefault={CENTRO_DEFAULT} vista="general" />
-        )}
-
-        {tab === 'movimientos' && (
-          <TabMovimientos
-            inventario={estado.inventario}
-            movimientos={estado.movimientos}
-            usuarioNombre={usuarioNombre}
-            isAdmin={isAdmin}
-            onRefresh={cargar}
-          />
-        )}
-
-        {tab === 'analisis' && (
-          <TabAnalisis inventario={estado.inventario} consumos={estado.consumos} />
-        )}
-      </div>
+function Banner({ children, fg, bg, border, icon }: { children: ReactNode; fg: string; bg: string; border: string; icon: ReactNode }) {
+  return (
+    <div className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12px] font-semibold border" style={{ background: bg, borderColor: border, color: fg }}>
+      {icon} {children}
     </div>
   );
 }
