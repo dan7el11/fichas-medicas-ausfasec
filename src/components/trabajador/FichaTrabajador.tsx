@@ -9,6 +9,7 @@ import type { Trabajador, EvaluacionMedica } from '../../types';
 import ExamenesPanel from '../examenes/ExamenesPanel';
 import { OrdenDetalleModal } from '../examenes/ExamenModales';
 import { useToast } from '../Toast';
+import { useConfirm } from '../ConfirmDialog';
 import { useAuth } from '../../contexts/AuthContext';
 import { LOGO_EMPRESA } from '../../assets/logoEmpresa';
 import { getOrdenes, eliminarOrden } from '../../services/examenesPlan';
@@ -129,7 +130,8 @@ interface Props {
 export default function FichaTrabajador({ trabajadorId }: Props) {
   const navigate = useNavigate();
   const toast = useToast();
-  const { user } = useAuth();
+  const confirm = useConfirm();
+  const { user, displayName } = useAuth();
 
   const [trabajador, setTrabajador] = useState<Trabajador | null>(null);
   const [evaluaciones, setEvaluaciones] = useState<EvaluacionMedica[]>([]);
@@ -281,7 +283,7 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
   // ELIMINAR ORDEN EXAMEN
   // ----------------------------------------------------------------
   const eliminarOrdenExamen = async (id: string) => {
-    if (!window.confirm('¿Eliminar este examen programado?')) return;
+    if (!(await confirm({ message: '¿Eliminar este examen programado?', danger: true }))) return;
     try {
       await eliminarOrden(id);
       setOrdenes(prev => prev.filter(o => o.id !== id));
@@ -335,7 +337,7 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
   };
 
   const handleEliminarPermiso = async (id: string) => {
-    if (!window.confirm('¿Eliminar este permiso? Esta acción no se puede deshacer.')) return;
+    if (!(await confirm({ message: '¿Eliminar este permiso? Esta acción no se puede deshacer.', danger: true }))) return;
     try {
       await eliminarPermiso(id);
       setPermisos(prev => prev.filter(p => p.id !== id));
@@ -958,7 +960,7 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
           orden={ordenDetalle}
           trabajadorId={trabajadorId}
           medicoId={user?.uid ?? ''}
-          medicoNombre={user?.email ?? 'Médico'}
+          medicoNombre={displayName}
           onClose={() => setOrdenDetalle(null)}
           onSaved={() => {
             setOrdenDetalle(null);
