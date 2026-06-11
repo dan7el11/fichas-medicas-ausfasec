@@ -3,6 +3,7 @@ import { Plus, Trash2, ShoppingCart, CheckCircle } from 'lucide-react';
 import type { Medicamento, Consumo, CentroId } from '../../types/inventario';
 import { CENTROS } from '../../types/inventario';
 import { registrarConsumos, eliminarConsumo } from '../../services/inventario';
+import { useConfirm } from '../ConfirmDialog';
 import { fmtFecha, exportarConsumosCSV } from '../../utils/inventarioHelpers';
 import BuscadorMedicamento from './BuscadorMedicamento';
 import BuscadorTrabajador from './BuscadorTrabajador';
@@ -21,6 +22,7 @@ interface Props {
 }
 
 export default function TabConsumo({ inventario, consumos, trabajadores, centroDefault, usuarioNombre, isAdmin, onRefresh }: Props) {
+  const confirm = useConfirm();
   const [centro, setCentro] = useState<CentroId>(centroDefault);
   const [trabajador, setTrabajador] = useState('');
   const [lineas, setLineas] = useState<ConsumoLinea[]>([]);
@@ -61,7 +63,7 @@ export default function TabConsumo({ inventario, consumos, trabajadores, centroD
   }
 
   async function handleEliminar(id: number) {
-    if (!confirm('¿Eliminar este consumo?')) return;
+    if (!(await confirm({ message: '¿Eliminar este consumo?', danger: true }))) return;
     await eliminarConsumo(id);
     onRefresh();
   }
