@@ -956,6 +956,9 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
       {ordenDetalle && (
         <OrdenDetalleModal
           orden={ordenDetalle}
+          trabajadorId={trabajadorId}
+          medicoId={user?.uid ?? ''}
+          medicoNombre={user?.email ?? 'Médico'}
           onClose={() => setOrdenDetalle(null)}
           onSaved={() => {
             setOrdenDetalle(null);
