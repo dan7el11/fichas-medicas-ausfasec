@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { Timestamp } from 'firebase/firestore';
 import BuscadorCIE10 from '../BuscadorCIE10';
+import { useToast } from '../Toast';
 import { crearAtencion } from '../../services/atenciones';
 import { cargarEstado, registrarConsumos } from '../../services/inventario';
 import {
@@ -34,6 +35,7 @@ interface Props {
 }
 
 export default function NuevaAtencionModal({ trabajadores, medicoId, medicoNombre, onClose, onSaved }: Props) {
+  const toast = useToast();
   const [pacienteTipo, setPacienteTipo] = useState<'trabajador' | 'externo'>('trabajador');
   const [worker, setWorker] = useState<Trabajador | null>(null);
   const [qWorker, setQWorker] = useState('');
@@ -180,7 +182,7 @@ export default function NuevaAtencionModal({ trabajadores, medicoId, medicoNombr
       onSaved();
     } catch (err) {
       console.error('Error al guardar la atención:', err);
-      alert('No se pudo guardar la atención. Revisa la conexión.');
+      toast.error('No se pudo guardar la atención. Revisa la conexión.');
       setGuardando(false);
     }
   };
