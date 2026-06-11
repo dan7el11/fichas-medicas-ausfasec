@@ -3,6 +3,7 @@ import { ArrowRight, Trash2 } from 'lucide-react';
 import type { Medicamento, Movimiento, CentroId } from '../../types/inventario';
 import { CENTROS } from '../../types/inventario';
 import { registrarMovimiento, eliminarMovimiento } from '../../services/inventario';
+import { useConfirm } from '../ConfirmDialog';
 import { fmtFecha, exportarMovimientosCSV } from '../../utils/inventarioHelpers';
 import BuscadorMedicamento from './BuscadorMedicamento';
 import { COLORS, FONTS } from '../../theme';
@@ -18,6 +19,7 @@ interface Props {
 }
 
 export default function TabMovimientos({ inventario, movimientos, usuarioNombre, isAdmin, onRefresh }: Props) {
+  const confirm = useConfirm();
   const [medSel, setMedSel] = useState<Medicamento | null>(null);
   const [origen, setOrigen] = useState<CentroId | 'PROVEEDOR'>('PROVEEDOR');
   const [destino, setDestino] = useState<CentroId>('planta_envasado');
@@ -133,7 +135,7 @@ export default function TabMovimientos({ inventario, movimientos, usuarioNombre,
                     <td style={{ padding: '7px 10px', color: COLORS.muted }}>{m.usuario}</td>
                     {isAdmin && (
                       <td style={{ padding: '7px 10px' }}>
-                        <button onClick={async () => { if (confirm('¿Revertir movimiento?')) { await eliminarMovimiento(m.id); onRefresh(); } }}
+                        <button onClick={async () => { if (await confirm({ message: '¿Revertir movimiento?', danger: true })) { await eliminarMovimiento(m.id); onRefresh(); } }}
                           style={{ background: 'none', border: 'none', cursor: 'pointer', color: COLORS.bad }}>
                           <Trash2 size={13} />
                         </button>
