@@ -3,6 +3,7 @@ import { Plus, Edit2, Trash2, Save, X } from 'lucide-react';
 import type { Medicamento, CentroId } from '../../types/inventario';
 import { CENTROS } from '../../types/inventario';
 import { guardarMedicamento, eliminarMedicamento } from '../../services/inventario';
+import { useConfirm } from '../ConfirmDialog';
 import { checkExpiracion, fmtFecha } from '../../utils/inventarioHelpers';
 import { COLORS, FONTS } from '../../theme';
 
@@ -22,6 +23,7 @@ interface Props {
 }
 
 export default function TabConfiguracion({ inventario, onRefresh }: Props) {
+  const confirm = useConfirm();
   const [editando, setEditando] = useState<Medicamento | null>(null);
   const [creando, setCreando] = useState(false);
   const [form, setForm] = useState<Medicamento>(medVacio());
@@ -47,7 +49,7 @@ export default function TabConfiguracion({ inventario, onRefresh }: Props) {
   }
 
   async function handleEliminar(codigo: string, nombre: string) {
-    if (!confirm(`¿Eliminar "${nombre}" del catálogo? Esta acción no se puede deshacer.`)) return;
+    if (!(await confirm({ message: `¿Eliminar "${nombre}" del catálogo? Esta acción no se puede deshacer.`, danger: true }))) return;
     await eliminarMedicamento(codigo);
     onRefresh();
   }
