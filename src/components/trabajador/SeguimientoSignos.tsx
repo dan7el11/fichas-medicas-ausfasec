@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, HeartPulse, Activity, Droplet, Plus, X, Check } from 'lucide-react';
 import { Timestamp } from 'firebase/firestore';
 import type { MedicionSigno, TipoSigno } from '../../types/signo';
+import { useToast } from '../Toast';
 import { SIGNO_META } from '../../types/signo';
 import {
   getMediciones, crearMedicion, porTipo, avg, fmtFechaHora, fmtFechaSola,
@@ -31,11 +32,11 @@ export default function SeguimientoSignos({ trabajadorId, tallaMetros = 1.65, no
 
   return (
     <div style={{ fontFamily: "'Public Sans', system-ui, sans-serif" }}>
-      <div className="max-w-[1040px] mx-auto px-8 py-6">
+      <div className="px-5 py-4">
         {onBack && <button onClick={onBack} className="inline-flex items-center gap-1.5 bg-transparent border-none cursor-pointer text-slate-500 text-[13px] font-semibold mb-3.5 p-0 hover:text-slate-700"><ArrowLeft size={15} /> Volver a la ficha</button>}
         <div className="flex items-center gap-3 mb-[18px]">
           <div className="flex-1">
-            <h1 className="m-0 text-[22px] font-extrabold tracking-tight">Seguimiento de signos</h1>
+            <h2 className="m-0 text-[18px] font-extrabold tracking-tight">Seguimiento de signos</h2>
             {nombreCompleto && <div className="text-[13px] text-slate-500">{nombreCompleto}</div>}
           </div>
           <button onClick={() => setForm(true)} className="inline-flex items-center gap-1.5 px-4 py-2.5 text-white border-none rounded-[9px] text-[13px] font-bold cursor-pointer" style={{ background: BRAND }}><Plus size={16} /> Registrar medición</button>
@@ -144,6 +145,7 @@ function PanelGlucosa({ data }: { data: MedicionSigno[] }) {
 
 // ── Formulario ───────────────────────────────────────────────────────────────
 function FormMedicion({ signo, talla, trabajadorId, medicoId, onClose, onSaved }: { signo: TipoSigno; talla: number; trabajadorId: string; medicoId?: string; onClose: () => void; onSaved: () => void }) {
+  const toast = useToast();
   const meta = SIGNO_META[signo];
   const ahora = new Date(); ahora.setSeconds(0, 0);
   const isoLocal = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}T${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
@@ -161,7 +163,7 @@ function FormMedicion({ signo, talla, trabajadorId, medicoId, onClose, onSaved }
     if (signo === 'presion') { base.sistolica = +sis; base.diastolica = +dia; }
     if (signo === 'peso') { const p = +peso; base.peso = p; base.imc = +(p / (talla * talla)).toFixed(1); }
     if (signo === 'glucosa') { base.glucosa = +glu; base.contexto = ctx; }
-    try { await crearMedicion(base); onSaved(); } catch (e) { console.error(e); alert('No se pudo guardar.'); setGuardando(false); }
+    try { await crearMedicion(base); onSaved(); } catch (e) { console.error(e); toast.error('No se pudo guardar.'); setGuardando(false); }
   };
 
   return (
