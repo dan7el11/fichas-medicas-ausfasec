@@ -1,9 +1,13 @@
-import { Plus } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Plus, UserCircle, LogOut, ChevronDown } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
 import { COLORS, FONTS } from '../../theme';
 
 interface TopBarProps {
+  /** @deprecated el TopBar ahora lee useAuth() directamente */
   userInitials?: string;
+  /** @deprecated */
   userName?: string;
   userRol?: string;
   onNewWorker: () => void;
@@ -19,14 +23,34 @@ const TABS = [
   { key: '/reportes',        label: 'Reportes y Estadísticas' },
 ];
 
-export default function TopBar({
-  userInitials = 'DD',
-  userName = 'Dr. Donoso',
-  userRol = 'Médico ocupacional',
-  onNewWorker,
-}: TopBarProps) {
+export default function TopBar({ userRol, onNewWorker }: TopBarProps) {
   const navigate = useNavigate();
   const location = useLocation();
+  const { displayName, initials, isAdmin, logout } = useAuth();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  const rolLabel = userRol ?? (isAdmin ? 'Administrador' : 'Médico ocupacional');
+
+  // Cerrar el menú al hacer clic fuera
+  useEffect(() => {
+    if (!menuOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [menuOpen]);
+
+  const handleLogout = async () => {
+    setMenuOpen(false);
+    try {
+      await logout();
+      // ProtectedRoute redirige a /login al detectar user=null
+    } catch (err) {
+      console.error('Error al cerrar sesión:', err);
+    }
+  };
 
   return (
     <header
@@ -77,17 +101,46 @@ export default function TopBar({
           <Plus size={14} strokeWidth={2.5} /> Nuevo trabajador
         </button>
         <div className="w-px h-[22px] bg-white/10" />
-        <div className="flex items-center gap-2">
-          <div className="text-right leading-[1.15]">
-            <div className="text-xs font-semibold">{userName}</div>
-            <div className="text-[10px] text-white/60">{userRol}</div>
-          </div>
-          <div
-            className="w-[30px] h-[30px] rounded-full text-white grid place-items-center text-[11px] font-bold"
-            style={{ background: COLORS.brand }}
+
+        {/* Menú de usuario */}
+        <div ref={menuRef} className="relative">
+          <button
+            onClick={() => setMenuOpen((v) => !v)}
+            className="flex items-center gap-2 bg-transparent border-none cursor-pointer text-white p-0 rounded-lg hover:bg-white/5 transition-colors px-1.5 py-1"
           >
-            {userInitials}
-          </div>
+            <div className="text-right leading-[1.15]">
+              <div className="text-xs font-semibold">{displayName}</div>
+              <div className="text-[10px] text-white/60">{rolLabel}</div>
+            </div>
+            <div
+              className="w-[30px] h-[30px] rounded-full text-white grid place-items-center text-[11px] font-bold"
+              style={{ background: COLORS.brand }}
+            >
+              {initials}
+            </div>
+            <ChevronDown size={13} className={`text-white/50 transition-transform ${menuOpen ? 'rotate-180' : ''}`} />
+          </button>
+
+          {menuOpen && (
+            <div className="absolute right-0 top-[calc(100%+8px)] w-[210px] bg-white rounded-xl shadow-2xl border border-slate-200 overflow-hidden z-[150]">
+              <div className="px-4 py-3 border-b border-slate-100">
+                <div className="text-[13px] font-bold text-slate-900 truncate">{displayName}</div>
+                <div className="text-[11px] text-slate-400">{rolLabel}</div>
+              </div>
+              <button
+                onClick={() => { setMenuOpen(false); navigate('/perfil'); }}
+                className="flex items-center gap-2.5 w-full text-left px-4 py-2.5 bg-white border-none cursor-pointer text-[13px] font-semibold text-slate-700 hover:bg-slate-50"
+              >
+                <UserCircle size={16} className="text-slate-400" /> Mi perfil
+              </button>
+              <button
+                onClick={handleLogout}
+                className="flex items-center gap-2.5 w-full text-left px-4 py-2.5 bg-white border-none border-t border-slate-100 cursor-pointer text-[13px] font-semibold text-red-600 hover:bg-red-50"
+              >
+                <LogOut size={16} /> Cerrar sesión
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </header>
