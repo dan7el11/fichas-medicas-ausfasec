@@ -17,6 +17,7 @@ import AgendaExamenes from './pages/AgendaExamenes';
 import ExpedienteResumen from './pages/ExpedienteResumen';
 import ConfiguracionEmpresa from './pages/ConfiguracionEmpresa';
 import Inventario from './pages/Inventario';
+import AdminPanel from './pages/AdminPanel';
 import { ToastProvider } from './components/Toast';
 
 const queryClient = new QueryClient({
@@ -85,6 +86,9 @@ function App() {
 
               {/* Configuración */}
               <Route path="/configuracion" element={<ProtectedRoute><ConfiguracionEmpresa /></ProtectedRoute>} />
+
+              {/* Admin */}
+              <Route path="/admin" element={<ProtectedRoute><AdminPanel /></ProtectedRoute>} />
 
               <Route path="*" element={<Navigate to="/" />} />
             </Routes>
