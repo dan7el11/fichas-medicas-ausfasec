@@ -13,6 +13,8 @@ import { TIPOS_EVALUACION_EXAMEN } from '../../types/examenPlan';
 import { crearOrden, actualizarOrden, eliminarOrden, estadoOrden, fmtFecha, progresoOrden } from '../../services/examenesPlan';
 import { protocoloDePuesto } from '../../services/protocolos';
 import { EstadoChip } from './OrdenCard';
+import { useToast } from '../Toast';
+import { useConfirm } from '../ConfirmDialog';
 
 const ACCENT = '#0e7490';
 
@@ -25,6 +27,7 @@ export function ProgramarExamenModal({ trabajadores, protocolos, medicoId, medic
   medicoId: string; medicoNombre: string;
   onClose: () => void; onSaved: () => void;
 }) {
+  const toast = useToast();
   const [worker, setWorker] = useState<Trabajador | null>(null);
   const [qW, setQW] = useState('');
   const [tipoEval, setTipoEval] = useState<TipoEvaluacionExamen>('Periódico');
@@ -67,7 +70,7 @@ export function ProgramarExamenModal({ trabajadores, protocolos, medicoId, medic
       medicoId, medicoNombre,
     };
     try { await crearOrden(data); onSaved(); }
-    catch (err) { console.error(err); alert('No se pudo guardar la orden.'); setGuardando(false); }
+    catch (err) { console.error(err); toast.error('No se pudo guardar la orden.'); setGuardando(false); }
   };
 
   const catalogo: { nombre: string; tipo: TipoExamen }[] = [...NOMBRES_EXAMEN_COMUNES].map((n) => {
@@ -336,6 +339,8 @@ export function OrdenDetalleModal({ orden, onClose, onSaved, onDeleted, trabajad
   medicoId?: string;
   medicoNombre?: string;
 }) {
+  const toast = useToast();
+  const confirm = useConfirm();
   const [examenes, setExamenes] = useState<ExamenItem[]>(orden.examenes);
   const [guardando, setGuardando] = useState(false);
   const [eliminando, setEliminando] = useState(false);
@@ -354,14 +359,15 @@ export function OrdenDetalleModal({ orden, onClose, onSaved, onDeleted, trabajad
     if (!orden.id) return;
     setGuardando(true);
     try { await actualizarOrden(orden.id, { examenes }); onSaved(); }
-    catch (err) { console.error(err); alert('No se pudo actualizar.'); setGuardando(false); }
+    catch (err) { console.error(err); toast.error('No se pudo actualizar.'); setGuardando(false); }
   };
 
   const eliminar = async () => {
-    if (!orden.id || !window.confirm('¿Eliminar este examen programado? Esta acción no se puede deshacer.')) return;
+    if (!orden.id) return;
+    if (!(await confirm({ message: '¿Eliminar este examen programado? Esta acción no se puede deshacer.', danger: true }))) return;
     setEliminando(true);
     try { await eliminarOrden(orden.id); onDeleted ? onDeleted() : onSaved(); }
-    catch (err) { console.error(err); alert('No se pudo eliminar.'); setEliminando(false); }
+    catch (err) { console.error(err); toast.error('No se pudo eliminar.'); setEliminando(false); }
   };
 
   const handleSubido = async (idx: number, examenDocId: string) => {
