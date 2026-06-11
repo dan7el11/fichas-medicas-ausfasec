@@ -4,6 +4,7 @@ import { Layers, Check, Save, Users } from 'lucide-react';
 import type { TipoExamen } from '../../types';
 import { NOMBRES_EXAMEN_COMUNES } from '../../types';
 import { guardarProtocolo } from '../../services/protocolos';
+import { useToast } from '../Toast';
 
 const ACCENT = '#0e7490';
 
@@ -26,6 +27,7 @@ interface Props {
 }
 
 export default function ProtocolosEditor({ protocolos, puestos, onSaved }: Props) {
+  const toast = useToast();
   const lista = useMemo(() => {
     // puestos reales + cualquiera con protocolo definido
     const set = new Map<string, number>();
@@ -50,7 +52,7 @@ export default function ProtocolosEditor({ protocolos, puestos, onSaved }: Props
     setGuardando(true);
     const examenes = [...draft].map((nombre) => ({ nombre, tipo: inferirTipo(nombre) }));
     try { await guardarProtocolo(sel, examenes); setGuardado(true); onSaved(); }
-    catch (err) { console.error(err); alert('No se pudo guardar el protocolo.'); }
+    catch (err) { console.error(err); toast.error('No se pudo guardar el protocolo.'); }
     finally { setGuardando(false); }
   };
 
