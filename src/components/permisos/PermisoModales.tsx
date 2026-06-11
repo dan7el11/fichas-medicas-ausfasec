@@ -15,6 +15,7 @@ import {
 } from '../../services/permisos';
 import { TipoBadge, EstadoChip } from './PermisoCard';
 import type { Trabajador } from '../../types';
+import { useToast } from '../Toast';
 
 const ACCENT = '#7c5cf2';
 
@@ -24,6 +25,7 @@ const ACCENT = '#7c5cf2';
 export function NuevoPermisoModal({ trabajadores, medicoId, medicoNombre, onClose, onSaved }: {
   trabajadores: Trabajador[]; medicoId: string; medicoNombre: string; onClose: () => void; onSaved: () => void;
 }) {
+  const toast = useToast();
   const [tipo, setTipo] = useState<TipoPermiso>('reposo_interno');
   const [worker, setWorker] = useState<Trabajador | null>(null);
   const [qW, setQW] = useState('');
@@ -64,7 +66,7 @@ export function NuevoPermisoModal({ trabajadores, medicoId, medicoNombre, onClos
       medicoId, medicoNombre,
     };
     try { await crearPermiso(data); onSaved(); }
-    catch (err) { console.error(err); alert('No se pudo guardar el permiso.'); setGuardando(false); }
+    catch (err) { console.error(err); toast.error('No se pudo guardar el permiso.'); setGuardando(false); }
   };
 
   return (
