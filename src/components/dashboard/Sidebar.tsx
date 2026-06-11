@@ -1,9 +1,8 @@
-import { useRef, useEffect } from 'react';
-import { Search } from 'lucide-react';
+import { useMemo } from 'react';
+import { Search, X } from 'lucide-react';
 import type { Trabajador, EvaluacionMedica } from '../../types';
 import {
   AREAS,
-  TIPOS_EVAL,
   AREA_COLORS,
   type Area,
 } from '../../constants/medical';
@@ -13,6 +12,7 @@ import {
   fmtDate,
   iniciales,
   lastEval,
+  tipoEvaluacionLabel,
   TONE_STYLES,
   workerStatus,
 } from '../../utils/medicalHelpers';
@@ -56,8 +56,20 @@ export default function Sidebar({
   density = 'comfy',
   onNewWorker,
 }: SidebarProps) {
-  const searchRef = useRef<HTMLInputElement>(null);
   const stats = dashboardStats(trabajadores, evalsPorTrabajador);
+
+  // Opciones de filtro construidas con los datos reales: solo se ofrecen
+  // áreas con trabajadores y tipos de evaluación que existen en Firestore.
+  const areaOptions = useMemo(() => {
+    const presentes = new Set(trabajadores.map((w) => areaDeTrabajador(w)));
+    return AREAS.filter((a) => presentes.has(a));
+  }, [trabajadores]);
+
+  const tipoOptions = useMemo(() => {
+    const s = new Set<string>();
+    evalsPorTrabajador.forEach((evs) => evs.forEach((e) => s.add(tipoEvaluacionLabel(e))));
+    return [...s].sort((a, b) => a.localeCompare(b));
+  }, [evalsPorTrabajador]);
 
   const exportarCSV = () => {
     const filas = filtered.map((w) => {
@@ -90,17 +102,6 @@ export default function Sidebar({
     link.click();
     document.body.removeChild(link);
   };
-
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-        e.preventDefault();
-        searchRef.current?.focus();
-      }
-    };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, []);
 
   const grouped: Array<[string, Trabajador[]]> = groupByArea
     ? AREAS.map((a) => [a, filtered.filter((w) => areaDeTrabajador(w) === a)] as [string, Trabajador[]]).filter(
@@ -151,17 +152,24 @@ export default function Sidebar({
         <div className="relative mb-2">
           <Search size={14} className="absolute left-2.5 top-2.5 text-slate-500" strokeWidth={2} />
           <input
-            ref={searchRef}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Buscar nombre, cédula, puesto…"
-            className="w-full pl-8 pr-12 py-2 border border-slate-300 rounded-[7px] text-xs bg-slate-50 outline-none focus:ring-2 focus:ring-[var(--brand-primary,#0a6b3b)]/15 focus:border-[var(--brand-primary,#0a6b3b)]"
+            placeholder="Buscar nombre, cédula, puesto, área…"
+            className="w-full pl-8 pr-8 py-2 border border-slate-300 rounded-[7px] text-xs bg-slate-50 outline-none focus:ring-2 focus:ring-[var(--brand-primary,#0a6b3b)]/15 focus:border-[var(--brand-primary,#0a6b3b)]"
           />
-          <span className="absolute right-2 top-2 px-1.5 py-0.5 bg-slate-100 rounded text-[10px] text-slate-500 font-mono">⌘K</span>
+          {query && (
+            <button
+              onClick={() => setQuery('')}
+              title="Limpiar búsqueda"
+              className="absolute right-2 top-2 grid place-items-center w-5 h-5 rounded bg-slate-100 border-none cursor-pointer text-slate-500 hover:text-slate-800"
+            >
+              <X size={12} />
+            </button>
+          )}
         </div>
         <div className="flex gap-1.5">
-          <NativeSelect value={areaFilter} options={['Todas', ...AREAS]} onChange={(v) => setAreaFilter(v as Area | 'Todas')} label="Área" />
-          <NativeSelect value={tipoFilter} options={['Todos', ...TIPOS_EVAL]} onChange={setTipoFilter} label="Tipo eval." />
+          <NativeSelect value={areaFilter} options={['Todas', ...areaOptions]} onChange={(v) => setAreaFilter(v as Area | 'Todas')} label="Área" />
+          <NativeSelect value={tipoFilter} options={['Todos', ...tipoOptions]} onChange={setTipoFilter} label="Tipo eval." />
         </div>
         {hasFilters && (
           <div className="mt-2 flex items-center gap-1.5">

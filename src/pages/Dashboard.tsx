@@ -18,7 +18,8 @@ import FichaTrabajador from '../components/trabajador/FichaTrabajador';
 
 import {
   areaDeTrabajador,
-  lastEval,
+  matchTrabajador,
+  tipoEvaluacionLabel,
   workerStatus,
 } from '../utils/medicalHelpers';
 import type { Area } from '../constants/medical';
@@ -81,17 +82,11 @@ export default function Dashboard() {
   }, [evaluaciones]);
 
   const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
     return trabajadores.filter((w) => {
-      if (q) {
-        const full =
-          `${w.primerApellido} ${w.segundoApellido} ${w.primerNombre} ${w.segundoNombre}`.toLowerCase();
-        if (!full.includes(q) && !w.cedula.toLowerCase().includes(q) && !w.puestoTrabajo.toLowerCase().includes(q))
-          return false;
-      }
+      if (!matchTrabajador(w, query)) return false;
       if (areaFilter !== 'Todas' && areaDeTrabajador(w) !== areaFilter) return false;
       const evals = evalsPorTrabajador.get(w.id ?? '') ?? [];
-      if (tipoFilter !== 'Todos') { const le = lastEval(evals); if (!le) return false; }
+      if (tipoFilter !== 'Todos' && !evals.some((e) => tipoEvaluacionLabel(e) === tipoFilter)) return false;
       if (statusFilter !== 'Todos') { const s = workerStatus(evals); if (s.label !== statusFilter) return false; }
       return true;
     });

@@ -4,7 +4,9 @@ import type { Trabajador, EvaluacionMedica } from '../types';
 import {
   APTITUD_LABEL,
   AREA_COLORS,
+  AREAS,
   deriveAreaFromPuesto,
+  normalizarTexto,
   type Area,
 } from '../constants/medical';
 
@@ -35,12 +37,55 @@ export function iniciales(t: Trabajador): string {
 // ── Área ───────────────────────────────────────────────────────────────────
 
 export function areaDeTrabajador(t: Trabajador): Area {
-  return ((t as Trabajador & { area?: Area }).area as Area) ??
-    deriveAreaFromPuesto(t.puestoTrabajo);
+  // Si el documento trae área/departamento explícito y coincide con el
+  // catálogo (ignorando tildes/mayúsculas), se respeta lo ingresado.
+  const explicito = (t as Trabajador & { area?: string }).area ?? t.departamento;
+  if (explicito) {
+    const match = AREAS.find((a) => normalizarTexto(a) === normalizarTexto(String(explicito)));
+    if (match) return match;
+  }
+  return deriveAreaFromPuesto(t.puestoTrabajo);
 }
 
 export function areaColors(t: Trabajador) {
   return AREA_COLORS[areaDeTrabajador(t)];
+}
+
+// ── Búsqueda ───────────────────────────────────────────────────────────────
+
+/**
+ * Búsqueda multi-término insensible a tildes y mayúsculas sobre nombres,
+ * cédula, puesto, departamento y área. Todos los términos deben coincidir,
+ * en cualquier orden ("maria lopez" == "lopez maria").
+ */
+export function matchTrabajador(t: Trabajador, query: string): boolean {
+  const tokens = normalizarTexto(query).split(/\s+/).filter(Boolean);
+  if (tokens.length === 0) return true;
+  const haystack = normalizarTexto(
+    [
+      t.primerApellido, t.segundoApellido, t.primerNombre, t.segundoNombre,
+      t.cedula, t.puestoTrabajo, t.departamento, areaDeTrabajador(t),
+    ].filter(Boolean).join(' '),
+  );
+  return tokens.every((tok) => haystack.includes(tok));
+}
+
+// ── Tipo de evaluación ─────────────────────────────────────────────────────
+
+/**
+ * Label legible del tipo de evaluación a partir de lo que realmente se
+ * guarda en Firestore: `tipo: 'RETIRO'`, `tipoEvaluacion: 'preocupacional'`
+ * o ningún campo (formulario periódico).
+ */
+export function tipoEvaluacionLabel(e: EvaluacionMedica): string {
+  const raw = normalizarTexto(
+    String(e.tipo ?? (e as EvaluacionMedica & { tipoEvaluacion?: string }).tipoEvaluacion ?? ''),
+  );
+  if (raw.includes('retiro')) return 'Retiro';
+  if (raw.includes('preocupacional') || raw.includes('pre-ocupacional') || raw.includes('ingreso') || raw.includes('preempleo') || raw.includes('pre-empleo')) return 'Pre-ocupacional';
+  if (raw.includes('reintegro')) return 'Reintegro';
+  if (raw.includes('especial')) return 'Especial';
+  return 'Periódica';
 }
 
 // ── Transformación Segura de Fechas de Firebase ────────────────────────────
