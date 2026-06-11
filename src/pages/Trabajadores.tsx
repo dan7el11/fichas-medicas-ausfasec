@@ -10,7 +10,7 @@ import { useAuth } from '../contexts/AuthContext';
 import TopBar from '../components/dashboard/TopBar';
 import type { Trabajador, EvaluacionMedica } from '../types';
 import { AREAS, AREA_COLORS, APTITUD_LABEL, type Area } from '../constants/medical';
-import { areaDeTrabajador, lastEval, workerStatus, dashboardStats, iniciales, fmtDate, TONE_STYLES } from '../utils/medicalHelpers';
+import { areaDeTrabajador, lastEval, matchTrabajador, workerStatus, dashboardStats, iniciales, fmtDate, TONE_STYLES } from '../utils/medicalHelpers';
 
 const BRAND = '#0a6b3b';
 type StatusKey = 'Todos' | 'Aptos' | 'Por vencer' | 'Vencidas' | 'Sin eval.';
@@ -54,7 +54,7 @@ export default function Trabajadores() {
   const list = useMemo(() => {
     const enriched: Entry[] = trabajadores.map((w) => ({ w, evals: evalsPorTrabajador.get(w.id ?? '') ?? [] }));
     let l = enriched.filter(({ w, evals }) => {
-      if (q) { const full = `${w.primerApellido} ${w.segundoApellido} ${w.primerNombre} ${w.cedula} ${w.puestoTrabajo}`.toLowerCase(); if (!full.includes(q.toLowerCase())) return false; }
+      if (!matchTrabajador(w, q)) return false;
       if (areaSel !== 'Todas' && areaDeTrabajador(w) !== areaSel) return false;
       if (statusSel !== 'Todos') {
         const s = workerStatus(evals);

@@ -29,17 +29,43 @@ export function toDate(value: any): Date {
   return new Date(NaN);
 }
 
-/** Rango [inicio, fin) del día indicado (por defecto hoy). */
-function rangoDia(ref: Date = new Date()) {
+// ── Períodos de vista (día / semana / mes) ──────────────────────────────────
+export type PeriodoVista = 'dia' | 'semana' | 'mes';
+
+/** Rango [inicio, fin) del período que contiene la fecha de referencia. */
+export function rangoPeriodo(periodo: PeriodoVista, ref: Date = new Date()) {
+  if (periodo === 'mes') {
+    return {
+      inicio: new Date(ref.getFullYear(), ref.getMonth(), 1),
+      fin: new Date(ref.getFullYear(), ref.getMonth() + 1, 1),
+    };
+  }
+  if (periodo === 'semana') {
+    // Semana lunes–domingo
+    const dia = new Date(ref.getFullYear(), ref.getMonth(), ref.getDate());
+    const desdeLunes = (dia.getDay() + 6) % 7;
+    const inicio = new Date(dia);
+    inicio.setDate(dia.getDate() - desdeLunes);
+    const fin = new Date(inicio);
+    fin.setDate(inicio.getDate() + 7);
+    return { inicio, fin };
+  }
   const inicio = new Date(ref.getFullYear(), ref.getMonth(), ref.getDate(), 0, 0, 0);
   const fin = new Date(inicio);
   fin.setDate(fin.getDate() + 1);
   return { inicio, fin };
 }
 
-// ── Lectura: atenciones de un día ────────────────────────────────────────────
-export async function getAtencionesDelDia(ref: Date = new Date()): Promise<AtencionMedica[]> {
-  const { inicio, fin } = rangoDia(ref);
+/** Desplaza la fecha de referencia un período hacia adelante (+1) o atrás (−1). */
+export function desplazarPeriodo(periodo: PeriodoVista, ref: Date, delta: number): Date {
+  const out = new Date(ref);
+  if (periodo === 'mes') out.setMonth(out.getMonth() + delta);
+  else out.setDate(out.getDate() + delta * (periodo === 'semana' ? 7 : 1));
+  return out;
+}
+
+// ── Lectura: atenciones en un rango [inicio, fin) ────────────────────────────
+export async function getAtencionesEnRango(inicio: Date, fin: Date): Promise<AtencionMedica[]> {
   try {
     const snap = await getDocs(
       fbQuery(
@@ -62,6 +88,12 @@ export async function getAtencionesDelDia(ref: Date = new Date()): Promise<Atenc
       })
       .sort((a, b) => toDate(a.fecha).getTime() - toDate(b.fecha).getTime());
   }
+}
+
+// ── Lectura: atenciones de un día (compatibilidad) ───────────────────────────
+export async function getAtencionesDelDia(ref: Date = new Date()): Promise<AtencionMedica[]> {
+  const { inicio, fin } = rangoPeriodo('dia', ref);
+  return getAtencionesEnRango(inicio, fin);
 }
 
 // ── Escritura: nueva atención ────────────────────────────────────────────────

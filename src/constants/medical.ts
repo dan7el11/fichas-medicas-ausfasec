@@ -141,10 +141,36 @@ export const RIESGOS_POR_PUESTO: Record<string, string[]> = {
   ],
 };
 
+// Normaliza texto para comparaciones: minúsculas y sin tildes/diacríticos.
+export function normalizarTexto(s: string): string {
+  return (s ?? '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim();
+}
+
+// Palabras clave para clasificar puestos ingresados como texto libre.
+// Se evalúan en orden: la primera área cuyo keyword aparezca en el puesto gana.
+const KEYWORDS_AREA: Array<[Area, string[]]> = [
+  ['Seguridad y Salud', ['medic', 'enfermer', 'paramedic', 'seguridad', 'salud ocupacional', 'sso', 'hse']],
+  ['Mantenimiento', ['mecanic', 'soldad', 'electric', 'mantenimiento']],
+  ['Logística', ['conduct', 'chofer', 'tanquero', 'despach', 'bodeg', 'logistic', 'transport', 'almacen']],
+  ['Comercial', ['comercial', 'venta', 'vendedor', 'asesor', 'marketing', 'cobranza']],
+  ['Administración', ['administra', 'contab', 'contad', 'rrhh', 'recursos humanos', 'talento', 'recepcion', 'secretar', 'gerent', 'financ', 'sistemas', 'asistente', 'analista', 'auxiliar']],
+  ['Operaciones', ['opera', 'planta', 'envasad', 'supervis', 'produc', 'tecnic']],
+];
+
 // Derivar área a partir del puesto cuando el Trabajador no la tenga guardada
 export function deriveAreaFromPuesto(puesto: string): Area {
+  const p = normalizarTexto(puesto);
+  // 1) Coincidencia exacta con el catálogo
   for (const area of AREAS) {
-    if (PUESTOS_POR_AREA[area].includes(puesto)) return area;
+    if (PUESTOS_POR_AREA[area].some((x) => normalizarTexto(x) === p)) return area;
+  }
+  // 2) Coincidencia por palabra clave (puestos de texto libre)
+  for (const [area, kws] of KEYWORDS_AREA) {
+    if (kws.some((k) => p.includes(k))) return area;
   }
   return 'Operaciones';
 }

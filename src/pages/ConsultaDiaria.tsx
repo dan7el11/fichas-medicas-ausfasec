@@ -1,28 +1,57 @@
 // Página: Consulta Médica Diaria. Ruta /consulta-diaria.
-// Restyle v2 (tema central): Spectral en títulos, mono en datos, neutros fríos.
-// Acento del módulo: azul. NINGÚN cambio funcional.
+// Permite navegar a días previos y ver el registro por día, semana o mes,
+// con la tabla en formato registro de morbilidad (estilo matriz Excel).
 import type { ReactNode } from 'react';
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { collection, getDocs, query as fbQuery, orderBy } from 'firebase/firestore';
 import {
-  Stethoscope, Plus, Activity, List, Check, Clock, User, Pill, Download,
+  Stethoscope, Plus, Activity, List, Check, Clock, User, Pill,
+  ChevronLeft, ChevronRight,
 } from 'lucide-react';
 import { db } from '../services/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import TopBar from '../components/dashboard/TopBar';
 import type { Trabajador } from '../types';
 import type { AtencionMedica } from '../types/atencion';
-import { getAtencionesDelDia, calcularStats, tratamientoTexto } from '../services/atenciones';
+import {
+  getAtencionesEnRango, calcularStats, rangoPeriodo, desplazarPeriodo,
+  type PeriodoVista,
+} from '../services/atenciones';
 import { COLORS, FONTS, TONE } from '../theme';
 
 import AtencionCard from '../components/consulta/AtencionCard';
-import AtencionesTable from '../components/consulta/AtencionesTable';
+import RegistroAtenciones from '../components/consulta/RegistroAtenciones';
 import ConsultaResumen from '../components/consulta/ConsultaResumen';
 import NuevaAtencionModal from '../components/consulta/NuevaAtencionModal';
 
 const ACCENT = COLORS.blue;
-const ACCENT_BG = COLORS.blueBg;
+
+const PERIODOS: { id: PeriodoVista; label: string }[] = [
+  { id: 'dia', label: 'Día' },
+  { id: 'semana', label: 'Semana' },
+  { id: 'mes', label: 'Mes' },
+];
+
+function esMismoDia(a: Date, b: Date) {
+  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+}
+
+function tituloPeriodo(periodo: PeriodoVista, ref: Date): string {
+  if (periodo === 'dia') {
+    const s = ref.toLocaleDateString('es-EC', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+    return s.charAt(0).toUpperCase() + s.slice(1);
+  }
+  if (periodo === 'semana') {
+    const { inicio, fin } = rangoPeriodo('semana', ref);
+    const ultimo = new Date(fin); ultimo.setDate(ultimo.getDate() - 1);
+    const di = inicio.toLocaleDateString('es-EC', { day: 'numeric', month: 'short' });
+    const df = ultimo.toLocaleDateString('es-EC', { day: 'numeric', month: 'short', year: 'numeric' });
+    return `Semana del ${di} al ${df}`;
+  }
+  const s = ref.toLocaleDateString('es-EC', { month: 'long', year: 'numeric' });
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
 
 export default function ConsultaDiaria() {
   const { user } = useAuth();
@@ -34,53 +63,53 @@ export default function ConsultaDiaria() {
   const [vista, setVista] = useState<'feed' | 'tabla'>(
     () => (localStorage.getItem('consulta-vista') as 'feed' | 'tabla') || 'feed',
   );
+  const [periodo, setPeriodo] = useState<PeriodoVista>(
+    () => (localStorage.getItem('consulta-periodo') as PeriodoVista) || 'dia',
+  );
+  const [fechaRef, setFechaRef] = useState<Date>(() => new Date());
   const [modal, setModal] = useState(false);
 
   useEffect(() => { localStorage.setItem('consulta-vista', vista); }, [vista]);
+  useEffect(() => { localStorage.setItem('consulta-periodo', periodo); }, [periodo]);
 
-  const cargar = async () => {
+  const { inicio, fin } = useMemo(() => rangoPeriodo(periodo, fechaRef), [periodo, fechaRef]);
+  const esHoy = periodo === 'dia' && esMismoDia(fechaRef, new Date());
+  const incluyeHoy = new Date() >= inicio && new Date() < fin;
+
+  const cargarAtenciones = async () => {
     setCargando(true);
     try {
-      const [tSnap, ats] = await Promise.all([
-        getDocs(fbQuery(collection(db, 'trabajadores'), orderBy('primerApellido'))),
-        getAtencionesDelDia(new Date()),
-      ]);
-      setTrabajadores(tSnap.docs.map((d) => ({ id: d.id, ...d.data() } as Trabajador)));
-      setAtenciones(ats);
+      setAtenciones(await getAtencionesEnRango(inicio, fin));
     } catch (err) {
-      console.error('Error al cargar consulta diaria:', err);
+      console.error('Error al cargar atenciones:', err);
     } finally {
       setCargando(false);
     }
   };
 
-  useEffect(() => { cargar(); }, []);
+  useEffect(() => { cargarAtenciones(); }, [inicio.getTime(), fin.getTime()]);
+
+  // Trabajadores solo se cargan una vez (para el modal de nueva atención).
+  useEffect(() => {
+    (async () => {
+      try {
+        const snap = await getDocs(fbQuery(collection(db, 'trabajadores'), orderBy('primerApellido')));
+        setTrabajadores(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Trabajador)));
+      } catch (err) {
+        console.error('Error al cargar trabajadores:', err);
+      }
+    })();
+  }, []);
 
   const stats = useMemo(() => calcularStats(atenciones), [atenciones]);
   const espera = atenciones.filter((a) => a.estado === 'espera');
   const atendidas = atenciones.filter((a) => a.estado === 'atendido');
 
-  const fechaLarga = new Date().toLocaleDateString('es-EC', {
-    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
-  });
+  const titulo = tituloPeriodo(periodo, fechaRef);
+  const subPeriodo = periodo === 'dia' ? (esHoy ? 'hoy' : 'en el día') : periodo === 'semana' ? 'en la semana' : 'en el mes';
 
-  const exportarCSV = () => {
-    const rows = [['HORA', 'APELLIDOS', 'NOMBRES', 'SEXO', 'EDAD', 'CIE-10', 'DIAGNÓSTICO', 'TRATAMIENTO', 'TIPO', 'RELACIÓN']];
-    atenciones.forEach((a) => {
-      const d = a.fecha?.toDate ? a.fecha.toDate() : new Date();
-      rows.push([
-        d.toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' }),
-        a.pacienteApellidos, a.pacienteNombres, a.sexo, String(a.edad ?? ''),
-        a.cieCodigo, a.cieDescripcion, tratamientoTexto(a), a.tipoAtencion, a.relacion,
-      ]);
-    });
-    const csv = '\ufeff' + rows.map((r) => r.map((c) => `"${(c ?? '').replace(/"/g, '""')}"`).join(';')).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.setAttribute('download', `Consulta_${new Date().toISOString().slice(0, 10)}.csv`);
-    document.body.appendChild(link); link.click(); document.body.removeChild(link);
-  };
+  // valor del <input type="date"> en hora local
+  const fechaInput = `${fechaRef.getFullYear()}-${String(fechaRef.getMonth() + 1).padStart(2, '0')}-${String(fechaRef.getDate()).padStart(2, '0')}`;
 
   const userInitials = user?.email?.slice(0, 2).toUpperCase() ?? 'DR';
 
@@ -89,19 +118,19 @@ export default function ConsultaDiaria() {
       <TopBar userInitials={userInitials} userName={user?.email ?? 'Médico'} userRol="Medicina Ocupacional" onNewWorker={() => navigate('/nuevo-trabajador')} />
 
       <main className="flex-1 overflow-y-auto">
-        <div className={`mx-auto p-[24px_32px_80px] ${vista === 'tabla' ? 'max-w-[1280px]' : 'max-w-[1180px]'}`}>
+        <div className={`mx-auto p-[24px_32px_80px] ${vista === 'tabla' ? 'max-w-[1380px]' : 'max-w-[1180px]'}`}>
           {/* Header */}
-          <div className="flex items-end gap-3 mb-[20px] flex-wrap">
+          <div className="flex items-end gap-3 mb-[14px] flex-wrap">
             <div>
               <div className="text-[11px] font-semibold uppercase" style={{ color: COLORS.brand, letterSpacing: '1.4px' }}>
-                {fechaLarga.charAt(0).toUpperCase() + fechaLarga.slice(1)}
+                Consulta médica · {PERIODOS.find((p) => p.id === periodo)?.label}
               </div>
-              <h1 className="mt-1.5 mb-0 text-[28px] font-bold tracking-tight" style={{ fontFamily: FONTS.serif }}>Consulta del día</h1>
+              <h1 className="mt-1.5 mb-0 text-[28px] font-bold tracking-tight" style={{ fontFamily: FONTS.serif }}>{titulo}</h1>
             </div>
             <div className="ml-auto flex items-center gap-3">
               <div className="flex gap-[3px] p-[3px] rounded-[9px]" style={{ background: '#e2e5ea' }}>
                 <ToggleBtn active={vista === 'feed'} onClick={() => setVista('feed')} icon={<Activity size={14} />}>Feed</ToggleBtn>
-                <ToggleBtn active={vista === 'tabla'} onClick={() => setVista('tabla')} icon={<List size={14} />}>Lista detallada</ToggleBtn>
+                <ToggleBtn active={vista === 'tabla'} onClick={() => setVista('tabla')} icon={<List size={14} />}>Registro</ToggleBtn>
               </div>
               <button onClick={() => setModal(true)} className="inline-flex items-center gap-1.5 px-[18px] py-[11px] text-white border-none rounded-[9px] text-[14px] font-bold cursor-pointer" style={{ background: ACCENT }}>
                 <Plus size={17} /> Nueva atención
@@ -109,9 +138,41 @@ export default function ConsultaDiaria() {
             </div>
           </div>
 
+          {/* Navegación de período */}
+          <div className="flex items-center gap-3 mb-5 flex-wrap">
+            <div className="flex gap-[3px] p-[3px] rounded-[9px]" style={{ background: '#e2e5ea' }}>
+              {PERIODOS.map((p) => (
+                <ToggleBtn key={p.id} active={periodo === p.id} onClick={() => setPeriodo(p.id)} icon={<Stethoscope size={13} />}>{p.label}</ToggleBtn>
+              ))}
+            </div>
+            <div className="flex items-center gap-1.5 bg-white border rounded-[9px] px-1.5 py-1" style={{ borderColor: COLORS.line }}>
+              <NavBtn onClick={() => setFechaRef(desplazarPeriodo(periodo, fechaRef, -1))} title="Período anterior"><ChevronLeft size={16} /></NavBtn>
+              <input
+                type="date"
+                value={fechaInput}
+                onChange={(e) => {
+                  const [y, m, d] = e.target.value.split('-').map(Number);
+                  if (y && m && d) setFechaRef(new Date(y, m - 1, d));
+                }}
+                className="border-none outline-none text-[12.5px] font-semibold bg-transparent cursor-pointer"
+                style={{ color: COLORS.ink, fontFamily: FONTS.mono }}
+              />
+              <NavBtn onClick={() => setFechaRef(desplazarPeriodo(periodo, fechaRef, 1))} title="Período siguiente"><ChevronRight size={16} /></NavBtn>
+            </div>
+            {!incluyeHoy && (
+              <button
+                onClick={() => setFechaRef(new Date())}
+                className="px-3 py-[7px] rounded-[8px] text-[12.5px] font-bold cursor-pointer border"
+                style={{ background: COLORS.blueBg, color: ACCENT, borderColor: 'transparent' }}
+              >
+                Volver a hoy
+              </button>
+            )}
+          </div>
+
           {/* KPIs */}
           <div className="grid grid-cols-5 gap-[11px] mb-5">
-            <Kpi value={stats.total} label="Atendidos" sub="hoy" icon={<Check size={16} />} tone="info" />
+            <Kpi value={stats.total} label="Atendidos" sub={subPeriodo} icon={<Check size={16} />} tone="info" />
             <Kpi value={stats.espera} label="En espera" sub="por atender" icon={<Clock size={16} />} tone="warning" />
             <Kpi value={`${stats.primeras}/${stats.subsec}`} label="1ª / subsec." sub="primeras vs control" icon={<User size={16} />} tone="muted" />
             <Kpi value={stats.ocupacionales} label="Ocupacionales" sub="relación laboral" icon={<Activity size={16} />} tone="muted" />
@@ -120,7 +181,7 @@ export default function ConsultaDiaria() {
 
           {/* Contenido */}
           {cargando ? (
-            <div className="p-16 text-center font-semibold" style={{ color: COLORS.faint }}>Cargando atenciones del día…</div>
+            <div className="p-16 text-center font-semibold" style={{ color: COLORS.faint }}>Cargando atenciones…</div>
           ) : vista === 'feed' ? (
             <div className="grid gap-[18px] items-start" style={{ gridTemplateColumns: '1fr 340px' }}>
               <div className="flex flex-col gap-4">
@@ -133,7 +194,9 @@ export default function ConsultaDiaria() {
                   {[...atendidas].reverse().map((a) => <AtencionCard key={a.id} atencion={a} />)}
                   {atendidas.length === 0 && (
                     <div className="p-10 text-center text-[13px] rounded-[13px] border" style={{ background: COLORS.panel, borderColor: COLORS.line, color: COLORS.faint }}>
-                      Aún no hay atenciones registradas hoy. Pulsa «Nueva atención» para empezar.
+                      {incluyeHoy
+                        ? 'Aún no hay atenciones registradas. Pulsa «Nueva atención» para empezar.'
+                        : 'No se registraron atenciones en este período.'}
                     </div>
                   )}
                 </Grupo>
@@ -141,7 +204,7 @@ export default function ConsultaDiaria() {
               <div className="sticky top-0"><ConsultaResumen atenciones={atenciones} /></div>
             </div>
           ) : (
-            <AtencionesTable atenciones={atenciones} onExport={exportarCSV} />
+            <RegistroAtenciones atenciones={atenciones} tituloPeriodo={titulo} />
           )}
         </div>
       </main>
@@ -152,7 +215,7 @@ export default function ConsultaDiaria() {
           medicoId={user?.uid ?? ''}
           medicoNombre={user?.email ?? 'Médico'}
           onClose={() => setModal(false)}
-          onSaved={() => { setModal(false); cargar(); }}
+          onSaved={() => { setModal(false); setFechaRef(new Date()); cargarAtenciones(); }}
         />
       )}
     </div>
@@ -165,6 +228,14 @@ function ToggleBtn({ active, onClick, icon, children }: { active: boolean; onCli
     <button onClick={onClick} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-[7px] border-none cursor-pointer text-[12.5px] font-semibold"
       style={{ background: active ? COLORS.panel : 'transparent', color: active ? ACCENT : COLORS.muted, boxShadow: active ? '0 1px 2px rgba(28,29,34,0.1)' : 'none' }}>
       <span style={{ color: active ? ACCENT : COLORS.faint }}>{icon}</span>{children}
+    </button>
+  );
+}
+
+function NavBtn({ onClick, title, children }: { onClick: () => void; title: string; children: ReactNode }) {
+  return (
+    <button onClick={onClick} title={title} className="grid place-items-center w-[26px] h-[26px] rounded-[6px] border-none cursor-pointer bg-transparent hover:bg-slate-100" style={{ color: COLORS.muted }}>
+      {children}
     </button>
   );
 }
