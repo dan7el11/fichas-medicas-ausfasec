@@ -19,6 +19,7 @@ export default function NuevoTrabajador() {
     cedula: '',
     sexo: 'M',
     puestoTrabajo: '',
+    departamento: '',
   });
 
   const cedulaValida = validarCedula(datos.cedula);
@@ -190,7 +191,7 @@ export default function NuevoTrabajador() {
               </select>
             </div>
 
-            <div className="md:col-span-2">
+            <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">
                 Puesto de Trabajo <span className="text-red-500">*</span>
               </label>
@@ -202,6 +203,18 @@ export default function NuevoTrabajador() {
                 onChange={handleChange}
                 className={inputCls(false)}
                 placeholder="Ej: Operario de planta, Administrativo..."
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Área / Departamento</label>
+              <input
+                type="text"
+                name="departamento"
+                value={datos.departamento}
+                onChange={handleChange}
+                className={inputCls(false)}
+                placeholder="Ej: Planificación, TTHH, Seguridad y Ambiente..."
               />
             </div>
           </div>

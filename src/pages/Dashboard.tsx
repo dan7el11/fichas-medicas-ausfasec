@@ -22,7 +22,6 @@ import {
   tipoEvaluacionLabel,
   workerStatus,
 } from '../utils/medicalHelpers';
-import type { Area } from '../constants/medical';
 
 type StatusFilter =
   | 'Todos'
@@ -40,7 +39,7 @@ export default function Dashboard() {
   const [cargando, setCargando] = useState(true);
 
   const [query, setQuery] = useState('');
-  const [areaFilter, setAreaFilter] = useState<Area | 'Todas'>('Todas');
+  const [areaFilter, setAreaFilter] = useState<string>('Todas');
   const [tipoFilter, setTipoFilter] = useState<string>('Todos');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('Todos');
   const [selectedId, setSelectedId] = useState<string | undefined>();

@@ -1,13 +1,10 @@
 import { useMemo } from 'react';
 import { Search, X } from 'lucide-react';
 import type { Trabajador, EvaluacionMedica } from '../../types';
-import {
-  AREAS,
-  AREA_COLORS,
-  type Area,
-} from '../../constants/medical';
+import { colorsDeArea } from '../../constants/medical';
 import {
   areaDeTrabajador,
+  areasDeTrabajadores,
   dashboardStats,
   fmtDate,
   iniciales,
@@ -25,8 +22,8 @@ interface SidebarProps {
   filtered: Trabajador[];
   query: string;
   setQuery: (v: string) => void;
-  areaFilter: Area | 'Todas';
-  setAreaFilter: (v: Area | 'Todas') => void;
+  areaFilter: string;
+  setAreaFilter: (v: string) => void;
   tipoFilter: string;
   setTipoFilter: (v: string) => void;
   statusFilter: StatusFilter;
@@ -58,12 +55,10 @@ export default function Sidebar({
 }: SidebarProps) {
   const stats = dashboardStats(trabajadores, evalsPorTrabajador);
 
-  // Opciones de filtro construidas con los datos reales: solo se ofrecen
-  // áreas con trabajadores y tipos de evaluación que existen en Firestore.
-  const areaOptions = useMemo(() => {
-    const presentes = new Set(trabajadores.map((w) => areaDeTrabajador(w)));
-    return AREAS.filter((a) => presentes.has(a));
-  }, [trabajadores]);
+  // Opciones de filtro construidas con los datos reales: las áreas son las
+  // ingresadas en cada ficha (departamento/área) y los tipos de evaluación
+  // los que existen en Firestore.
+  const areaOptions = useMemo(() => areasDeTrabajadores(trabajadores), [trabajadores]);
 
   const tipoOptions = useMemo(() => {
     const s = new Set<string>();
@@ -104,8 +99,8 @@ export default function Sidebar({
   };
 
   const grouped: Array<[string, Trabajador[]]> = groupByArea
-    ? AREAS.map((a) => [a, filtered.filter((w) => areaDeTrabajador(w) === a)] as [string, Trabajador[]]).filter(
-        ([, arr]) => arr.length > 0,
+    ? areasDeTrabajadores(filtered).map(
+        (a) => [a, filtered.filter((w) => areaDeTrabajador(w) === a)] as [string, Trabajador[]],
       )
     : [['__all', filtered]];
 
@@ -168,7 +163,7 @@ export default function Sidebar({
           )}
         </div>
         <div className="flex gap-1.5">
-          <NativeSelect value={areaFilter} options={['Todas', ...areaOptions]} onChange={(v) => setAreaFilter(v as Area | 'Todas')} label="Área" />
+          <NativeSelect value={areaFilter} options={['Todas', ...areaOptions]} onChange={setAreaFilter} label="Área" />
           <NativeSelect value={tipoFilter} options={['Todos', ...tipoOptions]} onChange={setTipoFilter} label="Tipo eval." />
         </div>
         {hasFilters && (
@@ -200,7 +195,7 @@ export default function Sidebar({
               >
                 <span
                   className="w-1.5 h-1.5 rounded-full"
-                  style={{ background: AREA_COLORS[area as Area]?.dot }}
+                  style={{ background: colorsDeArea(area).dot }}
                 />
                 {area}
                 <span className="ml-auto opacity-60 font-medium">{items.length}</span>
@@ -330,7 +325,7 @@ function SidebarItem({
   onClick: () => void;
   density: 'comfy' | 'compact';
 }) {
-  const ac = AREA_COLORS[areaDeTrabajador(w)];
+  const ac = colorsDeArea(areaDeTrabajador(w));
   const status = workerStatus(evals);
   const bar = TONE_STYLES[status.tone].bar;
   const padY = density === 'compact' ? 'py-[7px]' : 'py-[11px]';
