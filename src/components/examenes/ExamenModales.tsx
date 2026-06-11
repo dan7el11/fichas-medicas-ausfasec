@@ -1,12 +1,13 @@
-// Modales: Programar exámenes (sugiere por protocolo) + Gestionar orden (marcar realizados).
-// Archivo NUEVO.
+// Modales: Programar exámenes (sugiere por protocolo) + Gestionar orden (marcar realizados + subir resultado).
 import type { ReactNode } from 'react';
-import { useState, useEffect } from 'react';
-import { CalendarPlus, X, Search, Check, Layers, FileText, Upload, Trash2 } from 'lucide-react';
-import { Timestamp } from 'firebase/firestore';
+import { useState, useEffect, useRef } from 'react';
+import { CalendarPlus, X, Search, Check, Layers, FileText, Upload, Trash2, Image } from 'lucide-react';
+import { Timestamp, collection, addDoc } from 'firebase/firestore';
+import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { db, storage } from '../../services/firebase';
 import type { Trabajador } from '../../types';
-import type { TipoExamen } from '../../types';
-import { NOMBRES_EXAMEN_COMUNES, TIPOS_EXAMEN } from '../../types';
+import type { TipoExamen, GrupoExamen, ExamenComplementarioDoc } from '../../types';
+import { NOMBRES_EXAMEN_COMUNES, TIPOS_EXAMEN, GRUPOS_EXAMEN } from '../../types';
 import type { OrdenExamen, ExamenItem, TipoEvaluacionExamen } from '../../types/examenPlan';
 import { TIPOS_EVALUACION_EXAMEN } from '../../types/examenPlan';
 import { crearOrden, actualizarOrden, eliminarOrden, estadoOrden, fmtFecha, progresoOrden } from '../../services/examenesPlan';
@@ -35,7 +36,6 @@ export function ProgramarExamenModal({ trabajadores, protocolos, medicoId, medic
     ? trabajadores.filter((w) => `${w.primerApellido} ${w.segundoApellido} ${w.primerNombre} ${w.cedula}`.toLowerCase().includes(qW.toLowerCase())).slice(0, 6)
     : [];
 
-  // Al elegir trabajador, precargar la batería del protocolo de su puesto
   useEffect(() => {
     if (!worker) return;
     const proto = protocoloDePuesto(protocolos, worker.puestoTrabajo);
@@ -70,7 +70,6 @@ export function ProgramarExamenModal({ trabajadores, protocolos, medicoId, medic
     catch (err) { console.error(err); alert('No se pudo guardar la orden.'); setGuardando(false); }
   };
 
-  // catálogo a mostrar: nombres comunes + cualquiera del protocolo
   const catalogo: { nombre: string; tipo: TipoExamen }[] = [...NOMBRES_EXAMEN_COMUNES].map((n) => {
     const fromProto = proto.find((p) => p.nombre === n);
     return { nombre: n, tipo: fromProto?.tipo ?? inferirTipo(n) };
@@ -81,7 +80,6 @@ export function ProgramarExamenModal({ trabajadores, protocolos, medicoId, medic
       <div className="w-[620px] max-w-full max-h-[92vh] overflow-y-auto bg-white rounded-[18px] shadow-2xl">
         <Header icon={<CalendarPlus size={19} />} title="Programar exámenes" sub="Se sugieren según el protocolo del puesto" onClose={onClose} />
         <div className="p-[20px_22px]">
-          {/* Trabajador */}
           <Label>Trabajador</Label>
           {worker ? (
             <div className="flex items-center gap-2.5 p-[9px_12px] rounded-[9px] mb-4" style={{ border: `1.5px solid ${ACCENT}`, background: '#f0fafd' }}>
@@ -110,7 +108,6 @@ export function ProgramarExamenModal({ trabajadores, protocolos, medicoId, medic
             </div>
           )}
 
-          {/* Tipo eval + fecha */}
           <div className="grid grid-cols-2 gap-3 mb-4">
             <div>
               <Label>Tipo de evaluación</Label>
@@ -124,7 +121,6 @@ export function ProgramarExamenModal({ trabajadores, protocolos, medicoId, medic
             </div>
           </div>
 
-          {/* Nota protocolo */}
           {worker && (
             <div className="flex items-center gap-2 p-[10px_13px] rounded-[10px] mb-3.5" style={{ background: '#f0fafd', border: '1px solid #cfeaf3' }}>
               <Layers size={16} style={{ color: ACCENT }} />
@@ -134,7 +130,6 @@ export function ProgramarExamenModal({ trabajadores, protocolos, medicoId, medic
             </div>
           )}
 
-          {/* Catálogo seleccionable */}
           <Label>Exámenes a programar</Label>
           <div className="grid grid-cols-2 gap-2 max-h-[260px] overflow-y-auto pr-1">
             {catalogo.map((ex) => {
@@ -169,20 +164,191 @@ export function ProgramarExamenModal({ trabajadores, protocolos, medicoId, medic
 }
 
 // ════════════════════════════════════════════════════════════════════════════
-// GESTIONAR ORDEN (marcar realizados)
+// SUBIR RESULTADO — sub-formulario inline dentro de OrdenDetalleModal
 // ════════════════════════════════════════════════════════════════════════════
-export function OrdenDetalleModal({ orden, onClose, onSaved, onDeleted }: {
-  orden: OrdenExamen; onClose: () => void; onSaved: () => void; onDeleted?: () => void;
+interface ResultadoForm {
+  file: File | null;
+  nombreExamen: string;
+  grupoExamen: GrupoExamen;
+  fecha: string;
+  resultado: string;
+  estado: 'normal' | 'patologico';
+  observacion: string;
+}
+
+function SubirResultadoPanel({
+  examen, trabajadorId, medicoId, medicoNombre,
+  onSubido, onCancelar,
+}: {
+  examen: ExamenItem;
+  trabajadorId: string;
+  medicoId: string;
+  medicoNombre: string;
+  onSubido: (examenDocId: string) => void;
+  onCancelar: () => void;
+}) {
+  const [form, setForm] = useState<ResultadoForm>({
+    file: null,
+    nombreExamen: examen.nombre,
+    grupoExamen: 'Particular',
+    fecha: new Date().toISOString().slice(0, 10),
+    resultado: '',
+    estado: 'normal',
+    observacion: '',
+  });
+  const [subiendo, setSubiendo] = useState(false);
+  const [error, setError] = useState('');
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const f = <K extends keyof ResultadoForm>(k: K, v: ResultadoForm[K]) => setForm((p) => ({ ...p, [k]: v }));
+
+  const subir = async () => {
+    if (!form.file) { setError('Selecciona un archivo'); return; }
+    if (!form.fecha) { setError('La fecha es obligatoria'); return; }
+    if (form.estado === 'patologico' && !form.observacion.trim()) { setError('Los resultados patológicos requieren observación'); return; }
+    setSubiendo(true); setError('');
+    try {
+      const ext = form.file.name.split('.').pop() || 'pdf';
+      const path = `examenes/${trabajadorId}/${Date.now()}_${form.nombreExamen.replace(/\s+/g, '_')}.${ext}`;
+      const sRef = storageRef(storage, path);
+      await uploadBytes(sRef, form.file);
+      const url = await getDownloadURL(sRef);
+
+      const docData: Omit<ExamenComplementarioDoc, 'id'> = {
+        trabajadorId,
+        evaluacionId: '',
+        tipoExamen: examen.tipo,
+        nombreExamen: form.nombreExamen,
+        grupoExamen: form.grupoExamen,
+        fecha: new Date(form.fecha),
+        resultado: form.resultado,
+        estado: form.estado,
+        observacion: form.observacion,
+        archivoUrl: url,
+        archivoNombre: form.file.name,
+        archivoTipo: form.file.type,
+        archivoPath: path,
+        medicoId,
+        medicoNombre,
+        createdAt: new Date(),
+      };
+      const exRef = await addDoc(collection(db, 'examenes'), docData);
+      onSubido(exRef.id);
+    } catch (e: any) {
+      setError(e.message ?? 'Error al subir el archivo');
+    }
+    setSubiendo(false);
+  };
+
+  const FILE_ACCEPT = '.pdf,.jpg,.jpeg,.png';
+
+  return (
+    <div style={{ marginTop: 12, padding: '14px 16px', background: '#f0fafd', border: `1.5px solid ${ACCENT}`, borderRadius: 12 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+        <span style={{ fontSize: 13, fontWeight: 700, color: ACCENT }}>Subir resultado: {examen.nombre}</span>
+        <button onClick={onCancelar} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8' }}><X size={16} /></button>
+      </div>
+
+      {/* Selector de archivo */}
+      <div
+        onClick={() => fileRef.current?.click()}
+        style={{ border: `2px dashed ${form.file ? ACCENT : '#b0d9e8'}`, borderRadius: 10, padding: '14px', textAlign: 'center', cursor: 'pointer', marginBottom: 12, background: form.file ? '#e0f2fa' : '#fff' }}>
+        {form.file ? (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, color: ACCENT, fontSize: 13, fontWeight: 600 }}>
+            {form.file.type.startsWith('image') ? <Image size={18} /> : <FileText size={18} />}
+            {form.file.name}
+          </div>
+        ) : (
+          <div style={{ color: '#94a3b8', fontSize: 13 }}>
+            <Upload size={20} style={{ margin: '0 auto 6px', color: '#b0d9e8' }} />
+            Haz clic para seleccionar un PDF, JPG o PNG
+          </div>
+        )}
+        <input ref={fileRef} type="file" accept={FILE_ACCEPT} style={{ display: 'none' }}
+          onChange={(e) => { const file = e.target.files?.[0]; if (file) f('file', file); e.target.value = ''; }} />
+      </div>
+
+      {/* Campos */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
+        <div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: '#64748b', marginBottom: 4 }}>NOMBRE DEL EXAMEN</div>
+          <input value={form.nombreExamen} onChange={(e) => f('nombreExamen', e.target.value)}
+            style={{ width: '100%', border: '1px solid #cbd5e1', borderRadius: 8, padding: '7px 10px', fontSize: 13, boxSizing: 'border-box' }} />
+        </div>
+        <div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: '#64748b', marginBottom: 4 }}>GRUPO</div>
+          <select value={form.grupoExamen} onChange={(e) => f('grupoExamen', e.target.value as GrupoExamen)}
+            style={{ width: '100%', border: '1px solid #cbd5e1', borderRadius: 8, padding: '7px 10px', fontSize: 13 }}>
+            {GRUPOS_EXAMEN.map((g) => <option key={g} value={g}>{g}</option>)}
+          </select>
+        </div>
+        <div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: '#64748b', marginBottom: 4 }}>FECHA DEL RESULTADO</div>
+          <input type="date" value={form.fecha} onChange={(e) => f('fecha', e.target.value)}
+            style={{ width: '100%', border: '1px solid #cbd5e1', borderRadius: 8, padding: '7px 10px', fontSize: 13, boxSizing: 'border-box' }} />
+        </div>
+        <div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: '#64748b', marginBottom: 4 }}>RESULTADO (VALOR / DESCRIPCIÓN)</div>
+          <input value={form.resultado} onChange={(e) => f('resultado', e.target.value)} placeholder="Ej: Normal, 98 dB, 4.5 L/s…"
+            style={{ width: '100%', border: '1px solid #cbd5e1', borderRadius: 8, padding: '7px 10px', fontSize: 13, boxSizing: 'border-box' }} />
+        </div>
+      </div>
+
+      {/* Estado */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+        {(['normal', 'patologico'] as const).map((s) => (
+          <button key={s} onClick={() => f('estado', s)}
+            style={{ flex: 1, padding: '7px', border: `1.5px solid ${form.estado === s ? (s === 'normal' ? '#10a05a' : '#dc2626') : '#cbd5e1'}`, borderRadius: 8, background: form.estado === s ? (s === 'normal' ? '#f3fbf6' : '#fff8f8') : '#fff', color: form.estado === s ? (s === 'normal' ? '#10a05a' : '#dc2626') : '#64748b', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+            {s === 'normal' ? '✓ Normal' : '⚠ Patológico'}
+          </button>
+        ))}
+      </div>
+
+      {form.estado === 'patologico' && (
+        <div style={{ marginBottom: 10 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: '#64748b', marginBottom: 4 }}>OBSERVACIÓN (obligatoria)</div>
+          <textarea value={form.observacion} onChange={(e) => f('observacion', e.target.value)} rows={2}
+            placeholder="Descripción del hallazgo patológico…"
+            style={{ width: '100%', border: '1px solid #fca5a5', borderRadius: 8, padding: '7px 10px', fontSize: 13, resize: 'vertical', boxSizing: 'border-box' }} />
+        </div>
+      )}
+
+      {error && <div style={{ color: '#dc2626', fontSize: 12, marginBottom: 8 }}>{error}</div>}
+
+      <button onClick={subir} disabled={subiendo}
+        style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 16px', background: ACCENT, color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: subiendo ? 'not-allowed' : 'pointer', opacity: subiendo ? 0.6 : 1 }}>
+        <Upload size={14} /> {subiendo ? 'Subiendo…' : 'Subir resultado'}
+      </button>
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// GESTIONAR ORDEN (marcar realizados + subir resultados)
+// ════════════════════════════════════════════════════════════════════════════
+export function OrdenDetalleModal({ orden, onClose, onSaved, onDeleted, trabajadorId, medicoId, medicoNombre }: {
+  orden: OrdenExamen;
+  onClose: () => void;
+  onSaved: () => void;
+  onDeleted?: () => void;
+  /** Cuando se pasa trabajadorId se habilita la subida de resultados */
+  trabajadorId?: string;
+  medicoId?: string;
+  medicoNombre?: string;
 }) {
   const [examenes, setExamenes] = useState<ExamenItem[]>(orden.examenes);
   const [guardando, setGuardando] = useState(false);
   const [eliminando, setEliminando] = useState(false);
+  const [subiendoIdx, setSubiendoIdx] = useState<number | null>(null);
   const st = estadoOrden({ ...orden, examenes });
   const pr = progresoOrden({ ...orden, examenes });
 
-  const toggle = (i: number) => setExamenes((l) => l.map((e, idx) => idx === i
-    ? { ...e, realizado: !e.realizado, fechaRealizado: !e.realizado ? Timestamp.now() : undefined }
-    : e));
+  const toggle = (i: number) => {
+    if (subiendoIdx === i) return;
+    setExamenes((l) => l.map((e, idx) => idx === i
+      ? { ...e, realizado: !e.realizado, fechaRealizado: !e.realizado ? Timestamp.now() : undefined }
+      : e));
+  };
 
   const guardar = async () => {
     if (!orden.id) return;
@@ -197,6 +363,16 @@ export function OrdenDetalleModal({ orden, onClose, onSaved, onDeleted }: {
     try { await eliminarOrden(orden.id); onDeleted ? onDeleted() : onSaved(); }
     catch (err) { console.error(err); alert('No se pudo eliminar.'); setEliminando(false); }
   };
+
+  const handleSubido = async (idx: number, examenDocId: string) => {
+    if (!orden.id) return;
+    const updated = examenes.map((e, i) => i === idx ? { ...e, examenDocId } : e);
+    setExamenes(updated);
+    setSubiendoIdx(null);
+    await actualizarOrden(orden.id, { examenes: updated });
+  };
+
+  const puedeSubir = !!(trabajadorId && medicoId && medicoNombre);
 
   return (
     <Backdrop onClose={onClose}>
@@ -224,22 +400,57 @@ export function OrdenDetalleModal({ orden, onClose, onSaved, onDeleted }: {
 
           <div className="flex flex-col gap-2">
             {examenes.map((e, i) => (
-              <button key={i} onClick={() => toggle(i)} className="flex items-center gap-3 p-[11px_13px] rounded-[11px] border text-left cursor-pointer"
-                style={{ borderColor: e.realizado ? '#c3ead2' : '#eef1f5', background: e.realizado ? '#f3fbf6' : '#fff' }}>
-                <span className="grid place-items-center w-6 h-6 rounded-md flex-shrink-0 border"
-                  style={{ background: e.realizado ? '#10a05a' : '#fff', borderColor: e.realizado ? '#10a05a' : '#cdd6df' }}>
-                  {e.realizado && <Check size={14} className="text-white" />}
-                </span>
-                <div className="flex-1">
-                  <div className="text-[13.5px] font-semibold text-slate-900">{e.nombre}</div>
-                  <div className="text-[11.5px] text-slate-400">{e.realizado ? `Realizado · ${fmtFecha(e.fechaRealizado)}` : `Pendiente · ${e.tipo}`}</div>
-                </div>
-                {e.realizado
-                  ? <FileText size={15} className="text-slate-400" />
-                  : <Upload size={15} className="text-slate-300" />}
-              </button>
+              <div key={i}>
+                <button onClick={() => toggle(i)} className="flex items-center gap-3 p-[11px_13px] rounded-[11px] border text-left cursor-pointer w-full"
+                  style={{ borderColor: e.realizado ? '#c3ead2' : '#eef1f5', background: e.realizado ? '#f3fbf6' : '#fff' }}>
+                  <span className="grid place-items-center w-6 h-6 rounded-md flex-shrink-0 border"
+                    style={{ background: e.realizado ? '#10a05a' : '#fff', borderColor: e.realizado ? '#10a05a' : '#cdd6df' }}>
+                    {e.realizado && <Check size={14} className="text-white" />}
+                  </span>
+                  <div className="flex-1">
+                    <div className="text-[13.5px] font-semibold text-slate-900">{e.nombre}</div>
+                    <div className="text-[11.5px] text-slate-400">
+                      {e.realizado ? `Realizado · ${fmtFecha(e.fechaRealizado)}` : `Pendiente · ${e.tipo}`}
+                      {e.examenDocId && <span style={{ color: ACCENT, marginLeft: 6 }}>· Resultado adjunto</span>}
+                    </div>
+                  </div>
+                  {/* Botón subir resultado — solo si el examen está completado y hay contexto del trabajador */}
+                  {e.realizado && puedeSubir && !e.examenDocId && (
+                    <button
+                      onClick={(ev) => { ev.stopPropagation(); setSubiendoIdx(subiendoIdx === i ? null : i); }}
+                      title="Subir resultado"
+                      style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 4, padding: '4px 10px', background: '#e0f2fa', border: `1px solid ${ACCENT}`, borderRadius: 7, color: ACCENT, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
+                      <Upload size={12} /> Resultado
+                    </button>
+                  )}
+                  {e.realizado && e.examenDocId && (
+                    <FileText size={15} className="text-slate-400 flex-shrink-0" />
+                  )}
+                  {!e.realizado && (
+                    <Upload size={15} className="text-slate-300 flex-shrink-0" />
+                  )}
+                </button>
+
+                {/* Panel de subida de resultado */}
+                {subiendoIdx === i && puedeSubir && (
+                  <SubirResultadoPanel
+                    examen={e}
+                    trabajadorId={trabajadorId!}
+                    medicoId={medicoId!}
+                    medicoNombre={medicoNombre!}
+                    onSubido={(docId) => handleSubido(i, docId)}
+                    onCancelar={() => setSubiendoIdx(null)}
+                  />
+                )}
+              </div>
             ))}
           </div>
+
+          {puedeSubir && pr.hechos > 0 && (
+            <p className="text-[11px] text-slate-400 mt-3">
+              Usa el botón «Resultado» en cada examen completado para adjuntar el archivo. Los resultados quedarán disponibles en el panel de Exámenes Complementarios de la ficha.
+            </p>
+          )}
         </div>
 
         <Footer onClose={onClose}>
