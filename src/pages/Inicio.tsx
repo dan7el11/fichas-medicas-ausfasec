@@ -6,7 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { collection, getDocs } from 'firebase/firestore';
 import {
   Users, Stethoscope, CalendarDays, ClipboardList, BarChart3,
-  ArrowRight, Plus, Activity, AlertTriangle, Calendar, Package,
+  ArrowRight, Plus, Activity, AlertTriangle, Calendar, Package, Shield,
 } from 'lucide-react';
 import { db } from '../services/firebase';
 import { useAuth } from '../contexts/AuthContext';
@@ -48,6 +48,8 @@ export default function Inicio() {
       setCargando(false);
     })();
   }, []);
+
+  const isAdmin = !!(user?.email?.includes('admin'));
 
   const ahora = new Date();
   const hora = ahora.getHours();
@@ -97,6 +99,12 @@ export default function Inicio() {
           </div>
           <div className="grid grid-cols-3 gap-4">
             {modulos.map((m) => <ModuloTarjeta key={m.key} m={m} onGo={() => navigate(m.ruta)} />)}
+            {isAdmin && (
+              <ModuloTarjeta
+                m={{ key: 'admin', titulo: 'Administración', desc: 'Carga masiva y gestión de datos maestros', ruta: '/admin', icon: <Shield size={24} />, color: '#374151', stat: 'Solo administradores' }}
+                onGo={() => navigate('/admin')}
+              />
+            )}
 
             {/* Tarjeta de accesos rápidos */}
             <div className="bg-white border border-slate-200 rounded-[16px] p-[22px] shadow-sm flex flex-col">
