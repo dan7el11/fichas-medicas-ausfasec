@@ -9,8 +9,8 @@ import { db } from '../services/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import TopBar from '../components/dashboard/TopBar';
 import type { Trabajador, EvaluacionMedica } from '../types';
-import { AREAS, AREA_COLORS, APTITUD_LABEL, type Area } from '../constants/medical';
-import { areaDeTrabajador, lastEval, matchTrabajador, workerStatus, dashboardStats, iniciales, fmtDate, TONE_STYLES } from '../utils/medicalHelpers';
+import { APTITUD_LABEL, colorsDeArea } from '../constants/medical';
+import { areaDeTrabajador, areasDeTrabajadores, lastEval, matchTrabajador, workerStatus, dashboardStats, iniciales, fmtDate, TONE_STYLES } from '../utils/medicalHelpers';
 
 const BRAND = '#0a6b3b';
 type StatusKey = 'Todos' | 'Aptos' | 'Por vencer' | 'Vencidas' | 'Sin eval.';
@@ -25,7 +25,7 @@ export default function Trabajadores() {
   const [cargando, setCargando] = useState(true);
 
   const [q, setQ] = useState('');
-  const [areaSel, setAreaSel] = useState<Area | 'Todas'>('Todas');
+  const [areaSel, setAreaSel] = useState<string>('Todas');
   const [statusSel, setStatusSel] = useState<StatusKey>('Todos');
   const [vista, setVista] = useState<'tabla' | 'tarjetas'>('tabla');
   const [sortBy, setSortBy] = useState<'nombre' | 'area' | 'estado'>('nombre');
@@ -136,10 +136,10 @@ export default function Trabajadores() {
             </div>
           </div>
 
-          {/* Chips de área */}
+          {/* Chips de área (las ingresadas en las fichas) */}
           <div className="flex gap-[7px] mb-4 flex-wrap">
             <AreaPill label="Todas las áreas" on={areaSel === 'Todas'} onClick={() => setAreaSel('Todas')} />
-            {AREAS.map((a) => <AreaPill key={a} label={a} dot={AREA_COLORS[a].dot} on={areaSel === a} onClick={() => setAreaSel(areaSel === a ? 'Todas' : a)} />)}
+            {areasDeTrabajadores(trabajadores).map((a) => <AreaPill key={a} label={a} dot={colorsDeArea(a).dot} on={areaSel === a} onClick={() => setAreaSel(areaSel === a ? 'Todas' : a)} />)}
           </div>
 
           <div className="text-[12.5px] text-slate-400 mb-2.5">{list.length} trabajador{list.length !== 1 ? 'es' : ''}{(q || areaSel !== 'Todas' || statusSel !== 'Todos') ? ' · filtrados' : ''}</div>
@@ -217,7 +217,7 @@ function Tarjetas({ list, onSel }: { list: Entry[]; onSel: (e: Entry) => void })
 
 function Drawer({ entry, onClose, onFicha }: { entry: Entry; onClose: () => void; onFicha: (id: string) => void }) {
   const { w, evals } = entry;
-  const area = areaDeTrabajador(w); const ac = AREA_COLORS[area]; const s = workerStatus(evals); const le = lastEval(evals);
+  const area = areaDeTrabajador(w); const ac = colorsDeArea(area); const s = workerStatus(evals); const le = lastEval(evals);
   return (
     <div onClick={onClose} className="fixed inset-0 z-[100] flex justify-end" style={{ background: 'rgba(13,27,42,0.4)' }}>
       <div onClick={(e) => e.stopPropagation()} className="w-[420px] max-w-[92vw] h-full bg-white overflow-y-auto" style={{ boxShadow: '-12px 0 40px rgba(13,27,42,0.2)' }}>
@@ -254,12 +254,12 @@ function Drawer({ entry, onClose, onFicha }: { entry: Entry; onClose: () => void
 }
 
 // ── Primitivas ───────────────────────────────────────────────────────────────
-function Avatar({ w, area, size, ring }: { w: Trabajador; area: Area; size: number; ring?: boolean }) {
-  const ac = AREA_COLORS[area];
+function Avatar({ w, area, size, ring }: { w: Trabajador; area: string; size: number; ring?: boolean }) {
+  const ac = colorsDeArea(area);
   return <div className="rounded-full grid place-items-center font-bold flex-shrink-0" style={{ width: size, height: size, background: ac.bg, color: ac.fg, fontSize: size * 0.34, boxShadow: ring ? `0 0 0 2px #fff, 0 0 0 4px ${ac.dot}40` : undefined }}>{iniciales(w)}</div>;
 }
-function AreaChip({ area }: { area: Area }) {
-  const ac = AREA_COLORS[area];
+function AreaChip({ area }: { area: string }) {
+  const ac = colorsDeArea(area);
   return <span className="inline-flex items-center gap-1.5 px-2.5 py-[3px] rounded-[7px] text-[12px] font-semibold whitespace-nowrap" style={{ background: ac.bg, color: ac.fg }}><span className="w-1.5 h-1.5 rounded-full" style={{ background: ac.dot }} />{area}</span>;
 }
 function StatusChip({ s }: { s: { label: string; tone: string } }) {

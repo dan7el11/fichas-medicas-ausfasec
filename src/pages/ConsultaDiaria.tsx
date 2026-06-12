@@ -37,6 +37,24 @@ function esMismoDia(a: Date, b: Date) {
   return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 }
 
+// Clave local yyyy-mm-dd (sin zona horaria)
+function keyFecha(d: Date) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function labelSemana(lunes: Date): string {
+  const domingo = new Date(lunes);
+  domingo.setDate(lunes.getDate() + 6);
+  const di = lunes.toLocaleDateString('es-EC', { day: 'numeric', month: 'short' });
+  const df = domingo.toLocaleDateString('es-EC', { day: 'numeric', month: 'short', year: 'numeric' });
+  return `${di} – ${df}`;
+}
+
+function labelMes(d: Date): string {
+  const s = d.toLocaleDateString('es-EC', { month: 'long', year: 'numeric' });
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
 function tituloPeriodo(periodo: PeriodoVista, ref: Date): string {
   if (periodo === 'dia') {
     const s = ref.toLocaleDateString('es-EC', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
@@ -109,7 +127,41 @@ export default function ConsultaDiaria() {
   const subPeriodo = periodo === 'dia' ? (esHoy ? 'hoy' : 'en el día') : periodo === 'semana' ? 'en la semana' : 'en el mes';
 
   // valor del <input type="date"> en hora local
-  const fechaInput = `${fechaRef.getFullYear()}-${String(fechaRef.getMonth() + 1).padStart(2, '0')}-${String(fechaRef.getDate()).padStart(2, '0')}`;
+  const fechaInput = keyFecha(fechaRef);
+
+  // Opciones del selector cuando el período es semana o mes
+  const opcionesSemana = useMemo(() => {
+    if (periodo !== 'semana') return [];
+    const { inicio: lunesActual } = rangoPeriodo('semana', new Date());
+    const opts: { value: string; label: string }[] = [];
+    for (let i = 4; i >= -52; i--) {
+      const lunes = new Date(lunesActual);
+      lunes.setDate(lunesActual.getDate() + i * 7);
+      opts.push({ value: keyFecha(lunes), label: labelSemana(lunes) + (i === 0 ? ' · actual' : '') });
+    }
+    // Si se navegó fuera del rango listado, incluir la semana seleccionada
+    const selKey = keyFecha(inicio);
+    if (!opts.some((o) => o.value === selKey)) opts.push({ value: selKey, label: labelSemana(inicio) });
+    return opts;
+  }, [periodo, inicio]);
+
+  const opcionesMes = useMemo(() => {
+    if (periodo !== 'mes') return [];
+    const hoy = new Date();
+    const opts: { value: string; label: string }[] = [];
+    for (let i = 2; i >= -24; i--) {
+      const m = new Date(hoy.getFullYear(), hoy.getMonth() + i, 1);
+      opts.push({ value: keyFecha(m), label: labelMes(m) + (i === 0 ? ' · actual' : '') });
+    }
+    const selKey = keyFecha(new Date(fechaRef.getFullYear(), fechaRef.getMonth(), 1));
+    if (!opts.some((o) => o.value === selKey)) opts.push({ value: selKey, label: labelMes(fechaRef) });
+    return opts;
+  }, [periodo, fechaRef]);
+
+  const irAFecha = (value: string) => {
+    const [y, m, d] = value.split('-').map(Number);
+    if (y && m && d) setFechaRef(new Date(y, m - 1, d));
+  };
 
   const userInitials = user?.email?.slice(0, 2).toUpperCase() ?? 'DR';
 
@@ -147,16 +199,26 @@ export default function ConsultaDiaria() {
             </div>
             <div className="flex items-center gap-1.5 bg-white border rounded-[9px] px-1.5 py-1" style={{ borderColor: COLORS.line }}>
               <NavBtn onClick={() => setFechaRef(desplazarPeriodo(periodo, fechaRef, -1))} title="Período anterior"><ChevronLeft size={16} /></NavBtn>
-              <input
-                type="date"
-                value={fechaInput}
-                onChange={(e) => {
-                  const [y, m, d] = e.target.value.split('-').map(Number);
-                  if (y && m && d) setFechaRef(new Date(y, m - 1, d));
-                }}
-                className="border-none outline-none text-[12.5px] font-semibold bg-transparent cursor-pointer"
-                style={{ color: COLORS.ink, fontFamily: FONTS.mono }}
-              />
+              {periodo === 'dia' ? (
+                <input
+                  type="date"
+                  value={fechaInput}
+                  onChange={(e) => irAFecha(e.target.value)}
+                  className="border-none outline-none text-[12.5px] font-semibold bg-transparent cursor-pointer"
+                  style={{ color: COLORS.ink, fontFamily: FONTS.mono }}
+                />
+              ) : (
+                <select
+                  value={periodo === 'semana' ? keyFecha(inicio) : keyFecha(new Date(fechaRef.getFullYear(), fechaRef.getMonth(), 1))}
+                  onChange={(e) => irAFecha(e.target.value)}
+                  className="border-none outline-none text-[12.5px] font-semibold bg-transparent cursor-pointer max-w-[220px]"
+                  style={{ color: COLORS.ink }}
+                >
+                  {(periodo === 'semana' ? opcionesSemana : opcionesMes).map((o) => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
+                </select>
+              )}
               <NavBtn onClick={() => setFechaRef(desplazarPeriodo(periodo, fechaRef, 1))} title="Período siguiente"><ChevronRight size={16} /></NavBtn>
             </div>
             {!incluyeHoy && (

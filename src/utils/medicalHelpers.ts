@@ -3,11 +3,9 @@
 import type { Trabajador, EvaluacionMedica } from '../types';
 import {
   APTITUD_LABEL,
-  AREA_COLORS,
-  AREAS,
-  deriveAreaFromPuesto,
+  AREA_SIN_ASIGNAR,
+  colorsDeArea,
   normalizarTexto,
-  type Area,
 } from '../constants/medical';
 
 // ── Nombre / iniciales ─────────────────────────────────────────────────────
@@ -36,19 +34,27 @@ export function iniciales(t: Trabajador): string {
 
 // ── Área ───────────────────────────────────────────────────────────────────
 
-export function areaDeTrabajador(t: Trabajador): Area {
-  // Si el documento trae área/departamento explícito y coincide con el
-  // catálogo (ignorando tildes/mayúsculas), se respeta lo ingresado.
+/**
+ * Área real del trabajador: lo que se ingresó en su ficha (campo
+ * área/departamento, p. ej. «Planificación», «TTHH»). Si la ficha no
+ * tiene área, se agrupa bajo «Sin área».
+ */
+export function areaDeTrabajador(t: Trabajador): string {
   const explicito = (t as Trabajador & { area?: string }).area ?? t.departamento;
-  if (explicito) {
-    const match = AREAS.find((a) => normalizarTexto(a) === normalizarTexto(String(explicito)));
-    if (match) return match;
-  }
-  return deriveAreaFromPuesto(t.puestoTrabajo);
+  const limpio = String(explicito ?? '').trim();
+  return limpio || AREA_SIN_ASIGNAR;
 }
 
 export function areaColors(t: Trabajador) {
-  return AREA_COLORS[areaDeTrabajador(t)];
+  return colorsDeArea(areaDeTrabajador(t));
+}
+
+/** Áreas únicas presentes en los datos, ordenadas («Sin área» al final). */
+export function areasDeTrabajadores(trabajadores: Trabajador[]): string[] {
+  const set = new Set(trabajadores.map(areaDeTrabajador));
+  const out = [...set].filter((a) => a !== AREA_SIN_ASIGNAR).sort((a, b) => a.localeCompare(b));
+  if (set.has(AREA_SIN_ASIGNAR)) out.push(AREA_SIN_ASIGNAR);
+  return out;
 }
 
 // ── Búsqueda ───────────────────────────────────────────────────────────────

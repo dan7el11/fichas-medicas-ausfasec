@@ -79,6 +79,34 @@ export const AREA_COLORS: Record<Area, { bg: string; fg: string; dot: string }> 
   Comercial: { bg: '#fde9ee', fg: '#9c1d3f', dot: '#e3496a' },
 };
 
+// ── Áreas reales (texto libre desde la ficha del trabajador) ────────────────
+// Las áreas que se muestran/filtran provienen del campo departamento/área de
+// cada ficha (p. ej. «Planificación», «Seguridad y Ambiente», «TTHH»).
+export const AREA_SIN_ASIGNAR = 'Sin área';
+
+const PALETA_AREAS: { bg: string; fg: string; dot: string }[] = [
+  { bg: '#eaf3ff', fg: '#1d4fad', dot: '#3b82f6' },
+  { bg: '#e6f6ee', fg: '#0a6b3b', dot: '#10a05a' },
+  { bg: '#fff1e6', fg: '#9a4a07', dot: '#ea7c3c' },
+  { bg: '#f0ebff', fg: '#5b3fbd', dot: '#7c5cf2' },
+  { bg: '#fde9ee', fg: '#9c1d3f', dot: '#e3496a' },
+  { bg: '#e0f2fa', fg: '#0e7490', dot: '#0e9bbf' },
+  { bg: '#fef3c7', fg: '#92400e', dot: '#d97706' },
+  { bg: '#ecfdf5', fg: '#065f46', dot: '#0f766e' },
+];
+
+/** Colores estables para cualquier área (texto libre). */
+export function colorsDeArea(area: string): { bg: string; fg: string; dot: string } {
+  if (!area || area === AREA_SIN_ASIGNAR) return { bg: '#eef1f5', fg: '#3a4a5e', dot: '#94a2b3' };
+  if ((AREA_COLORS as Record<string, { bg: string; fg: string; dot: string }>)[area]) {
+    return (AREA_COLORS as Record<string, { bg: string; fg: string; dot: string }>)[area];
+  }
+  let h = 0;
+  const n = normalizarTexto(area);
+  for (let i = 0; i < n.length; i++) h = (h * 31 + n.charCodeAt(i)) >>> 0;
+  return PALETA_AREAS[h % PALETA_AREAS.length];
+}
+
 // Categorías de riesgo y su color
 export const RIESGO_COLORS: Record<string, string> = {
   Físico: '#3b82f6',
