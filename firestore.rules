@@ -1,0 +1,82 @@
+rules_version = '2';
+
+// ============================================================================
+// Reglas de seguridad de Firestore — Sistema de Fichas Médicas Ocupacionales
+// ============================================================================
+// Modelo: una instalación por empresa (single-tenant). Los usuarios con login
+// son el personal médico de la clínica/empresa de ESTA instancia. El objetivo
+// de estas reglas es:
+//   1) Cerrar el acceso a quien no haya iniciado sesión (antes la base estaba
+//      efectivamente abierta a cualquiera con la API key).
+//   2) Impedir que un usuario se auto-asigne el rol 'admin' (escalada de
+//      privilegios).
+//   3) Denegar por defecto cualquier colección no contemplada.
+//
+// NOTA: el aislamiento entre empresas NO se hace aquí, sino usando un proyecto
+// Firebase separado por cada empresa (ver docs/SEGURIDAD_Y_DESPLIEGUE.md).
+// ============================================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Helpers ─────────────────────────────────────────────────────────────
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/usuarios/$(request.auth.uid))
+        && get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.rol == 'admin';
+    }
+
+    // El rol que el documento intenta quedar con (admin sólo si ya lo era).
+    function noSeAutopromueve() {
+      return !('rol' in request.resource.data)
+        || request.resource.data.rol != 'admin'
+        || isAdmin();
+    }
+
+    // ── Perfiles de usuario (médicos): usuarios/{uid} ───────────────────────
+    // Cada quien gestiona su propio perfil, pero NADIE puede asignarse 'admin'
+    // a sí mismo. El primer admin se establece manualmente en la consola de
+    // Firebase (ver guía de despliegue). Un admin sí puede gestionar a otros.
+    match /usuarios/{uid} {
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn()
+        && request.auth.uid == uid
+        && noSeAutopromueve();
+      allow update, delete: if isAdmin();
+    }
+
+    // ── Datos clínicos y operativos ─────────────────────────────────────────
+    // Accesibles para cualquier miembro autenticado del equipo de esta
+    // instancia. (El control fino por rol puede endurecerse más adelante.)
+    match /trabajadores/{id}     { allow read, write: if isSignedIn(); }
+    match /evaluaciones/{id}     { allow read, write: if isSignedIn(); }
+    match /atenciones/{id}       { allow read, write: if isSignedIn(); }
+    match /permisos/{id}         { allow read, write: if isSignedIn(); }
+    match /reposos/{id}          { allow read, write: if isSignedIn(); }
+    match /examenes/{id}         { allow read, write: if isSignedIn(); }
+    match /signos/{id}           { allow read, write: if isSignedIn(); }
+    match /ordenesExamen/{id}    { allow read, write: if isSignedIn(); }
+    match /protocolosPuesto/{id} { allow read, write: if isSignedIn(); }
+
+    // Inventario / botiquín: escritura para todo el equipo, porque al guardar
+    // una atención con medicación el sistema descuenta del stock. No restringir
+    // a admin o se rompería ese flujo.
+    match /inventarios/{docId}   { allow read, write: if isSignedIn(); }
+
+    // Configuración de la empresa (nombre, RUC, logo, etc.): la lee todo el
+    // equipo para renderizar la app; la escritura queda abierta al equipo por
+    // ahora para no romper la pantalla de Configuración. Endurecer a `isAdmin()`
+    // una vez confirmado que esa pantalla está restringida a admin en la UI.
+    match /configuracion/{docId} { allow read, write: if isSignedIn(); }
+
+    // ── Denegación por defecto ──────────────────────────────────────────────
+    // Cualquier ruta no contemplada arriba queda bloqueada.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -1,0 +1,47 @@
+rules_version = '2';
+
+// ============================================================================
+// Reglas de seguridad de Firebase Storage — archivos adjuntos
+// ============================================================================
+// Rutas usadas por la app:
+//   - examenes/{trabajadorId}/...  → resultados de exámenes (PDF / imágenes)
+//   - permisos/{permisoId}/...     → certificados de permisos médicos
+//
+// Solo personal autenticado de esta instancia puede ver o subir archivos.
+// En las subidas se limita el tamaño y el tipo de archivo; las eliminaciones
+// se permiten (en un delete no hay request.resource que validar).
+// ============================================================================
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // Subida válida: hasta 15 MB y solo PDF o imágenes. En delete,
+    // request.resource es null, por lo que se permite a usuarios autenticados.
+    function subidaValida() {
+      return request.resource == null
+        || (
+          request.resource.size < 15 * 1024 * 1024
+          && request.resource.contentType.matches('application/pdf|image/.*')
+        );
+    }
+
+    match /examenes/{trabajadorId}/{fileName=**} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn() && subidaValida();
+    }
+
+    match /permisos/{permisoId}/{fileName=**} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn() && subidaValida();
+    }
+
+    // Denegación por defecto para cualquier otra ruta.
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
