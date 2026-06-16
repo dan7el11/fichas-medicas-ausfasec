@@ -2,6 +2,7 @@ import { lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { EmpresaProvider } from './contexts/EmpresaContext';
 import Login from './pages/Login';
 import Inicio from './pages/Inicio';
 import { ToastProvider } from './components/Toast';
@@ -56,6 +57,7 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
+        <EmpresaProvider>
         <ToastProvider>
           <ConfirmProvider>
             <Router>
@@ -106,6 +108,7 @@ function App() {
             </Router>
           </ConfirmProvider>
         </ToastProvider>
+        </EmpresaProvider>
       </AuthProvider>
     </QueryClientProvider>
   );

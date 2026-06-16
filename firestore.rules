@@ -67,11 +67,15 @@ service cloud.firestore {
     // a admin o se rompería ese flujo.
     match /inventarios/{docId}   { allow read, write: if isSignedIn(); }
 
-    // Configuración de la empresa (nombre, RUC, logo, etc.): la lee todo el
-    // equipo para renderizar la app; la escritura queda abierta al equipo por
-    // ahora para no romper la pantalla de Configuración. Endurecer a `isAdmin()`
-    // una vez confirmado que esa pantalla está restringida a admin en la UI.
-    match /configuracion/{docId} { allow read, write: if isSignedIn(); }
+    // Configuración de la empresa (nombre, RUC, logo, etc.). La LECTURA es
+    // pública para que la pantalla de login pueda mostrar la marca (nombre y
+    // logo) antes de iniciar sesión; son datos no sensibles. La escritura queda
+    // abierta al equipo autenticado por ahora (endurecer a `isAdmin()` una vez
+    // confirmado que la pantalla de Configuración está restringida a admin).
+    match /configuracion/{docId} {
+      allow read: if true;
+      allow write: if isSignedIn();
+    }
 
     // ── Denegación por defecto ──────────────────────────────────────────────
     // Cualquier ruta no contemplada arriba queda bloqueada.

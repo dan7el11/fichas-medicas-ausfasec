@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { db } from '../services/firebase';
 import { useAuth } from '../contexts/AuthContext';
+import { useEmpresa } from '../contexts/EmpresaContext';
 import TopBar from '../components/dashboard/TopBar';
 import { cargarEstado, guardarMedicamento, eliminarMedicamento, registrarMovimiento } from '../services/inventario';
 import { checkExpiracion, fmtFecha as fmtFechaInv } from '../utils/inventarioHelpers';
@@ -627,6 +628,7 @@ function TabMovimientosAdmin({ inventario, movimientos, usuarioNombre, onRefresh
 // ════════════════════════════════════════════════════════════════════════════
 export default function AdminPanel() {
   const { user } = useAuth();
+  const { empresa } = useEmpresa();
   const navigate = useNavigate();
   const [tab, setTab] = useState<Tab>('trabajadores');
   const [inventario, setInventario] = useState<Medicamento[]>([]);
@@ -679,7 +681,7 @@ export default function AdminPanel() {
             </div>
             <div>
               <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: '#fff', fontFamily: FONTS.serif }}>Panel de Administración</h1>
-              <p style={{ margin: 0, fontSize: 13, color: 'rgba(255,255,255,0.6)' }}>Gestión de datos maestros — CEM AUSTROGAS</p>
+              <p style={{ margin: 0, fontSize: 13, color: 'rgba(255,255,255,0.6)' }}>Gestión de datos maestros — {empresa.institucion}</p>
             </div>
           </div>
           <div style={{ display: 'flex', gap: 0 }}>

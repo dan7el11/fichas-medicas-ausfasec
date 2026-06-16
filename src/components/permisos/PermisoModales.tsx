@@ -16,6 +16,7 @@ import {
 import { TipoBadge, EstadoChip } from './PermisoCard';
 import type { Trabajador } from '../../types';
 import { useToast } from '../Toast';
+import { useEmpresa } from '../../contexts/EmpresaContext';
 
 const ACCENT = '#7c5cf2';
 
@@ -245,16 +246,17 @@ export function PermisoDetalleModal({ permiso: p, onClose }: { permiso: PermisoM
 }
 
 function MailEditor({ p }: { p: PermisoMedico }) {
+  const { empresa } = useEmpresa();
   const [asunto, setAsunto] = useState(() => asuntoCorreo(p));
-  const [cuerpo, setCuerpo] = useState(() => cuerpoCorreo(p));
+  const [cuerpo, setCuerpo] = useState(() => cuerpoCorreo(p, empresa.institucion));
   const [editando, setEditando] = useState(false);
-  const dirty = asunto !== asuntoCorreo(p) || cuerpo !== cuerpoCorreo(p);
+  const dirty = asunto !== asuntoCorreo(p) || cuerpo !== cuerpoCorreo(p, empresa.institucion);
   return (
     <div className="mt-3 border border-slate-200 rounded-[10px] overflow-hidden bg-white">
       <div className="flex items-center gap-2 p-[9px_14px] border-b border-slate-100 bg-slate-50">
         <span className="text-[11.5px] font-bold text-slate-600 tracking-wide">VISTA PREVIA DEL CORREO</span>
         <div className="ml-auto flex gap-1.5">
-          {dirty && <button onClick={() => { setAsunto(asuntoCorreo(p)); setCuerpo(cuerpoCorreo(p)); }} className="px-2.5 py-[5px] text-[11.5px] font-semibold bg-white border border-slate-300 rounded-lg cursor-pointer text-slate-700">Restaurar</button>}
+          {dirty && <button onClick={() => { setAsunto(asuntoCorreo(p)); setCuerpo(cuerpoCorreo(p, empresa.institucion)); }} className="px-2.5 py-[5px] text-[11.5px] font-semibold bg-white border border-slate-300 rounded-lg cursor-pointer text-slate-700">Restaurar</button>}
           <button onClick={() => setEditando((v) => !v)} className="inline-flex items-center gap-1.5 px-2.5 py-[5px] text-[11.5px] font-semibold rounded-lg cursor-pointer border"
             style={editando ? { background: ACCENT, color: '#fff', borderColor: ACCENT } : { background: '#fff', color: '#3a4a5e', borderColor: '#d8dee6' }}>
             {editando ? <Check size={13} /> : <FileText size={13} />} {editando ? 'Listo' : 'Editar texto'}

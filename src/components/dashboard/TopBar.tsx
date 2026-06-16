@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Plus, UserCircle, LogOut, ChevronDown } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { useEmpresa } from '../../contexts/EmpresaContext';
 import { COLORS, FONTS } from '../../theme';
 
 interface TopBarProps {
@@ -27,6 +28,7 @@ export default function TopBar({ userRol, onNewWorker }: TopBarProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const { displayName, initials, isAdmin, logout } = useAuth();
+  const { empresa } = useEmpresa();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -59,10 +61,10 @@ export default function TopBar({ userRol, onNewWorker }: TopBarProps) {
     >
       <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigate('/')}>
         <div className="w-[34px] h-[34px] bg-white rounded-[8px] flex items-center justify-center p-1 shadow-sm overflow-hidden">
-          <img src="/logo.png" alt="Logo" className="w-full h-full object-contain" />
+          <img src={empresa.logoUrl || '/logo.png'} alt="Logo" className="w-full h-full object-contain" />
         </div>
         <div className="flex flex-col leading-[1.15]">
-          <span className="font-bold tracking-[0.1px] text-[13px]">CEM AUSTROGAS</span>
+          <span className="font-bold tracking-[0.1px] text-[13px]">{empresa.institucion}</span>
           <span className="text-[10px] text-white/60">Medicina Ocupacional</span>
         </div>
       </div>

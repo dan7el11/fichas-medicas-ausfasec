@@ -39,16 +39,26 @@ Arrancar ya, en paralelo a la Fase 1.
 
 **Estado:** reglas escritas; falta probar y publicar (`firebase deploy`).
 
-## Fase 2 — Quitar la marca AUSTROGAS / hacerlo configurable
+## Fase 2 — Quitar la marca AUSTROGAS / hacerlo configurable  ✅ HECHO
 
-- Centralizar nombre, RUC, CIU, establecimiento, logo, textos de certificados y
-  número de archivo en la configuración de Firestore (`useEmpresa` +
-  pantalla de Configuración), usándola de forma consistente en los ~14 lugares
-  donde hoy "AUSTROGAS" está incrustado (incluyendo PDF y certificados).
-- Logo configurable (subible), no archivo fijo.
-- Identificar catálogos en código (áreas, puestos, riesgos) para configuración.
+- **HECHO.** La identidad de la empresa (institución, RUC, CIU, establecimiento,
+  prefijo del N° de archivo, logo y dominio de correo) se centralizó en un
+  contexto (`EmpresaContext`) que carga la configuración una sola vez y la
+  entrega a toda la app. Se reemplazaron los ~14 puntos donde "AUSTROGAS" estaba
+  incrustado: encabezado, login, página de inicio, panel admin, PDF de la matriz
+  de reportes, los formularios SO-RE-38/40 (FichaTrabajador) y los certificados
+  de permisos.
+- **HECHO.** La pantalla de Configuración permite editar todos esos campos,
+  incluido un logo por URL (`logoUrl`); si se deja vacío usa el logo por defecto.
+- **HECHO.** El título de la pestaña del navegador se ajusta a la empresa.
+- **Pendiente menor:** el logo *impreso dentro de los PDF* sigue usando el logo
+  embebido (`LOGO_EMPRESA`); cambiarlo por empresa requiere cargar la imagen de
+  forma asíncrona en jsPDF (queda para Fase 4).
+- **Pendiente menor:** los valores por defecto en `EmpresaContext` siguen siendo
+  los de AUSTROGAS como respaldo seguro; se pueden dejar neutros una vez
+  confirmado que la instancia AUSTROGAS tiene su configuración guardada.
 
-**Esfuerzo:** medio. Sin dependencias; en paralelo a la Fase 1.
+**Estado:** completado salvo los dos pendientes menores anotados.
 
 ## Fase 3 — Proceso repetible de despliegue por cliente
 

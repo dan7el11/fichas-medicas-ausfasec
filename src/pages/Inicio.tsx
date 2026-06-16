@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { db } from '../services/firebase';
 import { useAuth } from '../contexts/AuthContext';
+import { useEmpresa } from '../contexts/EmpresaContext';
 import TopBar from '../components/dashboard/TopBar';
 import { getAtencionesDelDia, calcularStats as statsAtenciones } from '../services/atenciones';
 import { getPermisos, permisosStats } from '../services/permisos';
@@ -26,6 +27,7 @@ interface HomeStats {
 
 export default function Inicio() {
   const { user } = useAuth();
+  const { empresa } = useEmpresa();
   const navigate = useNavigate();
   const [stats, setStats] = useState<HomeStats>({ trabajadores: 0, atencionesHoy: 0, permisosActivos: 0, examenesAtrasados: 0 });
   const [cargando, setCargando] = useState(true);
@@ -80,7 +82,7 @@ export default function Inicio() {
             </div>
             <h1 className="mt-1.5 mb-0 text-[30px] font-extrabold tracking-tight capitalize">{saludo}, Dr. {nombreMedico}</h1>
             <p className="mt-2 mb-0 text-[15px] text-slate-500 max-w-[620px]">
-              Sistema integral de salud ocupacional de CEM AUSTROGAS. Elige por dónde empezar.
+              Sistema integral de salud ocupacional de {empresa.institucion}. Elige por dónde empezar.
             </p>
           </div>
 

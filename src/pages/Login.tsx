@@ -3,8 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '../services/firebase';
 import { useAuth } from '../contexts/AuthContext';
+import { useEmpresa } from '../contexts/EmpresaContext';
 
 export default function Login() {
+  const { empresa } = useEmpresa();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -40,8 +42,8 @@ export default function Login() {
     <div className="min-h-screen flex items-center justify-center bg-slate-50">
       <div className="max-w-md w-full bg-white rounded-xl shadow-lg p-8">
        <div className="text-center mb-8 flex flex-col items-center">
-          <img src="/logo.png" alt="Logo CEM AUSTROGAS" className="h-20 mb-3 object-contain drop-shadow-sm" />
-          <h2 className="text-2xl font-bold text-slate-800">CEM AUSTROGAS</h2>
+          <img src={empresa.logoUrl || '/logo.png'} alt={`Logo ${empresa.institucion}`} className="h-20 mb-3 object-contain drop-shadow-sm" />
+          <h2 className="text-2xl font-bold text-slate-800">{empresa.institucion}</h2>
           <p className="text-slate-500 mt-2 font-medium">Sistema de Fichas Médicas</p>
         </div>
         
@@ -62,7 +64,7 @@ export default function Login() {
               className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="medico@austrogas.com"
+              placeholder={`medico@${empresa.emailDominio}`}
             />
           </div>
           <div>

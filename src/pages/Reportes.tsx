@@ -8,6 +8,7 @@ import { collection, getDocs } from 'firebase/firestore';
 import { db } from '../services/firebase';
 import TopBar from '../components/dashboard/TopBar';
 import { useNavigate } from 'react-router-dom';
+import { useEmpresa } from '../contexts/EmpresaContext';
 import { workerStatus, lastEval, parseDate, venceEn, areaDeTrabajador, nombreCorto } from '../utils/medicalHelpers';
 import type { Trabajador, EvaluacionMedica } from '../types';
 import type { AtencionMedica } from '../types/atencion';
@@ -53,6 +54,7 @@ function inicioPeriodo(p: PeriodoId): Date | null {
 
 export default function Reportes() {
   const navigate = useNavigate();
+  const { empresa } = useEmpresa();
   const [trabajadores, setTrabajadores] = useState<Trabajador[]>([]);
   const [evaluaciones, setEvaluaciones] = useState<EvaluacionMedica[]>([]);
   const [atenciones, setAtenciones] = useState<AtencionMedica[]>([]);
@@ -180,7 +182,7 @@ export default function Reportes() {
 
     pdf.setFontSize(13);
     pdf.setFont('helvetica', 'bold');
-    pdf.text('CEM AUSTROGAS — Matriz de Estado Ocupacional', 14, 14);
+    pdf.text(`${empresa.institucion} — Matriz de Estado Ocupacional`, 14, 14);
     pdf.setFontSize(8);
     pdf.setFont('helvetica', 'normal');
     pdf.text(`Generado: ${fecha}  |  Total trabajadores: ${trabajadores.length}`, 14, 20);

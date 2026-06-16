@@ -7,7 +7,7 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Marca CEM AUSTROGAS
+        // Color institucional
         brand: {
           primary: '#0a6b3b',
           primaryHover: '#085c33',

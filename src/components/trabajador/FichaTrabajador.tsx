@@ -11,6 +11,7 @@ import { OrdenDetalleModal } from '../examenes/ExamenModales';
 import { useToast } from '../Toast';
 import { useConfirm } from '../ConfirmDialog';
 import { useAuth } from '../../contexts/AuthContext';
+import { useEmpresa } from '../../contexts/EmpresaContext';
 import { LOGO_EMPRESA } from '../../assets/logoEmpresa';
 import { getOrdenes, eliminarOrden } from '../../services/examenesPlan';
 import { estadoPermiso, duracionPermiso, fmtFecha as fmtPF, toDate, actualizarPermiso, eliminarPermiso } from '../../services/permisos';
@@ -132,6 +133,7 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
   const toast = useToast();
   const confirm = useConfirm();
   const { user, displayName } = useAuth();
+  const { empresa } = useEmpresa();
 
   const [trabajador, setTrabajador] = useState<Trabajador | null>(null);
   const [evaluaciones, setEvaluaciones] = useState<EvaluacionMedica[]>([]);
@@ -412,7 +414,7 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
     autoTable(pdf, {
       startY: y, margin: { left: M, right: M }, theme: 'grid', styles: baseStyles, headStyles,
       head: [['INSTITUCIÓN DEL SISTEMA', 'RUC', 'CIU', 'ESTABLECIMIENTO DE SALUD', 'N° HISTORIA CLÍNICA', 'N° ARCHIVO']],
-      body: [['CEM AUSTROGAS', '190070301001', '4661', 'MEDICINA OCUPACIONAL', ev.numeroHistoriaClinica || trabajador.cedula, ev.numeroArchivo || '-']],
+      body: [[empresa.institucion, empresa.ruc, empresa.ciu, empresa.establecimiento, ev.numeroHistoriaClinica || trabajador.cedula, ev.numeroArchivo || '-']],
     });
     y = (pdf as any).lastAutoTable.finalY;
     autoTable(pdf, {
@@ -714,7 +716,7 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
     paginaHeader('Página:    1 de 2');
 
     secHeaderR('A. DATOS DEL ESTABLECIMIENTO - EMPRESA Y USUARIO');
-    AT({ startY: y, margin: { left: M, right: M }, theme: 'grid', styles: base, headStyles: head, head: [['INSTITUCIÓN DEL SISTEMA O NOMBRE DE LA EMPRESA', 'RUC', 'CIIU', 'ESTABLECIMIENTO DE SALUD', 'N° HISTORIA CLÍNICA', 'N° ARCHIVO']], body: [['CEM AUSTROGAS', '190070301001', '4661', 'MEDICINA OCUPACIONAL', ev.numeroHistoriaClinica || trabajador.cedula, ev.numeroArchivo || '-']] });
+    AT({ startY: y, margin: { left: M, right: M }, theme: 'grid', styles: base, headStyles: head, head: [['INSTITUCIÓN DEL SISTEMA O NOMBRE DE LA EMPRESA', 'RUC', 'CIIU', 'ESTABLECIMIENTO DE SALUD', 'N° HISTORIA CLÍNICA', 'N° ARCHIVO']], body: [[empresa.institucion, empresa.ruc, empresa.ciu, empresa.establecimiento, ev.numeroHistoriaClinica || trabajador.cedula, ev.numeroArchivo || '-']] });
     AT({ startY: y, margin: { left: M, right: M }, theme: 'grid', styles: base, headStyles: head, head: [['PRIMER APELLIDO', 'SEGUNDO APELLIDO', 'PRIMER NOMBRE', 'SEGUNDO NOMBRE', 'SEXO', 'FECHA DE INICIO DE LABORES', 'FECHA DE SALIDA', 'TIEMPO\n(meses)', 'PUESTO DE TRABAJO (CIUO)']], body: [[trabajador.primerApellido, (trabajador as any).segundoApellido || '-', trabajador.primerNombre, (trabajador as any).segundoNombre || '-', trabajador.sexo, (trabajador as any).fechaIngreso || '-', ev.fechaSalida || '-', ev.tiempoMeses || '-', trabajador.puestoTrabajo]] });
     AT({ startY: y, margin: { left: M, right: M }, theme: 'grid', styles: base, headStyles: head, head: [['ACTIVIDADES', 'FACTORES DE RIESGO']], body: [[ev.actividadesTexto || '-', ev.factoresRiesgoTexto || '-']], bodyStyles: { minCellHeight: 10 } });
     y += 2;
@@ -1073,7 +1075,7 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
                   <>
                     <DrawerSec title="A. DATOS DEL ESTABLECIMIENTO Y USUARIO">
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
-                        <KV k="Institución" v="CEM AUSTROGAS" /><KV k="RUC" v="190070301001" />
+                        <KV k="Institución" v={empresa.institucion} /><KV k="RUC" v={empresa.ruc} />
                         <KV k="Nombres" v={`${trabajador.primerNombre} ${(trabajador as any).segundoNombre || ''}`} />
                         <KV k="Apellidos" v={`${trabajador.primerApellido} ${(trabajador as any).segundoApellido || ''}`} />
                         <KV k="Cédula" v={trabajador.cedula} /><KV k="Sexo" v={trabajador.sexo} /><KV k="Puesto" v={trabajador.puestoTrabajo} />
