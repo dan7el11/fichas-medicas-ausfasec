@@ -60,15 +60,23 @@ Arrancar ya, en paralelo a la Fase 1.
 
 **Estado:** completado salvo los dos pendientes menores anotados.
 
-## Fase 3 — Proceso repetible de despliegue por cliente
+## Fase 3 — Proceso repetible de despliegue por cliente  ✅ HECHO
 
-- Checklist paso a paso: crear proyecto Firebase, variables de entorno, publicar
-  reglas, desplegar (Firebase Hosting), crear admin inicial, cargar
-  configuración de empresa. Base inicial en `docs/SEGURIDAD_Y_DESPLIEGUE.md`.
-- Carga inicial de trabajadores por CSV (ya existe en AdminPanel).
+- **HECHO.** Manual completo paso a paso en
+  `docs/MANUAL_INSTALACION_NUEVA_EMPRESA.md`: crear el proyecto Firebase,
+  activar Auth/Firestore/Storage, publicar reglas, conectar la app (`.env`),
+  publicar la app, crear el primer admin, configurar la empresa y cargar
+  trabajadores por CSV. Escrito para seguirse sin ser programador (método web
+  donde se puede).
+- **HECHO.** `firebase.json` incluye configuración de **Firebase Hosting** (con
+  ruteo SPA), de modo que publicar la app es un solo comando
+  (`firebase deploy --only hosting`).
+- **HECHO.** `.env.example` documentado campo por campo (de dónde sale cada
+  valor).
+- La carga inicial de trabajadores por CSV ya existía en el Panel de
+  Administración; queda documentado su formato exacto.
 
-**Esfuerzo:** medio (mucho es documentar y probar el proceso una vez).
-**Dependencia:** Fases 1 y 2.
+**Estado:** completado.
 
 ## Fase 4 — Endurecimiento mínimo para inspirar confianza
 
