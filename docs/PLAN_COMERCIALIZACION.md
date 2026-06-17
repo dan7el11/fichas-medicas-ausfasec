@@ -75,6 +75,11 @@ Arrancar ya, en paralelo a la Fase 1.
   valor).
 - La carga inicial de trabajadores por CSV ya existía en el Panel de
   Administración; queda documentado su formato exacto.
+- **HECHO (asistente).** Nuevo asistente de configuración guiado dentro de la
+  app (`/configuracion-inicial`, `src/pages/ConfiguracionInicial.tsx`): en 4
+  pasos pide datos de la empresa, sube el logo (a Storage) y carga los
+  trabajadores por CSV. Accesos desde Inicio (admin) y desde la pantalla de
+  Configuración. Hace el onboarding de cada empresa mucho más armónico.
 
 **Estado:** completado.
 

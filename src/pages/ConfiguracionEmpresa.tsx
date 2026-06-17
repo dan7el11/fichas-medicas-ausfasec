@@ -39,6 +39,19 @@ export default function ConfiguracionEmpresa() {
           </button>
         </div>
 
+        <button
+          type="button"
+          onClick={() => navigate('/configuracion-inicial')}
+          className="w-full mb-5 flex items-center gap-3 text-left bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-3 hover:bg-emerald-100 transition-colors"
+        >
+          <span className="text-xl">🚀</span>
+          <span className="flex-1">
+            <span className="block text-sm font-bold text-emerald-800">¿Primera vez? Usa el asistente guiado</span>
+            <span className="block text-xs text-emerald-700">Configura datos, logo y carga de trabajadores paso a paso.</span>
+          </span>
+          <span className="text-emerald-700 text-lg">→</span>
+        </button>
+
         <form onSubmit={handleSubmit} className="space-y-4">
           {([
             { label: 'Nombre de la institución', key: 'institucion', required: true, hint: 'Aparece en encabezados, login y formularios SO-RE.' },
