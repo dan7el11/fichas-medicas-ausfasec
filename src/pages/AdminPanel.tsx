@@ -11,6 +11,7 @@ import {
   X, Upload, Download, Check, AlertTriangle, ChevronDown,
 } from 'lucide-react';
 import { db } from '../services/firebase';
+import { descargarRespaldo } from '../services/respaldo';
 import { useAuth } from '../contexts/AuthContext';
 import { useEmpresa } from '../contexts/EmpresaContext';
 import TopBar from '../components/dashboard/TopBar';
@@ -634,6 +635,19 @@ export default function AdminPanel() {
   const [inventario, setInventario] = useState<Medicamento[]>([]);
   const [movimientos, setMovimientos] = useState<Movimiento[]>([]);
   const [cargandoInv, setCargandoInv] = useState(true);
+  const [respaldando, setRespaldando] = useState(false);
+
+  const handleRespaldo = async () => {
+    setRespaldando(true);
+    try {
+      await descargarRespaldo();
+    } catch (err) {
+      console.error('Error al generar el respaldo:', err);
+      alert('No se pudo generar el respaldo. Verifica tu conexión e inténtalo de nuevo.');
+    } finally {
+      setRespaldando(false);
+    }
+  };
 
   const isAdmin = !!(user?.email?.includes('admin'));
   const usuarioNombre = user?.email?.split('@')[0] ?? 'admin';
@@ -683,6 +697,14 @@ export default function AdminPanel() {
               <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: '#fff', fontFamily: FONTS.serif }}>Panel de Administración</h1>
               <p style={{ margin: 0, fontSize: 13, color: 'rgba(255,255,255,0.6)' }}>Gestión de datos maestros — {empresa.institucion}</p>
             </div>
+            <button
+              onClick={handleRespaldo}
+              disabled={respaldando}
+              title="Descarga una copia de seguridad (JSON) con todos los datos de esta instancia"
+              style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8, padding: '9px 16px', background: 'rgba(255,255,255,0.12)', color: '#fff', border: '1px solid rgba(255,255,255,0.25)', borderRadius: 9, cursor: respaldando ? 'wait' : 'pointer', fontSize: 13, fontWeight: 600 }}
+            >
+              <Download size={15} /> {respaldando ? 'Generando respaldo…' : 'Descargar respaldo'}
+            </button>
           </div>
           <div style={{ display: 'flex', gap: 0 }}>
             {TABS_DEF.map((t) => (

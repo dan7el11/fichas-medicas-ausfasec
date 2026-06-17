@@ -78,14 +78,24 @@ Arrancar ya, en paralelo a la Fase 1.
 
 **Estado:** completado.
 
-## Fase 4 — Endurecimiento mínimo para inspirar confianza
+## Fase 4 — Endurecimiento mínimo para inspirar confianza  ✅ EN BUENA PARTE
 
-- Validación de rangos médicos en signos vitales (no aceptar 999/999, etc.).
-- Errores visibles al usuario en flujos críticos (no solo `console.error`).
-- Respaldo / exportación completa de datos de la instancia.
-- Ampliar pruebas en cálculos críticos.
+- **HECHO.** Validación de rangos médicos en signos vitales: nuevo módulo
+  `src/utils/signosValidacion.ts` (única fuente de verdad) que distingue valores
+  imposibles (error, ej. 999/999) de valores clínicamente notables (alerta).
+  Conectado al formulario de signos vitales con mensajes por campo y resumen, y
+  con pruebas unitarias (`signosValidacion.test.ts`, 11 casos).
+- **HECHO.** Respaldo / exportación completa: `src/services/respaldo.ts` lee
+  todas las colecciones y descarga un JSON; botón "Descargar respaldo" en el
+  Panel de Administración.
+- **HECHO (parcial).** Errores visibles al usuario: el respaldo avisa en caso de
+  fallo; muchos flujos ya usan toasts. Queda repasar servicios que solo hacen
+  `console.error` para mostrar mensaje al usuario.
+- **Pendiente menor:** respaldo automático/programado (hoy es manual) y pruebas
+  en más utilidades.
 
-**Esfuerzo:** medio. Priorizar validación de rangos y respaldo.
+**Estado:** los dos puntos de mayor valor (validación de rangos y respaldo)
+están completos.
 
 ## Fase 5 — Piloto con un cliente real
 
