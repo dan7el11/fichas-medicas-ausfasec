@@ -41,11 +41,14 @@ export default function ConfiguracionEmpresa() {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {([
-            { label: 'Nombre de la institución', key: 'institucion', required: true },
+            { label: 'Nombre de la institución', key: 'institucion', required: true, hint: 'Aparece en encabezados, login y formularios SO-RE.' },
             { label: 'RUC', key: 'ruc', required: true },
             { label: 'CIU (código de actividad)', key: 'ciu' },
             { label: 'Establecimiento / Área médica', key: 'establecimiento' },
-          ] as { label: string; key: keyof typeof datos; required?: boolean }[]).map(({ label, key, required }) => (
+            { label: 'Prefijo del N° de archivo', key: 'prefijoArchivo', hint: 'Ej: AUSTROGAS → AUSTROGAS-20260612.' },
+            { label: 'Dominio de correo (para el login)', key: 'emailDominio', hint: 'Ej: empresa.com → medico@empresa.com.' },
+            { label: 'URL del logo (opcional)', key: 'logoUrl', hint: 'Si se deja vacío, se usa el logo por defecto.' },
+          ] as { label: string; key: keyof typeof datos; required?: boolean; hint?: string }[]).map(({ label, key, required, hint }) => (
             <div key={key}>
               <label className="block text-sm font-medium text-slate-700 mb-1">
                 {label} {required && <span className="text-red-500">*</span>}
@@ -57,6 +60,7 @@ export default function ConfiguracionEmpresa() {
                 onChange={e => setDatos(prev => ({ ...prev, [key]: e.target.value }))}
                 className={inputCls}
               />
+              {hint && <p className="text-xs text-slate-400 mt-1">{hint}</p>}
             </div>
           ))}
 

@@ -115,11 +115,12 @@ export function controlJustificativos(permisos: PermisoMedico[]): ControlJustif 
 export function asuntoCorreo(p: PermisoMedico): string {
   return `Notificación de reposo médico interno — ${p.apellidos} ${p.nombres} (CI ${p.cedula})`;
 }
-export function cuerpoCorreo(p: PermisoMedico): string {
+export function cuerpoCorreo(p: PermisoMedico, institucion = ''): string {
   const reincorp = new Date(toDate(p.hasta)); reincorp.setDate(reincorp.getDate() + 1);
+  const emp = institucion.trim();
   return `Estimados señores:
 
-Reciban un cordial saludo del Servicio Médico Ocupacional de CEM AUSTROGAS.
+Reciban un cordial saludo del Servicio Médico Ocupacional${emp ? ` de ${emp}` : ''}.
 
 Por medio de la presente, y en cumplimiento de las disposiciones vigentes en materia de seguridad y salud en el trabajo, notifico que el trabajador detallado a continuación fue valorado en el dispensario médico de la empresa y se le ha prescrito reposo médico interno:
 
@@ -144,7 +145,7 @@ Atentamente,
 
 _____________________________________
 Dr./Dra. [Nombre del médico tratante]
-Médico Ocupacional — CEM AUSTROGAS`;
+Médico Ocupacional${emp ? ` — ${emp}` : ''}`;
 }
 export function buildMailto(asunto: string, cuerpo: string): string {
   return `mailto:?subject=${encodeURIComponent(asunto)}&body=${encodeURIComponent(cuerpo)}`;

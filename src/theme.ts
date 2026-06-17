@@ -1,9 +1,9 @@
-// Tokens de diseño globales — AUSFASEC / CEM AUSTROGAS
+// Tokens de diseño globales del sistema de fichas médicas.
 // Importar como: import { COLORS, FONTS } from '../theme';
 
 export const COLORS = {
-  // Marca
-  brand:   '#9a3036',   // rojo AUSTROGAS
+  // Marca (color institucional por defecto)
+  brand:   '#9a3036',   // vino/ladrillo
   brandSoft: '#f4e8e9',
 
   // Semánticos

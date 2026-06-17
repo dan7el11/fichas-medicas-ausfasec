@@ -3,7 +3,7 @@
 // NO contiene lógica: recibe datos + callbacks por props. Tu FichaTrabajador.tsx
 // conserva TODO (carga de datos, generadores de PDF SO-RE-38/40, modales, ExamenesPanel).
 //
-// ESTÉTICA v2: rojo AUSTROGAS atenuado (vino), serif Spectral en titulares, datos en
+// ESTÉTICA v2: color institucional atenuado (vino), serif Spectral en titulares, datos en
 // mono, fondo neutro. Para la serif, agrega en index.html (si no está):
 //   <link href="https://fonts.googleapis.com/css2?family=Spectral:wght@500;600;700&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
 // Si la fuente no carga, cae a Georgia (serif) sin romper nada.
@@ -19,7 +19,7 @@ import type { PermisoMedico } from '../../types/permiso';
 import type { OrdenExamen } from '../../types/examenPlan';
 import SeguimientoSignos from './SeguimientoSignos';
 
-const BRAND = '#9a3036';          // rojo AUSTROGAS atenuado (vino/ladrillo)
+const BRAND = '#9a3036';          // color institucional atenuado (vino/ladrillo)
 const BRAND_SOFT = '#f4e8e9';
 const SERIF = "'Spectral', Georgia, 'Times New Roman', serif";
 const MONO = "'JetBrains Mono', ui-monospace, monospace";

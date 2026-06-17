@@ -1,4 +1,4 @@
-// Constantes del dominio médico ocupacional — CEM AUSTROGAS
+// Constantes del dominio médico ocupacional
 // Catálogos de áreas, puestos, tipos de evaluación y mapeos de color.
 
 export const AREAS = [

@@ -7,6 +7,7 @@ import {
 import {
   estadoPermiso, duracionPermiso, fmtFecha, asuntoCorreo, cuerpoCorreo, buildMailto,
 } from '../../services/permisos';
+import { useEmpresa } from '../../contexts/EmpresaContext';
 
 const ESTADO_TONE: Record<EstadoPermiso, { fg: string; bg: string; label: string }> = {
   justificado: { fg: '#0a6b3b', bg: '#e6f6ee', label: 'Justificado' },
@@ -43,11 +44,12 @@ export function EstadoChip({ estado, small }: { estado: EstadoPermiso; small?: b
 
 /** Acción de justificativo según tipo/estado */
 export function CertAction({ p, compact }: { p: PermisoMedico; compact?: boolean }) {
+  const { empresa } = useEmpresa();
   const meta = TIPOS_PERMISO[p.tipo];
   const cls = `inline-flex items-center gap-1.5 rounded-lg text-[12px] font-semibold cursor-pointer whitespace-nowrap ${compact ? 'px-2.5 py-1.5' : 'px-3 py-[7px]'}`;
   if (!meta.requiereCert) {
     return (
-      <a href={buildMailto(asuntoCorreo(p), cuerpoCorreo(p))} onClick={(e) => e.stopPropagation()}
+      <a href={buildMailto(asuntoCorreo(p), cuerpoCorreo(p, empresa.institucion))} onClick={(e) => e.stopPropagation()}
         className={`${cls} bg-white text-slate-700 border border-slate-300 no-underline`}>
         <Mail size={13} /> {compact ? 'Correo' : 'Generar correo'}
       </a>

@@ -593,7 +593,7 @@ export default function NuevaEvaluacion() {
       const hoy = new Date();
       const mes = String(hoy.getMonth() + 1).padStart(2, '0');
       const dia = String(hoy.getDate()).padStart(2, '0');
-      const numeroArchivo = `AUSTROGAS-${hoy.getFullYear()}${mes}${dia}`;
+      const numeroArchivo = `${DATOS_EMPRESA.prefijoArchivo || 'HCO'}-${hoy.getFullYear()}${mes}${dia}`;
 
       const evaluacionData: any = {
         trabajadorId,
