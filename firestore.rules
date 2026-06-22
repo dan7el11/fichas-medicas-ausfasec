@@ -43,10 +43,12 @@ service cloud.firestore {
     // Firebase (ver guía de despliegue). Un admin sí puede gestionar a otros.
     match /usuarios/{uid} {
       allow read: if isSignedIn();
+      // Cada quien gestiona su propio perfil, sin auto-asignarse 'admin'.
       allow create, update: if isSignedIn()
         && request.auth.uid == uid
         && noSeAutopromueve();
-      allow update, delete: if isAdmin();
+      // Un administrador puede crear y gestionar a los demás usuarios y roles.
+      allow create, update, delete: if isAdmin();
     }
 
     // ── Datos clínicos y operativos ─────────────────────────────────────────

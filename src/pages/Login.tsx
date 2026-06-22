@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { signInWithEmailAndPassword } from 'firebase/auth';
+import { signInWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
 import { auth } from '../services/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { useEmpresa } from '../contexts/EmpresaContext';
@@ -10,6 +10,7 @@ export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [aviso, setAviso] = useState('');
   const [cargando, setCargando] = useState(false);
   
   const navigate = useNavigate();
@@ -27,6 +28,7 @@ export default function Login() {
     setCargando(true);
     try {
       setError('');
+      setAviso('');
       // Envía las credenciales a Firebase
       await signInWithEmailAndPassword(auth, email, password);
       // ¡Esta es la línea mágica que faltaba para abrir la puerta!
@@ -35,6 +37,21 @@ export default function Login() {
       setError('Error al iniciar sesión. Verifica tu correo y contraseña.');
     } finally {
       setCargando(false);
+    }
+  };
+
+  const handleReset = async () => {
+    setError('');
+    setAviso('');
+    if (!email.trim()) {
+      setError('Escribe tu correo arriba y vuelve a pulsar «¿Olvidaste tu contraseña?».');
+      return;
+    }
+    try {
+      await sendPasswordResetEmail(auth, email.trim());
+      setAviso('Te enviamos un correo para restablecer tu contraseña. Revisa tu bandeja (y spam).');
+    } catch {
+      setError('No se pudo enviar el correo. Verifica que la dirección sea correcta.');
     }
   };
 
@@ -50,6 +67,11 @@ export default function Login() {
         {error && (
           <div className="bg-red-50 text-red-600 p-3 rounded-md text-sm mb-4 text-center">
             {error}
+          </div>
+        )}
+        {aviso && (
+          <div className="bg-emerald-50 text-emerald-700 p-3 rounded-md text-sm mb-4 text-center">
+            {aviso}
           </div>
         )}
 
@@ -79,6 +101,15 @@ export default function Login() {
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
             />
+            <div className="text-right mt-1.5">
+              <button
+                type="button"
+                onClick={handleReset}
+                className="text-xs font-semibold text-blue-600 hover:text-blue-700 bg-transparent border-none cursor-pointer p-0"
+              >
+                ¿Olvidaste tu contraseña?
+              </button>
+            </div>
           </div>
           <button
             type="submit"

@@ -12,6 +12,10 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
+// Se exporta para poder crear usuarios desde una app secundaria sin cerrar la
+// sesión del administrador (ver services/usuarios.ts).
+export { firebaseConfig };
+
 const app = initializeApp(firebaseConfig);
 
 export const auth = getAuth(app);

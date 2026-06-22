@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Plus, UserCircle, LogOut, ChevronDown } from 'lucide-react';
+import { Plus, UserCircle, LogOut, ChevronDown, Users } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useEmpresa } from '../../contexts/EmpresaContext';
@@ -135,6 +135,14 @@ export default function TopBar({ userRol, onNewWorker }: TopBarProps) {
               >
                 <UserCircle size={16} className="text-slate-400" /> Mi perfil
               </button>
+              {isAdmin && (
+                <button
+                  onClick={() => { setMenuOpen(false); navigate('/usuarios'); }}
+                  className="flex items-center gap-2.5 w-full text-left px-4 py-2.5 bg-white border-none border-t border-slate-100 cursor-pointer text-[13px] font-semibold text-slate-700 hover:bg-slate-50"
+                >
+                  <Users size={16} className="text-slate-400" /> Gestión de usuarios
+                </button>
+              )}
               <button
                 onClick={handleLogout}
                 className="flex items-center gap-2.5 w-full text-left px-4 py-2.5 bg-white border-none border-t border-slate-100 cursor-pointer text-[13px] font-semibold text-red-600 hover:bg-red-50"

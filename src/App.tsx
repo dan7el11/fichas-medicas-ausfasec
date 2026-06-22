@@ -22,8 +22,10 @@ const Permisos = lazy(() => import('./pages/Permisos'));
 const AgendaExamenes = lazy(() => import('./pages/AgendaExamenes'));
 const ExpedienteResumen = lazy(() => import('./pages/ExpedienteResumen'));
 const ConfiguracionEmpresa = lazy(() => import('./pages/ConfiguracionEmpresa'));
+const ConfiguracionInicial = lazy(() => import('./pages/ConfiguracionInicial'));
 const Inventario = lazy(() => import('./pages/Inventario'));
 const AdminPanel = lazy(() => import('./pages/AdminPanel'));
+const GestionUsuarios = lazy(() => import('./pages/GestionUsuarios'));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -98,9 +100,11 @@ function App() {
 
                   {/* Configuración */}
                   <Route path="/configuracion" element={<ProtectedRoute><ConfiguracionEmpresa /></ProtectedRoute>} />
+                  <Route path="/configuracion-inicial" element={<ProtectedRoute><ConfiguracionInicial /></ProtectedRoute>} />
 
                   {/* Admin */}
                   <Route path="/admin" element={<ProtectedRoute><AdminPanel /></ProtectedRoute>} />
+                  <Route path="/usuarios" element={<ProtectedRoute><GestionUsuarios /></ProtectedRoute>} />
 
                   <Route path="*" element={<Navigate to="/" />} />
                 </Routes>

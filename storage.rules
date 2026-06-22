@@ -39,6 +39,17 @@ service firebase.storage {
       allow write: if isSignedIn() && subidaValida();
     }
 
+    // Logo / imagen institucional. Lectura pública (se muestra en el login,
+    // antes de iniciar sesión); subida solo para usuarios autenticados, y solo
+    // imágenes de hasta 5 MB.
+    match /branding/{fileName=**} {
+      allow read: if true;
+      allow write: if isSignedIn()
+        && (request.resource == null
+          || (request.resource.size < 5 * 1024 * 1024
+              && request.resource.contentType.matches('image/.*')));
+    }
+
     // Denegación por defecto para cualquier otra ruta.
     match /{allPaths=**} {
       allow read, write: if false;

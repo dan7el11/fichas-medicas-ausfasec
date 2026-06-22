@@ -75,6 +75,11 @@ Arrancar ya, en paralelo a la Fase 1.
   valor).
 - La carga inicial de trabajadores por CSV ya existía en el Panel de
   Administración; queda documentado su formato exacto.
+- **HECHO (asistente).** Nuevo asistente de configuración guiado dentro de la
+  app (`/configuracion-inicial`, `src/pages/ConfiguracionInicial.tsx`): en 4
+  pasos pide datos de la empresa, sube el logo (a Storage) y carga los
+  trabajadores por CSV. Accesos desde Inicio (admin) y desde la pantalla de
+  Configuración. Hace el onboarding de cada empresa mucho más armónico.
 
 **Estado:** completado.
 
@@ -123,6 +128,24 @@ Fase 2 (des-marca) ──┘            │
 
 Camino crítico técnico: **Seguridad → Des-marca → Despliegue → Piloto.**
 La Fase 0 corre en paralelo pero debe estar resuelta antes de cobrar.
+
+## Mejoras posteriores a las fases (backlog priorizado)
+
+Mejoras de producto para no buscarlas cada vez. Orden por impacto en vender/operar.
+
+1. **Gestión de usuarios + recuperación de contraseña + control de admin.** ✅ HECHO.
+   - Enlace «¿Olvidaste tu contraseña?» en el login (envía correo de reset).
+   - Pantalla `/usuarios` (solo admin): crear médicos/administradores **sin
+     cerrar la sesión del admin** (app secundaria), cambiar rol, activar/
+     desactivar y enviar reset. Acceso desde el menú del TopBar.
+   - El control de «administrador» ahora usa el **rol real** (`usuarios.rol`),
+     no si el correo contiene "admin" (se corrigió en AdminPanel, Inicio e
+     Inventario). Los usuarios desactivados no pueden iniciar sesión.
+   - Reglas: un admin puede crear/gestionar otros usuarios.
+2. **Registro de auditoría (trazabilidad de cambios).** Pendiente.
+3. **Logo configurable en los PDF.** Pendiente (hoy usa el logo embebido).
+4. **Rendimiento al crecer (paginación/límites en Dashboard y Reportes).** Pendiente.
+5. **Más pruebas en servicios críticos (atenciones, permisos, inventario).** Pendiente.
 
 ## Qué NO hacer todavía
 

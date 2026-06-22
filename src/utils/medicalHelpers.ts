@@ -118,7 +118,8 @@ export function fmtDate(d: any): string {
 
 export function daysUntil(d: any, ref: Date = new Date()): number {
   const date = parseDate(d);
-  return Math.round((date.getTime() - ref.getTime()) / (1000 * 60 * 60 * 24));
+  const dias = Math.round((date.getTime() - ref.getTime()) / (1000 * 60 * 60 * 24));
+  return dias === 0 ? 0 : dias; // normaliza -0 a 0 (evita fallos por redondeo)
 }
 
 export function venceEn(fechaEval: any, meses = 12): Date {

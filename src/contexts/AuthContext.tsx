@@ -52,15 +52,26 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     // Escucha los cambios de sesión en Firebase
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-      setUser(currentUser);
       if (currentUser) {
         try {
-          setPerfil(await cargarPerfil(currentUser));
+          const p = await cargarPerfil(currentUser);
+          // Usuario desactivado por un administrador: se cierra la sesión.
+          if (p && p.activo === false) {
+            await signOut(auth);
+            setUser(null);
+            setPerfil(null);
+            setLoading(false);
+            return;
+          }
+          setUser(currentUser);
+          setPerfil(p);
         } catch (e) {
           console.error('Error al cargar el perfil del usuario:', e);
+          setUser(currentUser);
           setPerfil(null);
         }
       } else {
+        setUser(null);
         setPerfil(null);
       }
       setLoading(false);

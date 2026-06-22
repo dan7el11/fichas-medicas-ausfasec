@@ -26,7 +26,7 @@ interface HomeStats {
 }
 
 export default function Inicio() {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const { empresa } = useEmpresa();
   const navigate = useNavigate();
   const [stats, setStats] = useState<HomeStats>({ trabajadores: 0, atencionesHoy: 0, permisosActivos: 0, examenesAtrasados: 0 });
@@ -50,8 +50,6 @@ export default function Inicio() {
       setCargando(false);
     })();
   }, []);
-
-  const isAdmin = !!(user?.email?.includes('admin'));
 
   const ahora = new Date();
   const hora = ahora.getHours();
@@ -116,6 +114,7 @@ export default function Inicio() {
               <h3 className="m-0 mb-1 text-[17px] font-bold tracking-tight">Accesos rápidos</h3>
               <p className="m-0 text-[13px] text-slate-500 leading-snug">Crea sin entrar al módulo</p>
               <div className="mt-auto pt-4 flex flex-col gap-2">
+                {isAdmin && <Quick label="Configurar empresa (asistente)" onClick={() => navigate('/configuracion-inicial')} color="#0a6b3b" />}
                 <Quick label="Nuevo trabajador" onClick={() => navigate('/nuevo-trabajador')} />
                 <Quick label="Eval. periódica (SO-RE-38)" onClick={() => navigate('/trabajadores')} color="#1d4fad" />
                 <Quick label="Eval. retiro (SO-RE-40)" onClick={() => navigate('/trabajadores')} color="#c2410c" />
