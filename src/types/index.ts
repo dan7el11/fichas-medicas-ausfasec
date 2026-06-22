@@ -4,6 +4,8 @@ export interface Usuario {
   nombreCompleto: string;
   cedula: string;
   rol: 'medico' | 'admin';
+  /** Si es false, el usuario no puede iniciar sesión. undefined = activo. */
+  activo?: boolean;
   createdAt: Date;
 }
 

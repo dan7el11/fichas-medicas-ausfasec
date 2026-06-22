@@ -129,6 +129,24 @@ Fase 2 (des-marca) ──┘            │
 Camino crítico técnico: **Seguridad → Des-marca → Despliegue → Piloto.**
 La Fase 0 corre en paralelo pero debe estar resuelta antes de cobrar.
 
+## Mejoras posteriores a las fases (backlog priorizado)
+
+Mejoras de producto para no buscarlas cada vez. Orden por impacto en vender/operar.
+
+1. **Gestión de usuarios + recuperación de contraseña + control de admin.** ✅ HECHO.
+   - Enlace «¿Olvidaste tu contraseña?» en el login (envía correo de reset).
+   - Pantalla `/usuarios` (solo admin): crear médicos/administradores **sin
+     cerrar la sesión del admin** (app secundaria), cambiar rol, activar/
+     desactivar y enviar reset. Acceso desde el menú del TopBar.
+   - El control de «administrador» ahora usa el **rol real** (`usuarios.rol`),
+     no si el correo contiene "admin" (se corrigió en AdminPanel, Inicio e
+     Inventario). Los usuarios desactivados no pueden iniciar sesión.
+   - Reglas: un admin puede crear/gestionar otros usuarios.
+2. **Registro de auditoría (trazabilidad de cambios).** Pendiente.
+3. **Logo configurable en los PDF.** Pendiente (hoy usa el logo embebido).
+4. **Rendimiento al crecer (paginación/límites en Dashboard y Reportes).** Pendiente.
+5. **Más pruebas en servicios críticos (atenciones, permisos, inventario).** Pendiente.
+
 ## Qué NO hacer todavía
 
 - No construir multi-tenancy real (Camino A; después de validar con clientes).

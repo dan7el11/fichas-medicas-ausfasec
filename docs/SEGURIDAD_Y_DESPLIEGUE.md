@@ -91,6 +91,12 @@ A partir de ahí, ese usuario puede gestionar a los demás.
 > Ese código debería eliminarse en la Fase 2/4; mientras tanto, es inofensivo
 > (falla silenciosamente y se continúa).
 
+> Gestión de usuarios desde la app: una vez que exista al menos un
+> administrador, este puede crear y gestionar al resto del equipo desde la
+> pantalla **Gestión de usuarios** (menú de usuario → Gestión de usuarios), sin
+> entrar a la consola. El control de "administrador" usa el campo `rol` del
+> documento `usuarios/{uid}`.
+
 ---
 
 ## 6. Limitaciones actuales (pendientes de fases siguientes)

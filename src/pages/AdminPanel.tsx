@@ -628,7 +628,7 @@ function TabMovimientosAdmin({ inventario, movimientos, usuarioNombre, onRefresh
 // PÁGINA PRINCIPAL
 // ════════════════════════════════════════════════════════════════════════════
 export default function AdminPanel() {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const { empresa } = useEmpresa();
   const navigate = useNavigate();
   const [tab, setTab] = useState<Tab>('trabajadores');
@@ -649,7 +649,6 @@ export default function AdminPanel() {
     }
   };
 
-  const isAdmin = !!(user?.email?.includes('admin'));
   const usuarioNombre = user?.email?.split('@')[0] ?? 'admin';
   const userInitials = user?.email?.slice(0, 2).toUpperCase() ?? 'AD';
 

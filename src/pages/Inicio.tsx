@@ -26,7 +26,7 @@ interface HomeStats {
 }
 
 export default function Inicio() {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const { empresa } = useEmpresa();
   const navigate = useNavigate();
   const [stats, setStats] = useState<HomeStats>({ trabajadores: 0, atencionesHoy: 0, permisosActivos: 0, examenesAtrasados: 0 });
@@ -50,8 +50,6 @@ export default function Inicio() {
       setCargando(false);
     })();
   }, []);
-
-  const isAdmin = !!(user?.email?.includes('admin'));
 
   const ahora = new Date();
   const hora = ahora.getHours();
