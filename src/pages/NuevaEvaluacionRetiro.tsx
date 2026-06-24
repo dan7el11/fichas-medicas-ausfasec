@@ -10,6 +10,7 @@ import SignosVitalesForm from '../components/SignosVitalesForm';
 import BuscadorCIE10 from '../components/BuscadorCIE10';
 import { SeccionI } from '../components/evaluacion/SeccionesEvaluacion';
 import { LOGO_EMPRESA } from '../assets/logoEmpresa';
+import { cargarLogoParaPdf } from '../utils/logoPdf';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import type {
@@ -124,6 +125,17 @@ export default function NuevaEvaluacionRetiro() {
   const { user } = useAuth();
   const toast = useToast();
   const { empresa: DATOS_EMPRESA } = useEmpresa();
+  // Logo para los PDF: el configurado por la empresa, con respaldo al embebido.
+  const [logoPdf, setLogoPdf] = useState<{ data: string; format: string }>({ data: LOGO_EMPRESA, format: 'PNG' });
+  useEffect(() => {
+    let cancelado = false;
+    if (DATOS_EMPRESA.logoUrl) {
+      cargarLogoParaPdf(DATOS_EMPRESA.logoUrl).then((r) => { if (!cancelado && r) setLogoPdf(r); });
+    } else {
+      setLogoPdf({ data: LOGO_EMPRESA, format: 'PNG' });
+    }
+    return () => { cancelado = true; };
+  }, [DATOS_EMPRESA.logoUrl]);
 
   const [trabajador, setTrabajador] = useState<Trabajador | null>(null);
   const [medicoData, setMedicoData] = useState<Usuario | null>(null);
@@ -357,7 +369,7 @@ export default function NuevaEvaluacionRetiro() {
     const AT = (opts: any) => { autoTable(pdf, opts); y = (pdf as any).lastAutoTable.finalY; };
 
     const secHeader = (texto: string, bgColor = colorPrimario) => {
-      pdf.addImage(LOGO_EMPRESA, 'PNG', 8, 8, 40, 15);
+      pdf.addImage(logoPdf.data, logoPdf.format, 8, 8, 40, 15);
       pdf.setFillColor(bgColor); pdf.setDrawColor(0);
       pdf.rect(M, y, CW, 5, 'FD');
       pdf.setFontSize(7); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(0);
@@ -402,7 +414,7 @@ export default function NuevaEvaluacionRetiro() {
         ],
       });
       // Logo dentro de la primera celda del encabezado
-      pdf.addImage(LOGO_EMPRESA, 'PNG', M + 1, tableStartY + 1, 40, 12);
+      pdf.addImage(logoPdf.data, logoPdf.format, M + 1, tableStartY + 1, 40, 12);
       y += 2;
     };
 

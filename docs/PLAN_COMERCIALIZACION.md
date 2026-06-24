@@ -51,9 +51,8 @@ Arrancar ya, en paralelo a la Fase 1.
 - **HECHO.** La pantalla de Configuración permite editar todos esos campos,
   incluido un logo por URL (`logoUrl`); si se deja vacío usa el logo por defecto.
 - **HECHO.** El título de la pestaña del navegador se ajusta a la empresa.
-- **Pendiente menor:** el logo *impreso dentro de los PDF* sigue usando el logo
-  embebido (`LOGO_EMPRESA`); cambiarlo por empresa requiere cargar la imagen de
-  forma asíncrona en jsPDF (queda para Fase 4).
+- **RESUELTO** (mejora #3): el logo impreso dentro de los PDF ahora usa el logo
+  configurado por la empresa, con respaldo al embebido.
 - **Pendiente menor:** los valores por defecto en `EmpresaContext` siguen siendo
   los de AUSTROGAS como respaldo seguro; se pueden dejar neutros una vez
   confirmado que la instancia AUSTROGAS tiene su configuración guardada.
@@ -150,7 +149,11 @@ Mejoras de producto para no buscarlas cada vez. Orden por impacto en vender/oper
      (periódica, retiro, preocupacional), atenciones, permisos y usuarios.
    - Pantalla `/auditoria` (solo admin) con filtros (entidad, acción, texto) y
      exportación CSV. Acceso desde el menú del TopBar.
-3. **Logo configurable en los PDF.** Pendiente (hoy usa el logo embebido).
+3. **Logo configurable en los PDF.** ✅ HECHO. Los formularios SO-RE-38/40
+   (FichaTrabajador y NuevaEvaluacionRetiro) ahora imprimen el logo configurado
+   por la empresa (`empresa.logoUrl`), cargándolo como data URL con
+   `utils/logoPdf.ts`; si no hay logo configurado o falla la carga, usan el
+   logo embebido por defecto.
 4. **Rendimiento al crecer (paginación/límites en Dashboard y Reportes).** Pendiente.
 5. **Más pruebas en servicios críticos (atenciones, permisos, inventario).** Pendiente.
 
