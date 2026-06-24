@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { doc, getDoc, collection, addDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../services/firebase';
+import { registrarAuditoria } from '../services/auditoria';
 import SignosVitalesForm from '../components/SignosVitalesForm';
 import BuscadorCIE10 from '../components/BuscadorCIE10';
 
@@ -112,8 +113,9 @@ export default function NuevaPreocupacional() {
         updatedAt: new Date()
       };
 
-      await addDoc(collection(db, 'evaluaciones'), nuevaEvaluacion);
-      
+      const refPreoc = await addDoc(collection(db, 'evaluaciones'), nuevaEvaluacion);
+      await registrarAuditoria('crear', 'evaluacion', refPreoc.id, `Evaluación preocupacional de ${trabajador?.primerApellido ?? ''} ${trabajador?.primerNombre ?? ''}`.trim());
+
       // Actualizar fecha en el trabajador
       await updateDoc(doc(db, 'trabajadores', trabajadorId), {
         ultimaEvaluacionPreocupacional: new Date(fechaEvaluacion)

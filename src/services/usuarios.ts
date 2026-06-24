@@ -7,6 +7,7 @@ import {
 } from 'firebase/auth';
 import { collection, getDocs, doc, setDoc, updateDoc } from 'firebase/firestore';
 import { db, auth, firebaseConfig } from './firebase';
+import { registrarAuditoria } from './auditoria';
 import type { Usuario } from '../types';
 
 /** Lista todos los usuarios registrados (colección `usuarios`). */
@@ -41,6 +42,7 @@ export async function crearUsuario(datos: NuevoUsuario): Promise<void> {
       activo: true,
       createdAt: new Date(),
     });
+    await registrarAuditoria('crear', 'usuario', cred.user.uid, `Creó al usuario ${datos.email.trim()} (${datos.rol})`);
     await signOut(secAuth);
   } finally {
     await deleteApp(secApp);
@@ -50,11 +52,13 @@ export async function crearUsuario(datos: NuevoUsuario): Promise<void> {
 /** Cambia el rol de un usuario. */
 export async function actualizarRol(uid: string, rol: 'medico' | 'admin'): Promise<void> {
   await updateDoc(doc(db, 'usuarios', uid), { rol });
+  await registrarAuditoria('editar', 'usuario', uid, `Cambió el rol a ${rol}`);
 }
 
 /** Activa o desactiva el acceso de un usuario. */
 export async function setActivo(uid: string, activo: boolean): Promise<void> {
   await updateDoc(doc(db, 'usuarios', uid), { activo });
+  await registrarAuditoria('editar', 'usuario', uid, activo ? 'Activó la cuenta' : 'Desactivó la cuenta');
 }
 
 /** Envía un correo de recuperación de contraseña (usa la sesión principal). */

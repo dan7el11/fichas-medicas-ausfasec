@@ -51,9 +51,8 @@ Arrancar ya, en paralelo a la Fase 1.
 - **HECHO.** La pantalla de Configuración permite editar todos esos campos,
   incluido un logo por URL (`logoUrl`); si se deja vacío usa el logo por defecto.
 - **HECHO.** El título de la pestaña del navegador se ajusta a la empresa.
-- **Pendiente menor:** el logo *impreso dentro de los PDF* sigue usando el logo
-  embebido (`LOGO_EMPRESA`); cambiarlo por empresa requiere cargar la imagen de
-  forma asíncrona en jsPDF (queda para Fase 4).
+- **RESUELTO** (mejora #3): el logo impreso dentro de los PDF ahora usa el logo
+  configurado por la empresa, con respaldo al embebido.
 - **Pendiente menor:** los valores por defecto en `EmpresaContext` siguen siendo
   los de AUSTROGAS como respaldo seguro; se pueden dejar neutros una vez
   confirmado que la instancia AUSTROGAS tiene su configuración guardada.
@@ -142,9 +141,29 @@ Mejoras de producto para no buscarlas cada vez. Orden por impacto en vender/oper
      no si el correo contiene "admin" (se corrigió en AdminPanel, Inicio e
      Inventario). Los usuarios desactivados no pueden iniciar sesión.
    - Reglas: un admin puede crear/gestionar otros usuarios.
-2. **Registro de auditoría (trazabilidad de cambios).** Pendiente.
-3. **Logo configurable en los PDF.** Pendiente (hoy usa el logo embebido).
-4. **Rendimiento al crecer (paginación/límites en Dashboard y Reportes).** Pendiente.
+2. **Registro de auditoría (trazabilidad de cambios).** ✅ HECHO.
+   - Colección `auditoria` **append-only** (nadie puede editar ni borrar;
+     lectura solo admin) — sirve como evidencia.
+   - Servicio `registrarAuditoria` que nunca rompe el flujo principal.
+     Instrumentados: alta/edición/eliminación de trabajadores, evaluaciones
+     (periódica, retiro, preocupacional), atenciones, permisos y usuarios.
+   - Pantalla `/auditoria` (solo admin) con filtros (entidad, acción, texto) y
+     exportación CSV. Acceso desde el menú del TopBar.
+3. **Logo configurable en los PDF.** ✅ HECHO. Los formularios SO-RE-38/40
+   (FichaTrabajador y NuevaEvaluacionRetiro) ahora imprimen el logo configurado
+   por la empresa (`empresa.logoUrl`), cargándolo como data URL con
+   `utils/logoPdf.ts`; si no hay logo configurado o falla la carga, usan el
+   logo embebido por defecto.
+4. **Rendimiento al crecer (paginación/límites).** ✅ HECHO (primeras mejoras).
+   - Inicio cuenta los trabajadores con `getCountFromServer` (agregación) en vez
+     de descargar toda la tabla solo para mostrar el número.
+   - Reportes carga atenciones y permisos (lo que más crece, a diario) acotados
+     a los **últimos 12 meses** por defecto; solo al elegir «Histórico» trae
+     todo. La matriz de estado (evaluaciones/trabajadores) sigue completa porque
+     necesita la última evaluación de cada trabajador.
+   - Pendiente a futuro: si una instancia crece mucho, denormalizar el estado de
+     aptitud en el trabajador para no cargar todas las evaluaciones en el
+     Dashboard.
 5. **Más pruebas en servicios críticos (atenciones, permisos, inventario).** Pendiente.
 
 ## Qué NO hacer todavía

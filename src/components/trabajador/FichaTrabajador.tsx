@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { doc, getDoc, updateDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../../services/firebase';
+import { registrarAuditoria } from '../../services/auditoria';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import type { Trabajador, EvaluacionMedica } from '../../types';
@@ -13,6 +14,7 @@ import { useConfirm } from '../ConfirmDialog';
 import { useAuth } from '../../contexts/AuthContext';
 import { useEmpresa } from '../../contexts/EmpresaContext';
 import { LOGO_EMPRESA } from '../../assets/logoEmpresa';
+import { cargarLogoParaPdf } from '../../utils/logoPdf';
 import { getOrdenes, eliminarOrden } from '../../services/examenesPlan';
 import { estadoPermiso, duracionPermiso, fmtFecha as fmtPF, toDate, actualizarPermiso, eliminarPermiso } from '../../services/permisos';
 import { TIPOS_PERMISO } from '../../types/permiso';
@@ -134,6 +136,17 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
   const confirm = useConfirm();
   const { user, displayName } = useAuth();
   const { empresa } = useEmpresa();
+  // Logo para los PDF: el configurado por la empresa, con respaldo al embebido.
+  const [logoPdf, setLogoPdf] = useState<{ data: string; format: string }>({ data: LOGO_EMPRESA, format: 'PNG' });
+  useEffect(() => {
+    let cancelado = false;
+    if (empresa.logoUrl) {
+      cargarLogoParaPdf(empresa.logoUrl).then((r) => { if (!cancelado && r) setLogoPdf(r); });
+    } else {
+      setLogoPdf({ data: LOGO_EMPRESA, format: 'PNG' });
+    }
+    return () => { cancelado = true; };
+  }, [empresa.logoUrl]);
 
   const [trabajador, setTrabajador] = useState<Trabajador | null>(null);
   const [evaluaciones, setEvaluaciones] = useState<EvaluacionMedica[]>([]);
@@ -252,6 +265,7 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
     setGuardandoEdicion(true);
     try {
       await updateDoc(doc(db, 'trabajadores', trabajadorId), { ...datosEdicion, updatedAt: new Date(), updatedBy: user?.uid || '' });
+      await registrarAuditoria('editar', 'trabajador', trabajadorId, `Editó la ficha de ${datosEdicion.primerApellido} ${datosEdicion.primerNombre}`);
       setTrabajador(prev => prev ? { ...prev, ...datosEdicion } as any : prev);
       setModalEditar(false);
       toast.success('Datos del trabajador actualizados.');
@@ -381,7 +395,7 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
 
     const secHeader = (texto: string, bgColor = colorPrimario) => {
       checkPage(10);
-      pdf.addImage(LOGO_EMPRESA, 'PNG', 8, 8, 40, 15);
+      pdf.addImage(logoPdf.data, logoPdf.format, 8, 8, 40, 15);
       pdf.setFillColor(bgColor); pdf.setDrawColor(0);
       pdf.rect(M, y, CW, 5, 'FD');
       pdf.setFontSize(7); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(0);
@@ -703,7 +717,7 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
     const paginaHeader = (pagina: string) => {
       const tableStartY = y;
       AT({ startY: y, margin: { left: M, right: M }, theme: 'grid', styles: { ...base, halign: 'center', fontSize: 8 }, columnStyles: { 0: { cellWidth: 42 }, 2: { cellWidth: 33 } }, body: [[{ content: '', rowSpan: 3, styles: { fontSize: 11, valign: 'middle' } }, { content: 'HISTORIA CLÍNICA:\nEVALUACIÓN MÉDICA DE RETIRO', rowSpan: 2, styles: { fontStyle: 'bold', fontSize: 9, valign: 'middle' } }, { content: 'Código:   SO-RE-40', styles: { fontSize: 7, halign: 'left' } }], [{ content: 'Revisión:  1', styles: { fontSize: 7, halign: 'left' } }], [{ content: 'MACROPROCESO:  PLANIFICACIÓN, SEGURIDAD Y AMBIENTE', styles: { fontSize: 6, fontStyle: 'bold' } }, { content: pagina, styles: { fontSize: 7, halign: 'left' } }]] });
-      pdf.addImage(LOGO_EMPRESA, 'PNG', M + 1, tableStartY + 1, 40, 12);
+      pdf.addImage(logoPdf.data, logoPdf.format, M + 1, tableStartY + 1, 40, 12);
       y += 2;
     };
 

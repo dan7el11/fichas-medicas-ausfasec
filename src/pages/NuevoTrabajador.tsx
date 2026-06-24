@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { collection, addDoc, getDocs, query, where } from 'firebase/firestore';
 import { useNavigate } from 'react-router-dom';
 import { db } from '../services/firebase';
+import { registrarAuditoria } from '../services/auditoria';
 import { validarCedula } from '../utils/calculations';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -65,13 +66,14 @@ export default function NuevoTrabajador() {
         return;
       }
 
-      await addDoc(collection(db, 'trabajadores'), {
+      const ref = await addDoc(collection(db, 'trabajadores'), {
         ...datos,
         evaluaciones: [],
         createdAt: new Date(),
         updatedAt: new Date(),
         createdBy: user?.uid || '',
       });
+      await registrarAuditoria('crear', 'trabajador', ref.id, `Registró a ${datos.primerApellido} ${datos.primerNombre} (CI ${datos.cedula})`);
       navigate('/');
     } catch {
       setError('No se pudo registrar al trabajador. Intente nuevamente.');

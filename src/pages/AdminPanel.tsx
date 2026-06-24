@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { db } from '../services/firebase';
 import { descargarRespaldo } from '../services/respaldo';
+import { registrarAuditoria } from '../services/auditoria';
 import { useAuth } from '../contexts/AuthContext';
 import { useEmpresa } from '../contexts/EmpresaContext';
 import TopBar from '../components/dashboard/TopBar';
@@ -211,10 +212,12 @@ function TabTrabajadores({ userId }: { userId: string }) {
     try {
       if (editando?.id) {
         await updateDoc(doc(db, 'trabajadores', editando.id), { ...form, updatedAt: new Date(), updatedBy: userId });
+        await registrarAuditoria('editar', 'trabajador', editando.id, `Editó a ${form.primerApellido} ${form.primerNombre} (CI ${form.cedula})`);
       } else {
         const dup = lista.find((t) => t.cedula === form.cedula.trim());
         if (dup) { setError('Ya existe un trabajador con esa cédula.'); setGuardando(false); return; }
-        await addDoc(collection(db, 'trabajadores'), { ...form, evaluaciones: [], createdAt: new Date(), updatedAt: new Date(), createdBy: userId });
+        const ref = await addDoc(collection(db, 'trabajadores'), { ...form, evaluaciones: [], createdAt: new Date(), updatedAt: new Date(), createdBy: userId });
+        await registrarAuditoria('crear', 'trabajador', ref.id, `Registró a ${form.primerApellido} ${form.primerNombre} (CI ${form.cedula})`);
       }
       await cargar(); cancelar();
     } catch (e: any) { setError(e.message ?? 'Error al guardar'); }
@@ -224,6 +227,7 @@ function TabTrabajadores({ userId }: { userId: string }) {
   const eliminar = async (t: Trabajador) => {
     if (!t.id || !window.confirm(`¿Eliminar a ${t.primerApellido} ${t.primerNombre}? Esta acción no se puede deshacer.`)) return;
     await deleteDoc(doc(db, 'trabajadores', t.id));
+    await registrarAuditoria('eliminar', 'trabajador', t.id, `Eliminó a ${t.primerApellido} ${t.primerNombre} (CI ${t.cedula})`);
     await cargar();
   };
 
