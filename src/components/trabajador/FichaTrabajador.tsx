@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { doc, getDoc, updateDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../../services/firebase';
+import { registrarAuditoria } from '../../services/auditoria';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import type { Trabajador, EvaluacionMedica } from '../../types';
@@ -252,6 +253,7 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
     setGuardandoEdicion(true);
     try {
       await updateDoc(doc(db, 'trabajadores', trabajadorId), { ...datosEdicion, updatedAt: new Date(), updatedBy: user?.uid || '' });
+      await registrarAuditoria('editar', 'trabajador', trabajadorId, `Editó la ficha de ${datosEdicion.primerApellido} ${datosEdicion.primerNombre}`);
       setTrabajador(prev => prev ? { ...prev, ...datosEdicion } as any : prev);
       setModalEditar(false);
       toast.success('Datos del trabajador actualizados.');

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { doc, getDoc, collection, addDoc, updateDoc, arrayUnion, query, where, orderBy, getDocs, limit } from 'firebase/firestore';
 import { db } from '../services/firebase';
+import { registrarAuditoria } from '../services/auditoria';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../components/Toast';
 import { useEmpresa } from '../hooks/useEmpresa';
@@ -313,6 +314,7 @@ export default function NuevaEvaluacionRetiro() {
       };
       if (editEvalId) {
         await updateDoc(doc(db, 'evaluaciones', editEvalId), { ...payload, updatedAt: new Date(), updatedBy: user.uid });
+        await registrarAuditoria('editar', 'evaluacion', editEvalId, `Editó la evaluación de retiro de ${trabajador?.primerApellido ?? ''} ${trabajador?.primerNombre ?? ''}`.trim());
       } else {
         const ref = await addDoc(collection(db, 'evaluaciones'), payload);
         await updateDoc(doc(db, 'trabajadores', trabajadorId), {
@@ -321,6 +323,7 @@ export default function NuevaEvaluacionRetiro() {
           updatedAt: new Date(),
           updatedBy: user.uid,
         });
+        await registrarAuditoria('crear', 'evaluacion', ref.id, `Evaluación de retiro de ${trabajador?.primerApellido ?? ''} ${trabajador?.primerNombre ?? ''}`.trim());
       }
       toast.success(editEvalId ? 'Evaluación actualizada correctamente.' : 'Evaluación de retiro guardada correctamente.');
       navigate(`/trabajador/${trabajadorId}`);

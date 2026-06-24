@@ -5,6 +5,7 @@ import {
   collection, getDocs, addDoc, updateDoc, deleteDoc, doc, orderBy, query as fbQuery, Timestamp,
 } from 'firebase/firestore';
 import { db } from './firebase';
+import { registrarAuditoria } from './auditoria';
 import {
   TIPOS_PERMISO, type PermisoMedico, type EstadoPermiso,
 } from '../types/permiso';
@@ -47,6 +48,7 @@ export async function getPermisos(): Promise<PermisoMedico[]> {
 
 export async function crearPermiso(data: Omit<PermisoMedico, 'id' | 'createdAt'>): Promise<string> {
   const ref = await addDoc(collection(db, COL), { ...data, createdAt: Timestamp.now() });
+  await registrarAuditoria('crear', 'permiso', ref.id, `Permiso (${data.tipo}) para ${data.apellidos} ${data.nombres}`);
   return ref.id;
 }
 
@@ -60,6 +62,7 @@ export async function actualizarPermiso(id: string, patch: Partial<PermisoMedico
 
 export async function eliminarPermiso(id: string): Promise<void> {
   await deleteDoc(doc(db, COL, id));
+  await registrarAuditoria('eliminar', 'permiso', id, 'Eliminó un permiso');
 }
 
 // ── Estado calculado ─────────────────────────────────────────────────────────

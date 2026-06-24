@@ -12,6 +12,7 @@ import {
   Timestamp,
 } from 'firebase/firestore';
 import { db } from './firebase';
+import { registrarAuditoria } from './auditoria';
 import type { AtencionMedica } from '../types/atencion';
 
 const COL = 'atenciones';
@@ -104,6 +105,10 @@ export async function crearAtencion(
     ...data,
     createdAt: Timestamp.now(),
   });
+  await registrarAuditoria(
+    'crear', 'atencion', ref.id,
+    `Atención a ${data.pacienteApellidos} ${data.pacienteNombres}${data.cieCodigo ? ` · ${data.cieCodigo}` : ''}`,
+  );
   return ref.id;
 }
 

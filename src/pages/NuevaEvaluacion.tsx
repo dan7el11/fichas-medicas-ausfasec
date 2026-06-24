@@ -3,6 +3,7 @@ import { useToast } from '../components/Toast';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { doc, getDoc, collection, addDoc, updateDoc, arrayUnion, query, where, orderBy, getDocs, limit } from 'firebase/firestore';
 import { db } from '../services/firebase';
+import { registrarAuditoria } from '../services/auditoria';
 import { useAuth } from '../contexts/AuthContext';
 import SignosVitalesForm from '../components/SignosVitalesForm';
 import type { Trabajador, SignosVitales, HabitoToxico, EstiloVida, AccidenteTrabajo, EnfermedadProfesional, AntecedenteFamiliar, ExamenFisicoHallazgo, ExamenComplementario, Diagnostico, Usuario, FactorRiesgoPuesto, AntecedenteClinico, AntecedenteQuirurgico, Alergia, MedicacionHabitual } from '../types';
@@ -635,6 +636,7 @@ export default function NuevaEvaluacion() {
           updatedAt: hoy,
           updatedBy: user.uid,
         });
+        await registrarAuditoria('editar', 'evaluacion', editEvalId, `Editó la evaluación periódica de ${trabajador.primerApellido} ${trabajador.primerNombre}`);
         toast.success('Evaluación actualizada con éxito');
       } else {
         evaluacionData.fecha = hoy;
@@ -650,6 +652,7 @@ export default function NuevaEvaluacion() {
           updatedAt: hoy,
           updatedBy: user.uid,
         });
+        await registrarAuditoria('crear', 'evaluacion', docRef.id, `Evaluación periódica de ${trabajador.primerApellido} ${trabajador.primerNombre}`);
         toast.success('Evaluación guardada exitosamente');
       }
 

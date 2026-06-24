@@ -26,6 +26,7 @@ const ConfiguracionInicial = lazy(() => import('./pages/ConfiguracionInicial'));
 const Inventario = lazy(() => import('./pages/Inventario'));
 const AdminPanel = lazy(() => import('./pages/AdminPanel'));
 const GestionUsuarios = lazy(() => import('./pages/GestionUsuarios'));
+const Auditoria = lazy(() => import('./pages/Auditoria'));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -105,6 +106,7 @@ function App() {
                   {/* Admin */}
                   <Route path="/admin" element={<ProtectedRoute><AdminPanel /></ProtectedRoute>} />
                   <Route path="/usuarios" element={<ProtectedRoute><GestionUsuarios /></ProtectedRoute>} />
+                  <Route path="/auditoria" element={<ProtectedRoute><Auditoria /></ProtectedRoute>} />
 
                   <Route path="*" element={<Navigate to="/" />} />
                 </Routes>

@@ -142,7 +142,14 @@ Mejoras de producto para no buscarlas cada vez. Orden por impacto en vender/oper
      no si el correo contiene "admin" (se corrigió en AdminPanel, Inicio e
      Inventario). Los usuarios desactivados no pueden iniciar sesión.
    - Reglas: un admin puede crear/gestionar otros usuarios.
-2. **Registro de auditoría (trazabilidad de cambios).** Pendiente.
+2. **Registro de auditoría (trazabilidad de cambios).** ✅ HECHO.
+   - Colección `auditoria` **append-only** (nadie puede editar ni borrar;
+     lectura solo admin) — sirve como evidencia.
+   - Servicio `registrarAuditoria` que nunca rompe el flujo principal.
+     Instrumentados: alta/edición/eliminación de trabajadores, evaluaciones
+     (periódica, retiro, preocupacional), atenciones, permisos y usuarios.
+   - Pantalla `/auditoria` (solo admin) con filtros (entidad, acción, texto) y
+     exportación CSV. Acceso desde el menú del TopBar.
 3. **Logo configurable en los PDF.** Pendiente (hoy usa el logo embebido).
 4. **Rendimiento al crecer (paginación/límites en Dashboard y Reportes).** Pendiente.
 5. **Más pruebas en servicios críticos (atenciones, permisos, inventario).** Pendiente.

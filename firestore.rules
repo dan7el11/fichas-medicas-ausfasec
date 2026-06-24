@@ -79,6 +79,15 @@ service cloud.firestore {
       allow write: if isSignedIn();
     }
 
+    // Bitácora de auditoría: cualquier usuario autenticado puede AÑADIR
+    // entradas (al guardar/editar/eliminar registros), solo un admin puede
+    // leerla, y NADIE puede modificarla o borrarla (append-only = evidencia).
+    match /auditoria/{id} {
+      allow create: if isSignedIn();
+      allow read: if isAdmin();
+      allow update, delete: if false;
+    }
+
     // ── Denegación por defecto ──────────────────────────────────────────────
     // Cualquier ruta no contemplada arriba queda bloqueada.
     match /{document=**} {
