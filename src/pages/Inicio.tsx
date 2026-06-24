@@ -3,7 +3,7 @@
 import type { ReactNode } from 'react';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { collection, getDocs } from 'firebase/firestore';
+import { collection, getCountFromServer } from 'firebase/firestore';
 import {
   Users, Stethoscope, CalendarDays, ClipboardList, BarChart3,
   ArrowRight, Plus, Activity, AlertTriangle, Calendar, Package, Shield,
@@ -36,13 +36,13 @@ export default function Inicio() {
     (async () => {
       setCargando(true);
       const [tRes, aRes, pRes, eRes] = await Promise.allSettled([
-        getDocs(collection(db, 'trabajadores')),
+        getCountFromServer(collection(db, 'trabajadores')),
         getAtencionesDelDia(new Date()),
         getPermisos(),
         getOrdenes(),
       ]);
       const next: HomeStats = { trabajadores: 0, atencionesHoy: 0, permisosActivos: 0, examenesAtrasados: 0 };
-      if (tRes.status === 'fulfilled') next.trabajadores = tRes.value.size;
+      if (tRes.status === 'fulfilled') next.trabajadores = tRes.value.data().count;
       if (aRes.status === 'fulfilled') next.atencionesHoy = statsAtenciones(aRes.value).total;
       if (pRes.status === 'fulfilled') next.permisosActivos = permisosStats(pRes.value).activos;
       if (eRes.status === 'fulfilled') next.examenesAtrasados = statsExamenes(eRes.value).atrasados;

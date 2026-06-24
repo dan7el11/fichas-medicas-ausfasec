@@ -6,6 +6,8 @@ import type { ReactNode } from 'react';
 import { useState, useEffect, useMemo } from 'react';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '../services/firebase';
+import { getAtencionesEnRango } from '../services/atenciones';
+import { getPermisosDesde } from '../services/permisos';
 import TopBar from '../components/dashboard/TopBar';
 import { useNavigate } from 'react-router-dom';
 import { useEmpresa } from '../contexts/EmpresaContext';
@@ -62,20 +64,27 @@ export default function Reportes() {
   const [cargando, setCargando] = useState(true);
   const [tab, setTab] = useState<TabId>('estado');
   const [periodo, setPeriodo] = useState<PeriodoId>('trimestre');
+  // Para no descargar todo el histórico de atenciones/permisos (lo que más
+  // crece), por defecto se cargan los últimos 12 meses. Solo cuando se elige
+  // «Histórico» se traen todas.
+  const [historicoCargado, setHistoricoCargado] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [tSnap, eSnap, aSnap, pSnap] = await Promise.all([
+        const hace12m = new Date();
+        hace12m.setMonth(hace12m.getMonth() - 12);
+        const manana = new Date(Date.now() + 24 * 60 * 60 * 1000);
+        const [tSnap, eSnap, ats, pers] = await Promise.all([
           getDocs(collection(db, 'trabajadores')),
           getDocs(collection(db, 'evaluaciones')),
-          getDocs(collection(db, 'atenciones')),
-          getDocs(collection(db, 'permisos')),
+          getAtencionesEnRango(hace12m, manana),
+          getPermisosDesde(hace12m),
         ]);
         setTrabajadores(tSnap.docs.map(d => ({ id: d.id, ...d.data() } as Trabajador)));
         setEvaluaciones(eSnap.docs.map(d => ({ id: d.id, ...d.data() } as EvaluacionMedica)));
-        setAtenciones(aSnap.docs.map(d => ({ id: d.id, ...d.data() } as AtencionMedica)));
-        setPermisos(pSnap.docs.map(d => ({ id: d.id, ...d.data() } as PermisoMedico)));
+        setAtenciones(ats);
+        setPermisos(pers);
       } catch (err) {
         console.error('Error al cargar reportes:', err);
       } finally {
@@ -84,6 +93,24 @@ export default function Reportes() {
     };
     fetchData();
   }, []);
+
+  // Al elegir «Histórico», se completan TODAS las atenciones y permisos.
+  useEffect(() => {
+    if (periodo !== 'todo' || historicoCargado) return;
+    (async () => {
+      try {
+        const [aSnap, pSnap] = await Promise.all([
+          getDocs(collection(db, 'atenciones')),
+          getDocs(collection(db, 'permisos')),
+        ]);
+        setAtenciones(aSnap.docs.map(d => ({ id: d.id, ...d.data() } as AtencionMedica)));
+        setPermisos(pSnap.docs.map(d => ({ id: d.id, ...d.data() } as PermisoMedico)));
+        setHistoricoCargado(true);
+      } catch (err) {
+        console.error('Error al cargar el histórico completo:', err);
+      }
+    })();
+  }, [periodo, historicoCargado]);
 
   // ── Filtro por período (morbilidad y ausentismo) ──────────────────────────
   const desde = inicioPeriodo(periodo);

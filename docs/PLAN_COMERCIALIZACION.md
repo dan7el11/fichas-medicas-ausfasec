@@ -154,7 +154,16 @@ Mejoras de producto para no buscarlas cada vez. Orden por impacto en vender/oper
    por la empresa (`empresa.logoUrl`), cargándolo como data URL con
    `utils/logoPdf.ts`; si no hay logo configurado o falla la carga, usan el
    logo embebido por defecto.
-4. **Rendimiento al crecer (paginación/límites en Dashboard y Reportes).** Pendiente.
+4. **Rendimiento al crecer (paginación/límites).** ✅ HECHO (primeras mejoras).
+   - Inicio cuenta los trabajadores con `getCountFromServer` (agregación) en vez
+     de descargar toda la tabla solo para mostrar el número.
+   - Reportes carga atenciones y permisos (lo que más crece, a diario) acotados
+     a los **últimos 12 meses** por defecto; solo al elegir «Histórico» trae
+     todo. La matriz de estado (evaluaciones/trabajadores) sigue completa porque
+     necesita la última evaluación de cada trabajador.
+   - Pendiente a futuro: si una instancia crece mucho, denormalizar el estado de
+     aptitud en el trabajador para no cargar todas las evaluaciones en el
+     Dashboard.
 5. **Más pruebas en servicios críticos (atenciones, permisos, inventario).** Pendiente.
 
 ## Qué NO hacer todavía

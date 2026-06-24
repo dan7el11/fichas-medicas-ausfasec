@@ -2,7 +2,7 @@
 // Archivo NUEVO. Colección Firestore: `permisos`.
 
 import {
-  collection, getDocs, addDoc, updateDoc, deleteDoc, doc, orderBy, query as fbQuery, Timestamp,
+  collection, getDocs, addDoc, updateDoc, deleteDoc, doc, orderBy, where, query as fbQuery, Timestamp,
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { registrarAuditoria } from './auditoria';
@@ -43,6 +43,20 @@ export async function getPermisos(): Promise<PermisoMedico[]> {
     return snap.docs
       .map((d) => ({ id: d.id, ...d.data() } as PermisoMedico))
       .sort((a, b) => toDate(b.desde).getTime() - toDate(a.desde).getTime());
+  }
+}
+
+/** Permisos cuya fecha de inicio es >= `desde` (para no traer todo el histórico). */
+export async function getPermisosDesde(desde: Date): Promise<PermisoMedico[]> {
+  try {
+    const snap = await getDocs(
+      fbQuery(collection(db, COL), where('desde', '>=', Timestamp.fromDate(desde)), orderBy('desde', 'desc')),
+    );
+    return snap.docs.map((d) => ({ id: d.id, ...d.data() } as PermisoMedico));
+  } catch (err) {
+    console.warn('[permisos] consulta por fecha falló, usando fallback:', err);
+    const todos = await getPermisos();
+    return todos.filter((p) => toDate(p.desde) >= desde);
   }
 }
 
