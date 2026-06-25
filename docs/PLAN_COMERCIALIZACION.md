@@ -164,7 +164,17 @@ Mejoras de producto para no buscarlas cada vez. Orden por impacto en vender/oper
    - Pendiente a futuro: si una instancia crece mucho, denormalizar el estado de
      aptitud en el trabajador para no cargar todas las evaluaciones en el
      Dashboard.
-5. **Más pruebas en servicios críticos (atenciones, permisos, inventario).** Pendiente.
+5. **Más pruebas en servicios críticos.** ✅ HECHO. De 39 a 80 pruebas. Nuevas:
+   - `utils/reporteHelpers.test.ts` (motor de reportes: top diagnósticos,
+     morbilidad por capítulo, ausentismo por área, perfil metabólico).
+   - `services/atenciones.test.ts` (rangos día/semana/mes, KPIs, tratamiento).
+   - `services/permisos.test.ts` (estado, duración, ausentismo IESS,
+     control de justificativos).
+   - `constants/medical.test.ts` (normalización, derivación de área).
+   - `utils/medicalHelpers.test.ts` ampliado (búsqueda, tipo de evaluación,
+     áreas reales).
+   - Se añadieron credenciales ficticias de Firebase al entorno de pruebas
+     (`vite.config.ts`) para poder importar los servicios sin conectarse.
 
 ## Qué NO hacer todavía
 
