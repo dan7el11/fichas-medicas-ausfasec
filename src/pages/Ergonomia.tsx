@@ -13,14 +13,16 @@ import { useToast } from '../components/Toast';
 import { useConfirm } from '../components/ConfirmDialog';
 import TopBar from '../components/dashboard/TopBar';
 import FormularioErgo from '../components/ergonomia/FormularioErgo';
+import MedidorAngulos from '../components/ergonomia/MedidorAngulos';
 import { generarInformeErgo } from '../components/ergonomia/informeErgo';
 import { getEvaluacionesErgo, crearEvaluacionErgo, eliminarEvaluacionErgo } from '../services/ergonomia';
+import { valoresIniciales } from '../utils/ergonomia/definiciones';
 import { matchTrabajador, areaDeTrabajador, nombreCompleto } from '../utils/medicalHelpers';
 import { cargarLogoParaPdf } from '../utils/logoPdf';
 import { LOGO_EMPRESA } from '../assets/logoEmpresa';
 import { toDate } from '../services/atenciones';
 import type { Trabajador } from '../types';
-import type { MetodoErgo, ResultadoErgo, EvaluacionErgonomica } from '../types/ergonomia';
+import type { MetodoErgo, ResultadoErgo, EvaluacionErgonomica, FotoErgo } from '../types/ergonomia';
 import { COLORS, FONTS } from '../theme';
 
 const ACCENT = '#0d9488';
@@ -162,9 +164,17 @@ function NuevaEvaluacion({ trabajadores, onCancel, onSaved, medicoId, medicoNomb
   const [recomendaciones, setRecomendaciones] = useState('');
   const [guardando, setGuardando] = useState(false);
 
+  const [base, setBase] = useState<Record<string, number>>(() => valoresIniciales('RULA'));
+  const [adj, setAdj] = useState<Record<string, boolean>>({});
+  const [fotos, setFotos] = useState<FotoErgo[]>([]);
+  const [medidor, setMedidor] = useState(false);
+
   const [vals, setVals] = useState<Record<string, number>>({});
   const [resultado, setResultado] = useState<ResultadoErgo | null>(null);
   const onChange = useCallback((v: Record<string, number>, r: ResultadoErgo) => { setVals(v); setResultado(r); }, []);
+
+  // Reiniciar puntajes al cambiar de método
+  useEffect(() => { setBase(valoresIniciales(metodo)); setAdj({}); }, [metodo]);
 
   const filtrados = useMemo(() => (busqueda ? trabajadores.filter((t) => matchTrabajador(t, busqueda)).slice(0, 8) : []), [trabajadores, busqueda]);
 
@@ -186,7 +196,7 @@ function NuevaEvaluacion({ trabajadores, onCancel, onSaved, medicoId, medicoNomb
         lado,
         entradas: vals,
         resultado,
-        fotos: [],
+        fotos,
         observaciones: observaciones.trim(),
         recomendaciones: recomendaciones.trim(),
         medicoId,
@@ -245,13 +255,26 @@ function NuevaEvaluacion({ trabajadores, onCancel, onSaved, medicoId, medicoNomb
               </div>
             </div>
             <input value={tarea} onChange={(e) => setTarea(e.target.value)} placeholder="Tarea / actividad evaluada (ej. levantamiento de cajas en bodega)" className={inputCls} />
-            <div className="flex items-center gap-2 text-[11.5px] text-slate-400 bg-slate-50 rounded-lg px-3 py-2">
-              <Camera size={14} /> La medición de ángulos sobre fotos se incorpora en la siguiente fase.
+            <div className="flex items-center gap-2 flex-wrap">
+              <button onClick={() => { if (!sel) { toast.error('Selecciona primero un trabajador.'); return; } setMedidor(true); }} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12.5px] font-semibold border" style={{ borderColor: ACCENT, color: ACCENT }}>
+                <Camera size={14} /> Medir sobre foto
+              </button>
+              <span className="text-[11.5px] text-slate-400">Mide ángulos en una foto y sugiere los puntajes.</span>
             </div>
+            {fotos.length > 0 && (
+              <div className="flex gap-2 flex-wrap">
+                {fotos.map((f, i) => (
+                  <div key={i} className="relative">
+                    <img src={f.url} alt="" className="w-20 h-20 object-cover rounded-lg border border-slate-200" />
+                    <button onClick={() => setFotos((arr) => arr.filter((_, j) => j !== i))} className="absolute -top-1.5 -right-1.5 w-5 h-5 grid place-items-center rounded-full bg-white border border-slate-300 text-slate-500 text-xs">×</button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Formulario de puntuación */}
-          <FormularioErgo metodo={metodo} onChange={onChange} />
+          <FormularioErgo metodo={metodo} base={base} setBase={setBase} adj={adj} setAdj={setAdj} onChange={onChange} />
 
           {/* Observaciones */}
           <div className="bg-white border border-slate-200 rounded-xl p-4 space-y-3">
@@ -273,6 +296,16 @@ function NuevaEvaluacion({ trabajadores, onCancel, onSaved, medicoId, medicoNomb
           </button>
         </div>
       </div>
+
+      {medidor && sel && (
+        <MedidorAngulos
+          trabajadorId={sel.id ?? ''}
+          metodo={metodo}
+          onAplicarPuntaje={(seg, puntaje) => { setBase((p) => ({ ...p, [seg]: puntaje })); toast.success(`Puntaje sugerido aplicado a ${seg}.`); }}
+          onFotoGuardada={(f) => setFotos((arr) => [...arr, f])}
+          onClose={() => setMedidor(false)}
+        />
+      )}
     </div>
   );
 }

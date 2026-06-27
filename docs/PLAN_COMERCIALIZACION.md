@@ -186,9 +186,12 @@ Función nueva (pestaña «Ergonomía»).
   colección `evaluacionesErgonomicas`, lista con informe PDF (logo de la
   empresa) y registro en auditoría. Ruta `/ergonomia`, pestaña en el TopBar y
   tarjeta en Inicio. Reglas de Firestore/Storage añadidas.
-- **Fase B — Pendiente.** Herramienta de medición de ángulos/distancias sobre
-  fotos (canvas), subida de fotos, auto-sugerencia de puntajes desde los ángulos
-  y fotos anotadas en el PDF.
+- **Fase B — HECHO.** Herramienta `MedidorAngulos` (canvas): subir foto y medir
+  inclinación respecto a la vertical (2 pts), ángulo articular (3 pts) o
+  distancia (px). Cada ángulo se asigna a un segmento y auto-sugiere su puntaje
+  (`anguloAPuntaje`, con pruebas). La foto anotada se sube a Storage y se
+  incrusta en el PDF. El formulario quedó controlado para recibir los puntajes
+  sugeridos.
 - **Nota:** las tablas RULA/REBA se implementaron desde las referencias
   estándar y se validaron con casos de prueba (mínimos, máximos y celdas
   calculadas). Conviene contrastarlas con una planilla oficial antes de uso
