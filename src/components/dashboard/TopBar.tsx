@@ -20,6 +20,7 @@ const TABS = [
   { key: '/consulta-diaria', label: 'Consulta diaria' },
   { key: '/permisos',        label: 'Permisos médicos' },
   { key: '/agenda-examenes', label: 'Exámenes' },
+  { key: '/ergonomia',       label: 'Ergonomía' },
   { key: '/inventario',      label: 'Inventario' },
   { key: '/reportes',        label: 'Reportes y Estadísticas' },
 ];

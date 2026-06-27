@@ -1,0 +1,98 @@
+// Genera el informe PDF de una evaluación ergonómica.
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import type { EvaluacionErgonomica } from '../../types/ergonomia';
+import type { DatosEmpresa } from '../../contexts/EmpresaContext';
+import { METODOS } from '../../utils/ergonomia/definiciones';
+import { toDate } from '../../services/atenciones';
+
+const TONE_RGB: Record<string, [number, number, number]> = {
+  success: [16, 160, 90],
+  warning: [224, 138, 44],
+  danger: [220, 46, 60],
+};
+
+export function generarInformeErgo(
+  ev: EvaluacionErgonomica,
+  empresa: DatosEmpresa,
+  logo: { data: string; format: string },
+) {
+  const pdf = new jsPDF({ unit: 'mm', format: 'a4' });
+  const W = pdf.internal.pageSize.width;
+
+  // Encabezado
+  try { pdf.addImage(logo.data, logo.format, 14, 10, 28, 12); } catch { /* sin logo */ }
+  pdf.setFontSize(13); pdf.setFont('helvetica', 'bold');
+  pdf.text(empresa.institucion, 46, 15);
+  pdf.setFontSize(8); pdf.setFont('helvetica', 'normal');
+  pdf.text(`RUC: ${empresa.ruc}  ·  ${empresa.establecimiento}`, 46, 20);
+  pdf.setFontSize(14); pdf.setFont('helvetica', 'bold');
+  pdf.text('Informe de Evaluación Ergonómica', 14, 32);
+  pdf.setFontSize(9); pdf.setFont('helvetica', 'normal');
+  const f = toDate(ev.fecha);
+  pdf.text(`Método: ${ev.metodo}   ·   Fecha: ${isNaN(f.getTime()) ? '—' : f.toLocaleDateString('es-EC')}`, 14, 38);
+
+  // Datos del trabajador
+  autoTable(pdf, {
+    startY: 42,
+    theme: 'grid',
+    styles: { fontSize: 8, cellPadding: 2 },
+    head: [['Trabajador', 'Cédula', 'Puesto', 'Área']],
+    headStyles: { fillColor: [30, 41, 59], textColor: 255, fontSize: 8 },
+    body: [[`${ev.apellidos} ${ev.nombres}`, ev.cedula, ev.puesto, ev.area]],
+    margin: { left: 14, right: 14 },
+  });
+  let y = (pdf as any).lastAutoTable.finalY + 4;
+
+  if (ev.tarea) {
+    pdf.setFontSize(9); pdf.setFont('helvetica', 'bold'); pdf.text('Tarea evaluada:', 14, y);
+    pdf.setFont('helvetica', 'normal');
+    pdf.text(pdf.splitTextToSize(ev.tarea, W - 50), 45, y);
+    y += 7;
+  }
+
+  // Resultado destacado
+  const rgb = TONE_RGB[ev.resultado.tone] ?? [100, 100, 100];
+  pdf.setFillColor(rgb[0], rgb[1], rgb[2]);
+  pdf.rect(14, y, W - 28, 16, 'F');
+  pdf.setTextColor(255); pdf.setFontSize(11); pdf.setFont('helvetica', 'bold');
+  pdf.text(`Puntaje ${ev.metodo}: ${ev.resultado.puntajeFinal}  —  ${ev.resultado.nivel}`, 18, y + 7);
+  pdf.setFontSize(8); pdf.setFont('helvetica', 'normal');
+  pdf.text(ev.resultado.accion, 18, y + 12);
+  pdf.setTextColor(0);
+  y += 22;
+
+  // Tabla de puntajes por segmento
+  const campos = METODOS[ev.metodo].campos;
+  const filas = campos.map((c) => [c.label, String(ev.entradas[c.key] ?? '—')]);
+  autoTable(pdf, {
+    startY: y,
+    theme: 'striped',
+    styles: { fontSize: 8, cellPadding: 1.8 },
+    head: [['Segmento / factor', 'Puntaje']],
+    headStyles: { fillColor: [16, 160, 90], textColor: 255, fontSize: 8 },
+    columnStyles: { 1: { halign: 'center', cellWidth: 30 } },
+    body: filas,
+    margin: { left: 14, right: 14 },
+  });
+  y = (pdf as any).lastAutoTable.finalY + 5;
+
+  if (ev.observaciones) {
+    pdf.setFontSize(9); pdf.setFont('helvetica', 'bold'); pdf.text('Observaciones', 14, y); y += 4;
+    pdf.setFont('helvetica', 'normal'); pdf.setFontSize(8.5);
+    const t = pdf.splitTextToSize(ev.observaciones, W - 28);
+    pdf.text(t, 14, y); y += t.length * 4 + 3;
+  }
+  if (ev.recomendaciones) {
+    pdf.setFontSize(9); pdf.setFont('helvetica', 'bold'); pdf.text('Recomendaciones', 14, y); y += 4;
+    pdf.setFont('helvetica', 'normal'); pdf.setFontSize(8.5);
+    const t = pdf.splitTextToSize(ev.recomendaciones, W - 28);
+    pdf.text(t, 14, y);
+  }
+
+  // Pie
+  pdf.setFontSize(7); pdf.setTextColor(150);
+  pdf.text(`Generado por ${ev.medicoNombre || 'Servicio Médico Ocupacional'} — ${empresa.institucion}`, 14, pdf.internal.pageSize.height - 8);
+
+  pdf.save(`Ergonomia_${ev.metodo}_${ev.apellidos}_${ev.nombres}.pdf`.replace(/\s+/g, '_'));
+}
