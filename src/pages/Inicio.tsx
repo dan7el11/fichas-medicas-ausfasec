@@ -63,6 +63,7 @@ export default function Inicio() {
     { key: 'consulta', titulo: 'Consulta diaria', desc: 'Atenciones del día y morbilidad', ruta: '/consulta-diaria', icon: <Stethoscope size={24} />, color: '#1d4fad', stat: `${stats.atencionesHoy} hoy` },
     { key: 'permisos', titulo: 'Permisos médicos', desc: 'Reposos, citas y ausentismo', ruta: '/permisos', icon: <CalendarDays size={24} />, color: '#7c5cf2', stat: `${stats.permisosActivos} activos` },
     { key: 'examenes', titulo: 'Exámenes', desc: 'Agenda, cobertura y protocolos', ruta: '/agenda-examenes', icon: <ClipboardList size={24} />, color: '#0e7490', stat: stats.examenesAtrasados > 0 ? `${stats.examenesAtrasados} atrasados` : 'Al día' },
+    { key: 'ergonomia', titulo: 'Ergonomía', desc: 'Evaluaciones RULA y REBA de carga postural', ruta: '/ergonomia', icon: <Activity size={24} />, color: '#0d9488', stat: 'Evaluar' },
     { key: 'reportes', titulo: 'Reportes y estadísticas', desc: 'Indicadores de salud ocupacional', ruta: '/reportes', icon: <BarChart3 size={24} />, color: '#0f766e', stat: 'Ver tableros' },
     { key: 'inventario', titulo: 'Inventario médico', desc: 'Medicamentos, consumos y movimientos', ruta: '/inventario', icon: <Package size={24} />, color: '#9a3036', stat: 'Ver stock' },
   ];

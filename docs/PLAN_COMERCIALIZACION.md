@@ -164,7 +164,35 @@ Mejoras de producto para no buscarlas cada vez. Orden por impacto en vender/oper
    - Pendiente a futuro: si una instancia crece mucho, denormalizar el estado de
      aptitud en el trabajador para no cargar todas las evaluaciones en el
      Dashboard.
-5. **Más pruebas en servicios críticos (atenciones, permisos, inventario).** Pendiente.
+5. **Más pruebas en servicios críticos.** ✅ HECHO. De 39 a 80 pruebas. Nuevas:
+   - `utils/reporteHelpers.test.ts` (motor de reportes: top diagnósticos,
+     morbilidad por capítulo, ausentismo por área, perfil metabólico).
+   - `services/atenciones.test.ts` (rangos día/semana/mes, KPIs, tratamiento).
+   - `services/permisos.test.ts` (estado, duración, ausentismo IESS,
+     control de justificativos).
+   - `constants/medical.test.ts` (normalización, derivación de área).
+   - `utils/medicalHelpers.test.ts` ampliado (búsqueda, tipo de evaluación,
+     áreas reales).
+   - Se añadieron credenciales ficticias de Firebase al entorno de pruebas
+     (`vite.config.ts`) para poder importar los servicios sin conectarse.
+
+## Módulo de Evaluaciones Ergonómicas (RULA / REBA)
+
+Función nueva (pestaña «Ergonomía»).
+
+- **Fase A — HECHO.** Motor de puntuación RULA y REBA (tablas oficiales como
+  funciones puras + pruebas: `src/utils/ergonomia/`), formulario data-driven de
+  puntuación (RULA y REBA), cálculo de nivel de riesgo en vivo, guardado en la
+  colección `evaluacionesErgonomicas`, lista con informe PDF (logo de la
+  empresa) y registro en auditoría. Ruta `/ergonomia`, pestaña en el TopBar y
+  tarjeta en Inicio. Reglas de Firestore/Storage añadidas.
+- **Fase B — Pendiente.** Herramienta de medición de ángulos/distancias sobre
+  fotos (canvas), subida de fotos, auto-sugerencia de puntajes desde los ángulos
+  y fotos anotadas en el PDF.
+- **Nota:** las tablas RULA/REBA se implementaron desde las referencias
+  estándar y se validaron con casos de prueba (mínimos, máximos y celdas
+  calculadas). Conviene contrastarlas con una planilla oficial antes de uso
+  clínico definitivo.
 
 ## Qué NO hacer todavía
 

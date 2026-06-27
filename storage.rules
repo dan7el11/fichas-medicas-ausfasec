@@ -39,6 +39,12 @@ service firebase.storage {
       allow write: if isSignedIn() && subidaValida();
     }
 
+    // Fotos de evaluaciones ergonómicas (RULA/REBA).
+    match /ergonomia/{trabajadorId}/{fileName=**} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn() && subidaValida();
+    }
+
     // Logo / imagen institucional. Lectura pública (se muestra en el login,
     // antes de iniciar sesión); subida solo para usuarios autenticados, y solo
     // imágenes de hasta 5 MB.

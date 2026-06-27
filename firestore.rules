@@ -63,6 +63,7 @@ service cloud.firestore {
     match /signos/{id}           { allow read, write: if isSignedIn(); }
     match /ordenesExamen/{id}    { allow read, write: if isSignedIn(); }
     match /protocolosPuesto/{id} { allow read, write: if isSignedIn(); }
+    match /evaluacionesErgonomicas/{id} { allow read, write: if isSignedIn(); }
 
     // Inventario / botiquín: escritura para todo el equipo, porque al guardar
     // una atención con medicación el sistema descuenta del stock. No restringir

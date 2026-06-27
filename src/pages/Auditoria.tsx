@@ -20,7 +20,7 @@ const ACCION_TONO: Record<string, { fg: string; bg: string; label: string }> = {
 
 const ENTIDAD_LABEL: Record<string, string> = {
   trabajador: 'Trabajador', evaluacion: 'Evaluación', atencion: 'Atención',
-  permiso: 'Permiso', usuario: 'Usuario',
+  permiso: 'Permiso', usuario: 'Usuario', ergonomia: 'Ergonomía',
 };
 
 export default function Auditoria() {

@@ -1,6 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { parseDate, workerStatus, lastEval, daysUntil } from './medicalHelpers';
-import type { EvaluacionMedica } from '../types';
+import {
+  parseDate, workerStatus, lastEval, daysUntil,
+  matchTrabajador, tipoEvaluacionLabel, areaDeTrabajador, areasDeTrabajadores,
+} from './medicalHelpers';
+import type { EvaluacionMedica, Trabajador } from '../types';
 
 // ── daysUntil ──────────────────────────────────────────────────────────────
 
@@ -105,5 +108,70 @@ describe('workerStatus', () => {
     recent.setMonth(recent.getMonth() - 3);
     const s = workerStatus([makeEval(recent.toISOString())]);
     expect(s.tone).toBe('success');
+  });
+});
+
+// ── matchTrabajador ──────────────────────────────────────────────────────────
+
+const trab = (p: Partial<Trabajador>): Trabajador => ({
+  primerApellido: '', segundoApellido: '', primerNombre: '', segundoNombre: '',
+  cedula: '', sexo: 'M', puestoTrabajo: '', departamento: '', evaluaciones: [],
+  createdAt: new Date(), updatedAt: new Date(), ...p,
+} as Trabajador);
+
+describe('matchTrabajador', () => {
+  const w = trab({ primerApellido: 'Pérez', primerNombre: 'María', cedula: '1712345678', puestoTrabajo: 'Soldador', departamento: 'Mantenimiento' });
+
+  it('encuentra sin importar tildes ni mayúsculas', () => {
+    expect(matchTrabajador(w, 'perez')).toBe(true);
+    expect(matchTrabajador(w, 'MARÍA')).toBe(true);
+  });
+  it('acepta varios términos en cualquier orden', () => {
+    expect(matchTrabajador(w, 'maria perez')).toBe(true);
+    expect(matchTrabajador(w, 'perez maria')).toBe(true);
+  });
+  it('busca por cédula, puesto y área', () => {
+    expect(matchTrabajador(w, '171234')).toBe(true);
+    expect(matchTrabajador(w, 'soldador')).toBe(true);
+    expect(matchTrabajador(w, 'mantenimiento')).toBe(true);
+  });
+  it('devuelve false si algún término no aparece', () => {
+    expect(matchTrabajador(w, 'maria lopez')).toBe(false);
+  });
+  it('query vacío coincide con todos', () => {
+    expect(matchTrabajador(w, '')).toBe(true);
+  });
+});
+
+// ── tipoEvaluacionLabel ──────────────────────────────────────────────────────
+
+describe('tipoEvaluacionLabel', () => {
+  it('reconoce los distintos formatos guardados', () => {
+    expect(tipoEvaluacionLabel({ tipo: 'RETIRO' } as any)).toBe('Retiro');
+    expect(tipoEvaluacionLabel({ tipoEvaluacion: 'preocupacional' } as any)).toBe('Pre-ocupacional');
+    expect(tipoEvaluacionLabel({ tipo: 'REINTEGRO' } as any)).toBe('Reintegro');
+  });
+  it('por defecto es Periódica', () => {
+    expect(tipoEvaluacionLabel({} as any)).toBe('Periódica');
+  });
+});
+
+// ── áreas ────────────────────────────────────────────────────────────────────
+
+describe('areaDeTrabajador / areasDeTrabajadores', () => {
+  it('usa el departamento ingresado en la ficha', () => {
+    expect(areaDeTrabajador(trab({ departamento: 'Planificación' }))).toBe('Planificación');
+  });
+  it('agrupa como «Sin área» cuando no hay dato', () => {
+    expect(areaDeTrabajador(trab({ departamento: '' }))).toBe('Sin área');
+  });
+  it('lista áreas únicas y deja «Sin área» al final', () => {
+    const areas = areasDeTrabajadores([
+      trab({ departamento: 'TTHH' }),
+      trab({ departamento: 'Planificación' }),
+      trab({ departamento: '' }),
+      trab({ departamento: 'TTHH' }),
+    ]);
+    expect(areas).toEqual(['Planificación', 'TTHH', 'Sin área']);
   });
 });
