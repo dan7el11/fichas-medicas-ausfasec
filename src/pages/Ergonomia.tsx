@@ -16,6 +16,7 @@ import FormularioErgo from '../components/ergonomia/FormularioErgo';
 import MedidorAngulos from '../components/ergonomia/MedidorAngulos';
 import { generarInformeErgo } from '../components/ergonomia/informeErgo';
 import { getEvaluacionesErgo, crearEvaluacionErgo, eliminarEvaluacionErgo } from '../services/ergonomia';
+import { getTrabajadores } from '../services/trabajadores';
 import { valoresIniciales } from '../utils/ergonomia/definiciones';
 import { matchTrabajador, areaDeTrabajador, nombreCompleto } from '../utils/medicalHelpers';
 import { cargarLogoParaPdf } from '../utils/logoPdf';
@@ -51,11 +52,11 @@ export default function Ergonomia() {
   const cargar = async () => {
     setCargando(true);
     try {
-      const [tSnap, evs] = await Promise.all([
-        getDocs(fbQuery(collection(db, 'trabajadores'), orderBy('primerApellido'))),
+      const [ts, evs] = await Promise.all([
+        getTrabajadores(),
         getEvaluacionesErgo(),
       ]);
-      setTrabajadores(tSnap.docs.map((d) => ({ id: d.id, ...d.data() } as Trabajador)));
+      setTrabajadores(ts);
       setEvaluaciones(evs);
     } catch (err) { console.error('Error al cargar ergonomía:', err); }
     finally { setCargando(false); }

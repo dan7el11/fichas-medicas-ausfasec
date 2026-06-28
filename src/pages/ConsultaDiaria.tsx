@@ -10,6 +10,7 @@ import {
   ChevronLeft, ChevronRight,
 } from 'lucide-react';
 import { db } from '../services/firebase';
+import { getTrabajadores } from '../services/trabajadores';
 import { useAuth } from '../contexts/AuthContext';
 import TopBar from '../components/dashboard/TopBar';
 import type { Trabajador } from '../types';
@@ -111,8 +112,7 @@ export default function ConsultaDiaria() {
   useEffect(() => {
     (async () => {
       try {
-        const snap = await getDocs(fbQuery(collection(db, 'trabajadores'), orderBy('primerApellido')));
-        setTrabajadores(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Trabajador)));
+        setTrabajadores(await getTrabajadores());
       } catch (err) {
         console.error('Error al cargar trabajadores:', err);
       }
