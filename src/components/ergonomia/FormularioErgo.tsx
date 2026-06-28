@@ -1,21 +1,22 @@
 // Formulario data-driven de evaluación ergonómica (sirve para RULA y REBA).
-// Maneja el puntaje base de cada segmento + ajustes (checkboxes), calcula el
-// valor efectivo y emite {vals, resultado} al padre en cada cambio.
-import { useState, useEffect, useMemo } from 'react';
-import { METODOS, valoresIniciales } from '../../utils/ergonomia/definiciones';
+// Controlado por el padre: recibe `base` (puntaje base por segmento) y `adj`
+// (ajustes activos), calcula el valor efectivo y emite {vals, resultado}. Que
+// `base` sea controlado permite que el medidor de ángulos fije puntajes.
+import { useEffect, useMemo } from 'react';
+import { METODOS } from '../../utils/ergonomia/definiciones';
 import type { MetodoErgo, ResultadoErgo } from '../../types/ergonomia';
 
 interface Props {
   metodo: MetodoErgo;
+  base: Record<string, number>;
+  setBase: React.Dispatch<React.SetStateAction<Record<string, number>>>;
+  adj: Record<string, boolean>;
+  setAdj: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
   onChange: (vals: Record<string, number>, resultado: ResultadoErgo) => void;
 }
 
-export default function FormularioErgo({ metodo, onChange }: Props) {
+export default function FormularioErgo({ metodo, base, setBase, adj, setAdj, onChange }: Props) {
   const def = METODOS[metodo];
-  const [base, setBase] = useState<Record<string, number>>(() => valoresIniciales(metodo));
-  const [adj, setAdj] = useState<Record<string, boolean>>({});
-
-  useEffect(() => { setBase(valoresIniciales(metodo)); setAdj({}); }, [metodo]);
 
   const { vals, resultado } = useMemo(() => {
     const out: Record<string, number> = {};
@@ -29,7 +30,6 @@ export default function FormularioErgo({ metodo, onChange }: Props) {
 
   useEffect(() => { onChange(vals, resultado); }, [vals, resultado, onChange]);
 
-  // Agrupar campos por su sección
   const grupos: [string, typeof def.campos][] = [];
   def.campos.forEach((c) => {
     const g = grupos.find(([n]) => n === c.grupo);
@@ -49,7 +49,7 @@ export default function FormularioErgo({ metodo, onChange }: Props) {
                   <span className="text-[11px] font-bold px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700">= {vals[c.key]}</span>
                 </div>
                 <select
-                  value={base[c.key]}
+                  value={base[c.key] ?? c.opciones[0].valor}
                   onChange={(e) => setBase((p) => ({ ...p, [c.key]: Number(e.target.value) }))}
                   className="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg text-[12.5px] bg-white outline-none focus:ring-2 focus:ring-emerald-600/30"
                 >

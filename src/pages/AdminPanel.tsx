@@ -13,6 +13,7 @@ import {
 import { db } from '../services/firebase';
 import { descargarRespaldo } from '../services/respaldo';
 import { registrarAuditoria } from '../services/auditoria';
+import { getTrabajadores } from '../services/trabajadores';
 import { useAuth } from '../contexts/AuthContext';
 import { useEmpresa } from '../contexts/EmpresaContext';
 import TopBar from '../components/dashboard/TopBar';
@@ -191,8 +192,7 @@ function TabTrabajadores({ userId }: { userId: string }) {
 
   const cargar = useCallback(async () => {
     setCargando(true);
-    const snap = await getDocs(query(collection(db, 'trabajadores'), orderBy('primerApellido')));
-    setLista(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Trabajador)));
+    setLista(await getTrabajadores());
     setCargando(false);
   }, []);
 

@@ -9,6 +9,7 @@ import {
   Calendar, Plus, Search, BedDouble, AlertTriangle, X, BarChart3, Shield,
 } from 'lucide-react';
 import { db } from '../services/firebase';
+import { getTrabajadores } from '../services/trabajadores';
 import { useAuth } from '../contexts/AuthContext';
 import TopBar from '../components/dashboard/TopBar';
 import type { Trabajador } from '../types';
@@ -44,11 +45,11 @@ export default function Permisos() {
   const cargar = async () => {
     setCargando(true);
     try {
-      const [tSnap, ps] = await Promise.all([
-        getDocs(fbQuery(collection(db, 'trabajadores'), orderBy('primerApellido'))),
+      const [ts, ps] = await Promise.all([
+        getTrabajadores(),
         getPermisos(),
       ]);
-      setTrabajadores(tSnap.docs.map((d) => ({ id: d.id, ...d.data() } as Trabajador)));
+      setTrabajadores(ts);
       setPermisos(ps);
     } catch (err) { console.error('Error al cargar permisos:', err); }
     finally { setCargando(false); }

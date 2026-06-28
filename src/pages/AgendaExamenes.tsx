@@ -18,6 +18,7 @@ import {
   getOrdenes, calcularStats, agruparPorEstado,
 } from '../services/examenesPlan';
 import { getProtocolos } from '../services/protocolos';
+import { getTrabajadores } from '../services/trabajadores';
 import OrdenCard from '../components/examenes/OrdenCard';
 import { ProgramarExamenModal, OrdenDetalleModal } from '../components/examenes/ExamenModales';
 import ProtocolosEditor from '../components/examenes/ProtocolosEditor';
@@ -43,12 +44,12 @@ export default function AgendaExamenes() {
   const cargar = async () => {
     setCargando(true);
     try {
-      const [tSnap, ord, proto] = await Promise.all([
-        getDocs(fbQuery(collection(db, 'trabajadores'), orderBy('primerApellido'))),
+      const [ts, ord, proto] = await Promise.all([
+        getTrabajadores(),
         getOrdenes(),
         getProtocolos(),
       ]);
-      setTrabajadores(tSnap.docs.map((d) => ({ id: d.id, ...d.data() } as Trabajador)));
+      setTrabajadores(ts);
       setOrdenes(ord);
       setProtocolos(proto);
     } catch (err) { console.error('Error al cargar exámenes:', err); }

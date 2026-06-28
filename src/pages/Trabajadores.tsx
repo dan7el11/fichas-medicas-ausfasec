@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { collection, getDocs, query as fbQuery, orderBy } from 'firebase/firestore';
 import { Search, Plus, Download, List, LayoutGrid, ChevronRight, X, ArrowRight } from 'lucide-react';
 import { db } from '../services/firebase';
+import { getTrabajadores } from '../services/trabajadores';
 import { useAuth } from '../contexts/AuthContext';
 import TopBar from '../components/dashboard/TopBar';
 import type { Trabajador, EvaluacionMedica } from '../types';
@@ -34,8 +35,7 @@ export default function Trabajadores() {
   useEffect(() => {
     (async () => {
       try {
-        const tSnap = await getDocs(fbQuery(collection(db, 'trabajadores'), orderBy('primerApellido')));
-        setTrabajadores(tSnap.docs.map((d) => ({ id: d.id, ...d.data() } as Trabajador)));
+        setTrabajadores(await getTrabajadores());
         const eSnap = await getDocs(collection(db, 'evaluaciones'));
         setEvaluaciones(eSnap.docs.map((d) => ({ id: d.id, ...d.data() } as EvaluacionMedica)));
       } catch (err) { console.error('Error al cargar trabajadores:', err); }

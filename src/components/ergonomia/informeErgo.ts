@@ -5,6 +5,7 @@ import type { EvaluacionErgonomica } from '../../types/ergonomia';
 import type { DatosEmpresa } from '../../contexts/EmpresaContext';
 import { METODOS } from '../../utils/ergonomia/definiciones';
 import { toDate } from '../../services/atenciones';
+import { cargarLogoParaPdf } from '../../utils/logoPdf';
 
 const TONE_RGB: Record<string, [number, number, number]> = {
   success: [16, 160, 90],
@@ -12,7 +13,7 @@ const TONE_RGB: Record<string, [number, number, number]> = {
   danger: [220, 46, 60],
 };
 
-export function generarInformeErgo(
+export async function generarInformeErgo(
   ev: EvaluacionErgonomica,
   empresa: DatosEmpresa,
   logo: { data: string; format: string },
@@ -93,6 +94,23 @@ export function generarInformeErgo(
   // Pie
   pdf.setFontSize(7); pdf.setTextColor(150);
   pdf.text(`Generado por ${ev.medicoNombre || 'Servicio Médico Ocupacional'} — ${empresa.institucion}`, 14, pdf.internal.pageSize.height - 8);
+
+  // Fotos anotadas (cada una en su página)
+  for (const foto of ev.fotos ?? []) {
+    const im = await cargarLogoParaPdf(foto.url);
+    if (!im) continue;
+    try {
+      pdf.addPage();
+      pdf.setFontSize(10); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(0);
+      pdf.text('Foto de la evaluación', 14, 16);
+      const props = pdf.getImageProperties(im.data);
+      const maxW = W - 28;
+      const maxH = pdf.internal.pageSize.height - 30;
+      let w = maxW, h = (props.height / props.width) * w;
+      if (h > maxH) { h = maxH; w = (props.width / props.height) * h; }
+      pdf.addImage(im.data, im.format, 14, 22, w, h);
+    } catch (err) { console.warn('No se pudo añadir una foto al PDF:', err); }
+  }
 
   pdf.save(`Ergonomia_${ev.metodo}_${ev.apellidos}_${ev.nombres}.pdf`.replace(/\s+/g, '_'));
 }

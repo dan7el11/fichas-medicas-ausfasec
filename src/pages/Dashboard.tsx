@@ -9,6 +9,7 @@ import {
 } from 'firebase/firestore';
 import { signOut } from 'firebase/auth';
 import { auth, db } from '../services/firebase';
+import { getTrabajadores } from '../services/trabajadores';
 import { useAuth } from '../contexts/AuthContext';
 import type { Trabajador, EvaluacionMedica } from '../types';
 
@@ -48,12 +49,7 @@ export default function Dashboard() {
   useEffect(() => {
     (async () => {
       try {
-        const trabajadoresSnap = await getDocs(
-          fbQuery(collection(db, 'trabajadores'), orderBy('primerApellido')),
-        );
-        const ts: Trabajador[] = trabajadoresSnap.docs.map(
-          (d) => ({ id: d.id, ...d.data() } as Trabajador),
-        );
+        const ts: Trabajador[] = await getTrabajadores();
         setTrabajadores(ts);
         if (ts.length > 0) setSelectedId((prev) => prev ?? ts[0].id);
 
