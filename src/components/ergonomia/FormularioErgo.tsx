@@ -21,7 +21,7 @@ export default function FormularioErgo({ metodo, base, setBase, adj, setAdj, onC
   const { vals, resultado } = useMemo(() => {
     const out: Record<string, number> = {};
     def.campos.forEach((c) => {
-      let v = base[c.key] ?? c.opciones[0].valor;
+      let v = base[c.key] ?? c.opciones?.[0]?.valor ?? c.def ?? c.min;
       (c.ajustes ?? []).forEach((a) => { if (adj[`${c.key}.${a.key}`]) v += a.delta; });
       out[c.key] = Math.max(c.min, Math.min(c.max, v));
     });
@@ -46,15 +46,27 @@ export default function FormularioErgo({ metodo, base, setBase, adj, setAdj, onC
               <div key={c.key}>
                 <div className="flex items-center justify-between mb-1">
                   <label className="text-[13px] font-semibold text-slate-700">{c.label}</label>
-                  <span className="text-[11px] font-bold px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700">= {vals[c.key]}</span>
+                  <span className="text-[11px] font-bold px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700">
+                    {c.tipo === 'numero' ? `${vals[c.key]}${c.unidad ? ' ' + c.unidad : ''}` : `= ${vals[c.key]}`}
+                  </span>
                 </div>
-                <select
-                  value={base[c.key] ?? c.opciones[0].valor}
-                  onChange={(e) => setBase((p) => ({ ...p, [c.key]: Number(e.target.value) }))}
-                  className="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg text-[12.5px] bg-white outline-none focus:ring-2 focus:ring-emerald-600/30"
-                >
-                  {c.opciones.map((o) => <option key={o.valor} value={o.valor}>{o.valor} · {o.label}</option>)}
-                </select>
+                {c.tipo === 'numero' ? (
+                  <input
+                    type="number"
+                    step={c.paso ?? 1}
+                    value={base[c.key] ?? c.def ?? c.min}
+                    onChange={(e) => setBase((p) => ({ ...p, [c.key]: e.target.value === '' ? c.min : Number(e.target.value) }))}
+                    className="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg text-[12.5px] bg-white outline-none focus:ring-2 focus:ring-emerald-600/30"
+                  />
+                ) : (
+                  <select
+                    value={base[c.key] ?? c.opciones?.[0]?.valor ?? c.min}
+                    onChange={(e) => setBase((p) => ({ ...p, [c.key]: Number(e.target.value) }))}
+                    className="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg text-[12.5px] bg-white outline-none focus:ring-2 focus:ring-emerald-600/30"
+                  >
+                    {(c.opciones ?? []).map((o) => <option key={o.valor} value={o.valor}>{o.valor} · {o.label}</option>)}
+                  </select>
+                )}
                 {c.ajustes && c.ajustes.length > 0 && (
                   <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1">
                     {c.ajustes.map((a) => (

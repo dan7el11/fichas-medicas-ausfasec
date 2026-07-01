@@ -1,7 +1,7 @@
 // Modelo de datos del módulo de Evaluaciones Ergonómicas.
 // Colección Firestore: `evaluacionesErgonomicas`. Fotos en Storage: ergonomia/{trabajadorId}/.
 
-export type MetodoErgo = 'RULA' | 'REBA';
+export type MetodoErgo = 'RULA' | 'REBA' | 'NIOSH';
 
 export type ToneErgo = 'success' | 'warning' | 'danger';
 

@@ -192,7 +192,13 @@ Función nueva (pestaña «Ergonomía»).
   (`anguloAPuntaje`, con pruebas). La foto anotada se sube a Storage y se
   incrusta en el PDF. El formulario quedó controlado para recibir los puntajes
   sugeridos.
-- **Nota:** las tablas RULA/REBA se implementaron desde las referencias
+- **NIOSH — HECHO.** Ecuación de levantamiento de cargas (RWL e índice LI) como
+  método adicional (`src/utils/ergonomia/niosh.ts` + pruebas). El sistema de
+  formularios se amplió para soportar campos numéricos (kg, cm, grados,
+  frecuencia) además de los de puntaje. Selector de método dinámico.
+- **ROSA — Pendiente.** Método de oficina (checklist con tablas de combinación);
+  se añadirá con el mismo patrón, validando sus tablas.
+- **Nota:** las tablas RULA/REBA/NIOSH se implementaron desde las referencias
   estándar y se validaron con casos de prueba (mínimos, máximos y celdas
   calculadas). Conviene contrastarlas con una planilla oficial antes de uso
   clínico definitivo.

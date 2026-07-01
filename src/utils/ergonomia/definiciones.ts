@@ -5,6 +5,7 @@
 import type { MetodoErgo, ResultadoErgo } from '../../types/ergonomia';
 import { calcularRULA } from './rula';
 import { calcularREBA } from './reba';
+import { calcularNIOSH, type DuracionNiosh, type AgarreNiosh } from './niosh';
 
 export interface OpcionSeg { valor: number; label: string; }
 export interface AjusteSeg { key: string; label: string; delta: number; }
@@ -13,8 +14,12 @@ export interface CampoErgo {
   key: string;
   label: string;
   grupo: string;            // título de sección en el formulario
-  opciones: OpcionSeg[];    // postura/factor base
+  tipo?: 'select' | 'numero'; // por defecto 'select'
+  opciones?: OpcionSeg[];   // postura/factor base (para 'select')
   ajustes?: AjusteSeg[];    // checkboxes que suman/restan al valor base
+  unidad?: string;          // para 'numero' (ej. 'cm', 'kg')
+  paso?: number;            // step del input numérico
+  def?: number;             // valor inicial de un campo numérico
   min: number;
   max: number;
 }
@@ -99,11 +104,36 @@ const REBA: DefinicionMetodo = {
   }),
 };
 
-export const METODOS: Record<MetodoErgo, DefinicionMetodo> = { RULA, REBA };
+// ── NIOSH ────────────────────────────────────────────────────────────────────
+const NIOSH: DefinicionMetodo = {
+  metodo: 'NIOSH',
+  label: 'NIOSH',
+  descripcion: 'Ecuación de levantamiento de cargas — peso límite recomendado (RWL) e índice de levantamiento (LI).',
+  campos: [
+    { key: 'pesoCarga', label: 'Peso de la carga', grupo: 'Carga y geometría', tipo: 'numero', unidad: 'kg', min: 0, max: 200, def: 10, paso: 0.5 },
+    { key: 'H', label: 'Distancia horizontal (H)', grupo: 'Carga y geometría', tipo: 'numero', unidad: 'cm', min: 0, max: 100, def: 25 },
+    { key: 'V', label: 'Altura de las manos al inicio (V)', grupo: 'Carga y geometría', tipo: 'numero', unidad: 'cm', min: 0, max: 200, def: 75 },
+    { key: 'D', label: 'Desplazamiento vertical (D)', grupo: 'Carga y geometría', tipo: 'numero', unidad: 'cm', min: 0, max: 200, def: 25 },
+    { key: 'A', label: 'Ángulo de asimetría (A)', grupo: 'Carga y geometría', tipo: 'numero', unidad: '°', min: 0, max: 180, def: 0 },
+    { key: 'frecuencia', label: 'Frecuencia', grupo: 'Frecuencia y duración', tipo: 'numero', unidad: 'lev/min', min: 0, max: 20, def: 1, paso: 0.5 },
+    { key: 'duracion', label: 'Duración de la tarea', grupo: 'Frecuencia y duración', min: 1, max: 3,
+      opciones: [{ valor: 1, label: '≤ 1 hora' }, { valor: 2, label: '≤ 2 horas' }, { valor: 3, label: '≤ 8 horas' }] },
+    { key: 'agarre', label: 'Calidad del agarre', grupo: 'Agarre', min: 1, max: 3,
+      opciones: [{ valor: 1, label: 'Bueno' }, { valor: 2, label: 'Regular' }, { valor: 3, label: 'Malo' }] },
+  ],
+  calcular: (v) => calcularNIOSH({
+    pesoCarga: v.pesoCarga, H: v.H, V: v.V, D: v.D, A: v.A, frecuencia: v.frecuencia,
+    duracion: v.duracion as DuracionNiosh, agarre: v.agarre as AgarreNiosh,
+  }),
+};
 
-/** Valores base por defecto (mínimos) para un método. */
+export const METODOS: Record<MetodoErgo, DefinicionMetodo> = { RULA, REBA, NIOSH };
+
+/** Valores iniciales para un método (mínimo del select o `def` del numérico). */
 export function valoresIniciales(metodo: MetodoErgo): Record<string, number> {
   const v: Record<string, number> = {};
-  METODOS[metodo].campos.forEach((c) => { v[c.key] = c.opciones[0].valor; });
+  METODOS[metodo].campos.forEach((c) => {
+    v[c.key] = c.tipo === 'numero' ? (c.def ?? c.min) : (c.opciones?.[0].valor ?? c.min);
+  });
   return v;
 }

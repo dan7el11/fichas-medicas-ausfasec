@@ -65,7 +65,12 @@ export async function generarInformeErgo(
 
   // Tabla de puntajes por segmento
   const campos = METODOS[ev.metodo].campos;
-  const filas = campos.map((c) => [c.label, String(ev.entradas[c.key] ?? '—')]);
+  const filas = campos.map((c) => {
+    const val = ev.entradas[c.key];
+    if (c.tipo === 'numero') return [c.label, `${val ?? '—'}${c.unidad ? ' ' + c.unidad : ''}`];
+    const op = c.opciones?.find((o) => o.valor === val);
+    return [c.label, op ? `${val} · ${op.label}` : String(val ?? '—')];
+  });
   autoTable(pdf, {
     startY: y,
     theme: 'striped',
