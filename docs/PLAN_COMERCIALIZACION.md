@@ -196,9 +196,14 @@ Función nueva (pestaña «Ergonomía»).
   método adicional (`src/utils/ergonomia/niosh.ts` + pruebas). El sistema de
   formularios se amplió para soportar campos numéricos (kg, cm, grados,
   frecuencia) además de los de puntaje. Selector de método dinámico.
-- **ROSA — Pendiente.** Método de oficina (checklist con tablas de combinación);
-  se añadirá con el mismo patrón, validando sus tablas.
-- **Nota:** las tablas RULA/REBA/NIOSH se implementaron desde las referencias
+- **ROSA — HECHO.** Método de oficina completo (`src/utils/ergonomia/rosa.ts` +
+  7 pruebas): silla (altura, profundidad, reposabrazos, respaldo), monitor,
+  teléfono, ratón y teclado con sus ajustes y la duración de uso por elemento.
+  Tablas A/B/C del método + combinación por máximo (D/E). El medidor de fotos
+  sugiere puntajes ROSA desde ángulos (rodilla ≈90°, respaldo 95–110°, cuello
+  ≤30°, muñeca ≤15°) y las fotos anotadas van al PDF. El informe PDF ahora
+  incluye además los puntajes intermedios de todos los métodos.
+- **Nota:** las tablas RULA/REBA/NIOSH/ROSA se implementaron desde las referencias
   estándar y se validaron con casos de prueba (mínimos, máximos y celdas
   calculadas). Conviene contrastarlas con una planilla oficial antes de uso
   clínico definitivo.
