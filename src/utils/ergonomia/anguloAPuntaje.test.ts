@@ -31,4 +31,22 @@ describe('anguloAPuntaje', () => {
     expect(anguloAPuntaje('RULA', 'piernas', 45)).toBeNull();
     expect(anguloAPuntaje('REBA', 'acople', 45)).toBeNull();
   });
+
+  it('ROSA: rodilla ~90° da 1, desviada da 2', () => {
+    expect(anguloAPuntaje('ROSA', 'sillaAltura', 92)).toBe(1);
+    expect(anguloAPuntaje('ROSA', 'sillaAltura', 70)).toBe(2);
+  });
+
+  it('ROSA: respaldo 95–110° da 1, fuera da 2', () => {
+    expect(anguloAPuntaje('ROSA', 'respaldo', 100)).toBe(1);
+    expect(anguloAPuntaje('ROSA', 'respaldo', 120)).toBe(2);
+  });
+
+  it('ROSA: cuello al monitor y muñeca al teclado', () => {
+    expect(anguloAPuntaje('ROSA', 'monitor', 20)).toBe(1);
+    expect(anguloAPuntaje('ROSA', 'monitor', 40)).toBe(2);
+    expect(anguloAPuntaje('ROSA', 'teclado', 10)).toBe(1);
+    expect(anguloAPuntaje('ROSA', 'teclado', 25)).toBe(2);
+    expect(anguloAPuntaje('ROSA', 'telefono', 45)).toBeNull();
+  });
 });

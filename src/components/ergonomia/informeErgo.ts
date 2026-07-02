@@ -13,6 +13,18 @@ const TONE_RGB: Record<string, [number, number, number]> = {
   danger: [220, 46, 60],
 };
 
+// Etiquetas legibles de los puntajes intermedios (resultado.detalle)
+const DETALLE_LABEL: Record<string, string> = {
+  posturaA: 'Postura grupo A', puntajeA: 'Puntaje grupo A',
+  posturaB: 'Postura grupo B', puntajeB: 'Puntaje grupo B', puntajeC: 'Puntaje C',
+  RWL: 'Peso límite recomendado — RWL (kg)', LI: 'Índice de levantamiento (LI)',
+  HM: 'Multiplicador horizontal (HM)', VM: 'Multiplicador vertical (VM)',
+  DM: 'Multiplicador de desplazamiento (DM)', AM: 'Multiplicador de asimetría (AM)',
+  FM: 'Multiplicador de frecuencia (FM)', CM: 'Multiplicador de agarre (CM)',
+  silla: 'Puntaje silla', monitorTelefono: 'Monitor y teléfono',
+  ratonTeclado: 'Ratón y teclado', perifericos: 'Periféricos y pantalla',
+};
+
 export async function generarInformeErgo(
   ev: EvaluacionErgonomica,
   empresa: DatosEmpresa,
@@ -65,7 +77,12 @@ export async function generarInformeErgo(
 
   // Tabla de puntajes por segmento
   const campos = METODOS[ev.metodo].campos;
-  const filas = campos.map((c) => [c.label, String(ev.entradas[c.key] ?? '—')]);
+  const filas = campos.map((c) => {
+    const val = ev.entradas[c.key];
+    if (c.tipo === 'numero') return [c.label, `${val ?? '—'}${c.unidad ? ' ' + c.unidad : ''}`];
+    const op = c.opciones?.find((o) => o.valor === val);
+    return [c.label, op ? `${val} · ${op.label}` : String(val ?? '—')];
+  });
   autoTable(pdf, {
     startY: y,
     theme: 'striped',
@@ -76,7 +93,28 @@ export async function generarInformeErgo(
     body: filas,
     margin: { left: 14, right: 14 },
   });
-  y = (pdf as any).lastAutoTable.finalY + 5;
+  y = (pdf as any).lastAutoTable.finalY + 4;
+
+  // Puntajes intermedios del método (silla, grupos A/B, multiplicadores, etc.)
+  const detalle = Object.entries(ev.resultado.detalle ?? {});
+  if (detalle.length > 0) {
+    autoTable(pdf, {
+      startY: y,
+      theme: 'striped',
+      styles: { fontSize: 8, cellPadding: 1.8 },
+      head: [['Puntaje intermedio', 'Valor']],
+      headStyles: { fillColor: [13, 148, 136], textColor: 255, fontSize: 8 },
+      columnStyles: { 1: { halign: 'center', cellWidth: 30 } },
+      body: detalle.map(([k, v]) => [DETALLE_LABEL[k] ?? k, String(v)]),
+      margin: { left: 14, right: 14 },
+    });
+    y = (pdf as any).lastAutoTable.finalY + 5;
+  }
+
+  // Si queda poco espacio, continuar en página nueva
+  if ((ev.observaciones || ev.recomendaciones) && y > pdf.internal.pageSize.height - 45) {
+    pdf.addPage(); y = 16;
+  }
 
   if (ev.observaciones) {
     pdf.setFontSize(9); pdf.setFont('helvetica', 'bold'); pdf.text('Observaciones', 14, y); y += 4;

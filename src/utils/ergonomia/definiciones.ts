@@ -5,6 +5,8 @@
 import type { MetodoErgo, ResultadoErgo } from '../../types/ergonomia';
 import { calcularRULA } from './rula';
 import { calcularREBA } from './reba';
+import { calcularNIOSH, type DuracionNiosh, type AgarreNiosh } from './niosh';
+import { calcularROSA } from './rosa';
 
 export interface OpcionSeg { valor: number; label: string; }
 export interface AjusteSeg { key: string; label: string; delta: number; }
@@ -13,8 +15,12 @@ export interface CampoErgo {
   key: string;
   label: string;
   grupo: string;            // título de sección en el formulario
-  opciones: OpcionSeg[];    // postura/factor base
+  tipo?: 'select' | 'numero'; // por defecto 'select'
+  opciones?: OpcionSeg[];   // postura/factor base (para 'select')
   ajustes?: AjusteSeg[];    // checkboxes que suman/restan al valor base
+  unidad?: string;          // para 'numero' (ej. 'cm', 'kg')
+  paso?: number;            // step del input numérico
+  def?: number;             // valor inicial de un campo numérico
   min: number;
   max: number;
 }
@@ -99,11 +105,144 @@ const REBA: DefinicionMetodo = {
   }),
 };
 
-export const METODOS: Record<MetodoErgo, DefinicionMetodo> = { RULA, REBA };
+// ── NIOSH ────────────────────────────────────────────────────────────────────
+const NIOSH: DefinicionMetodo = {
+  metodo: 'NIOSH',
+  label: 'NIOSH',
+  descripcion: 'Ecuación de levantamiento de cargas — peso límite recomendado (RWL) e índice de levantamiento (LI).',
+  campos: [
+    { key: 'pesoCarga', label: 'Peso de la carga', grupo: 'Carga y geometría', tipo: 'numero', unidad: 'kg', min: 0, max: 200, def: 10, paso: 0.5 },
+    { key: 'H', label: 'Distancia horizontal (H)', grupo: 'Carga y geometría', tipo: 'numero', unidad: 'cm', min: 0, max: 100, def: 25 },
+    { key: 'V', label: 'Altura de las manos al inicio (V)', grupo: 'Carga y geometría', tipo: 'numero', unidad: 'cm', min: 0, max: 200, def: 75 },
+    { key: 'D', label: 'Desplazamiento vertical (D)', grupo: 'Carga y geometría', tipo: 'numero', unidad: 'cm', min: 0, max: 200, def: 25 },
+    { key: 'A', label: 'Ángulo de asimetría (A)', grupo: 'Carga y geometría', tipo: 'numero', unidad: '°', min: 0, max: 180, def: 0 },
+    { key: 'frecuencia', label: 'Frecuencia', grupo: 'Frecuencia y duración', tipo: 'numero', unidad: 'lev/min', min: 0, max: 20, def: 1, paso: 0.5 },
+    { key: 'duracion', label: 'Duración de la tarea', grupo: 'Frecuencia y duración', min: 1, max: 3,
+      opciones: [{ valor: 1, label: '≤ 1 hora' }, { valor: 2, label: '≤ 2 horas' }, { valor: 3, label: '≤ 8 horas' }] },
+    { key: 'agarre', label: 'Calidad del agarre', grupo: 'Agarre', min: 1, max: 3,
+      opciones: [{ valor: 1, label: 'Bueno' }, { valor: 2, label: 'Regular' }, { valor: 3, label: 'Malo' }] },
+  ],
+  calcular: (v) => calcularNIOSH({
+    pesoCarga: v.pesoCarga, H: v.H, V: v.V, D: v.D, A: v.A, frecuencia: v.frecuencia,
+    duracion: v.duracion as DuracionNiosh, agarre: v.agarre as AgarreNiosh,
+  }),
+};
 
-/** Valores base por defecto (mínimos) para un método. */
+// ── ROSA ─────────────────────────────────────────────────────────────────────
+// Duración de uso de cada elemento (modificador estándar del método)
+const OPCIONES_DURACION: OpcionSeg[] = [
+  { valor: 0, label: 'Entre 1 y 4 h/día (uso normal)' },
+  { valor: -1, label: 'Menos de 1 h/día o <30 min seguidos' },
+  { valor: 1, label: 'Más de 4 h/día o >1 h seguida' },
+];
+
+const ROSA: DefinicionMetodo = {
+  metodo: 'ROSA',
+  label: 'ROSA',
+  descripcion: 'Rapid Office Strain Assessment — puestos de oficina (silla, monitor, teléfono, ratón y teclado).',
+  campos: [
+    // ── Silla ──
+    { key: 'sillaAltura', label: 'Altura del asiento', grupo: 'A · Silla', min: 1, max: 5,
+      opciones: [
+        { valor: 1, label: 'Rodillas a ≈90°' },
+        { valor: 2, label: 'Asiento muy bajo (<90°) o muy alto (>90°)' },
+        { valor: 3, label: 'Pies sin contacto con el suelo' },
+      ],
+      ajustes: [
+        { key: 'sinEspacio', label: 'Espacio insuficiente bajo la mesa', delta: 1 },
+        { key: 'noAjustable', label: 'Altura no ajustable', delta: 1 },
+      ] },
+    { key: 'sillaProfundidad', label: 'Profundidad del asiento', grupo: 'A · Silla', min: 1, max: 3,
+      opciones: [
+        { valor: 1, label: '≈8 cm entre borde del asiento y rodilla' },
+        { valor: 2, label: 'Asiento muy largo (<8 cm) o muy corto (>8 cm)' },
+      ],
+      ajustes: [{ key: 'noAjustable', label: 'Profundidad no ajustable', delta: 1 }] },
+    { key: 'reposabrazos', label: 'Reposabrazos', grupo: 'A · Silla', min: 1, max: 4,
+      opciones: [
+        { valor: 1, label: 'Codos apoyados, hombros relajados' },
+        { valor: 2, label: 'Muy altos (hombros encogidos) o muy bajos / mal ubicados' },
+      ],
+      ajustes: [
+        { key: 'duro', label: 'Superficie dura o dañada', delta: 1 },
+        { key: 'noAjustable', label: 'No ajustables', delta: 1 },
+      ] },
+    { key: 'respaldo', label: 'Respaldo', grupo: 'A · Silla', min: 1, max: 4,
+      opciones: [
+        { valor: 1, label: 'Soporte lumbar adecuado, reclinado 95–110°' },
+        { valor: 2, label: 'Sin soporte lumbar, reclinación <95° o >110°, o sin usar el respaldo' },
+      ],
+      ajustes: [
+        { key: 'mesaAlta', label: 'Superficie de trabajo muy alta (hombros encogidos)', delta: 1 },
+        { key: 'noAjustable', label: 'Respaldo no ajustable', delta: 1 },
+      ] },
+    { key: 'durSilla', label: 'Tiempo sentado', grupo: 'A · Silla', min: -1, max: 1, opciones: OPCIONES_DURACION },
+
+    // ── Monitor y teléfono ──
+    { key: 'monitor', label: 'Monitor', grupo: 'B · Monitor y teléfono', min: 1, max: 6,
+      opciones: [
+        { valor: 1, label: 'A distancia de brazo (40–75 cm), borde superior a nivel de ojos' },
+        { valor: 2, label: 'Muy bajo (cuello flexionado >30°)' },
+        { valor: 3, label: 'Muy alto (cuello en extensión)' },
+      ],
+      ajustes: [
+        { key: 'girado', label: 'Cuello girado (>30°)', delta: 1 },
+        { key: 'reflejos', label: 'Brillos o reflejos en pantalla', delta: 1 },
+        { key: 'documentos', label: 'Documentos sin porta-documentos', delta: 1 },
+      ] },
+    { key: 'durMonitor', label: 'Tiempo frente al monitor', grupo: 'B · Monitor y teléfono', min: -1, max: 1, opciones: OPCIONES_DURACION },
+    { key: 'telefono', label: 'Teléfono', grupo: 'B · Monitor y teléfono', min: 1, max: 5,
+      opciones: [
+        { valor: 1, label: 'Auriculares o una mano con cuello neutro' },
+        { valor: 2, label: 'Muy lejos del alcance (>30 cm)' },
+      ],
+      ajustes: [
+        { key: 'pinza', label: 'Sujetado entre cuello y hombro', delta: 2 },
+        { key: 'sinManosLibres', label: 'Sin opción de manos libres', delta: 1 },
+      ] },
+    { key: 'durTelefono', label: 'Tiempo al teléfono', grupo: 'B · Monitor y teléfono', min: -1, max: 1, opciones: OPCIONES_DURACION },
+
+    // ── Ratón y teclado ──
+    { key: 'raton', label: 'Ratón (mouse)', grupo: 'C · Ratón y teclado', min: 1, max: 6,
+      opciones: [
+        { valor: 1, label: 'Alineado con el hombro' },
+        { valor: 2, label: 'Desalineado / alcanzándolo lejos' },
+      ],
+      ajustes: [
+        { key: 'pinza', label: 'Agarre en pinza (ratón pequeño)', delta: 1 },
+        { key: 'reposamanos', label: 'Reposamanos duro delante del ratón', delta: 1 },
+        { key: 'superficies', label: 'Ratón y teclado en superficies distintas', delta: 2 },
+      ] },
+    { key: 'durRaton', label: 'Tiempo de uso del ratón', grupo: 'C · Ratón y teclado', min: -1, max: 1, opciones: OPCIONES_DURACION },
+    { key: 'teclado', label: 'Teclado', grupo: 'C · Ratón y teclado', min: 1, max: 6,
+      opciones: [
+        { valor: 1, label: 'Muñecas rectas, hombros relajados' },
+        { valor: 2, label: 'Muñecas extendidas >15°' },
+      ],
+      ajustes: [
+        { key: 'desviadas', label: 'Muñecas desviadas al teclear', delta: 1 },
+        { key: 'alto', label: 'Teclado muy alto (hombros encogidos)', delta: 1 },
+        { key: 'alcances', label: 'Alcances por encima de la cabeza o lejanos', delta: 1 },
+        { key: 'noAjustable', label: 'Plataforma no ajustable', delta: 1 },
+      ] },
+    { key: 'durTeclado', label: 'Tiempo de tecleo', grupo: 'C · Ratón y teclado', min: -1, max: 1, opciones: OPCIONES_DURACION },
+  ],
+  calcular: (v) => calcularROSA({
+    sillaAltura: v.sillaAltura, sillaProfundidad: v.sillaProfundidad,
+    reposabrazos: v.reposabrazos, respaldo: v.respaldo, durSilla: v.durSilla,
+    monitor: v.monitor, durMonitor: v.durMonitor,
+    telefono: v.telefono, durTelefono: v.durTelefono,
+    raton: v.raton, durRaton: v.durRaton, teclado: v.teclado, durTeclado: v.durTeclado,
+  }),
+};
+
+export const METODOS: Record<MetodoErgo, DefinicionMetodo> = { RULA, REBA, NIOSH, ROSA };
+
+/** Valores iniciales para un método (mínimo del select o `def` del numérico). */
 export function valoresIniciales(metodo: MetodoErgo): Record<string, number> {
   const v: Record<string, number> = {};
-  METODOS[metodo].campos.forEach((c) => { v[c.key] = c.opciones[0].valor; });
+  METODOS[metodo].campos.forEach((c) => {
+    v[c.key] = c.tipo === 'numero' ? (c.def ?? c.min) : (c.opciones?.[0].valor ?? c.min);
+  });
   return v;
 }

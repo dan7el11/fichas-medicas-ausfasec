@@ -8,6 +8,15 @@ import type { MetodoErgo } from '../../types/ergonomia';
 export function anguloAPuntaje(metodo: MetodoErgo, segKey: string, angulo: number): number | null {
   const a = Math.abs(angulo);
 
+  if (metodo === 'ROSA') {
+    // Oficina: ángulos medidos sobre la foto del puesto
+    if (segKey === 'sillaAltura') return Math.abs(a - 90) <= 10 ? 1 : 2;      // ángulo de rodilla ≈90°
+    if (segKey === 'respaldo') return a >= 95 && a <= 110 ? 1 : 2;            // reclinación del respaldo
+    if (segKey === 'monitor') return a <= 30 ? 1 : 2;                          // flexión de cuello hacia la pantalla
+    if (segKey === 'teclado') return a <= 15 ? 1 : 2;                          // extensión de muñeca al teclear
+    return null;
+  }
+
   if (segKey === 'brazo') {
     // Igual en RULA y REBA: flexión/extensión del hombro
     if (a < 20) return 1;
@@ -47,5 +56,9 @@ export function anguloAPuntaje(metodo: MetodoErgo, segKey: string, angulo: numbe
   return null; // segmento no derivable de un ángulo
 }
 
-/** Segmentos que aceptan sugerencia desde un ángulo (para el selector del medidor). */
-export const SEGMENTOS_ANGULO = ['brazo', 'antebrazo', 'tronco', 'cuello', 'muneca'];
+/** Segmentos que aceptan sugerencia desde un ángulo (para el selector del medidor).
+ *  El medidor los filtra según los campos del método activo. */
+export const SEGMENTOS_ANGULO = [
+  'brazo', 'antebrazo', 'tronco', 'cuello', 'muneca',      // RULA / REBA
+  'sillaAltura', 'respaldo', 'monitor', 'teclado',          // ROSA
+];

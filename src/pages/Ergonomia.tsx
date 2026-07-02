@@ -17,7 +17,7 @@ import MedidorAngulos from '../components/ergonomia/MedidorAngulos';
 import { generarInformeErgo } from '../components/ergonomia/informeErgo';
 import { getEvaluacionesErgo, crearEvaluacionErgo, eliminarEvaluacionErgo } from '../services/ergonomia';
 import { getTrabajadores } from '../services/trabajadores';
-import { valoresIniciales } from '../utils/ergonomia/definiciones';
+import { valoresIniciales, METODOS } from '../utils/ergonomia/definiciones';
 import { matchTrabajador, areaDeTrabajador, nombreCompleto } from '../utils/medicalHelpers';
 import { cargarLogoParaPdf } from '../utils/logoPdf';
 import { LOGO_EMPRESA } from '../assets/logoEmpresa';
@@ -247,7 +247,7 @@ function NuevaEvaluacion({ trabajadores, onCancel, onSaved, medicoId, medicoNomb
           {/* Método + tarea */}
           <div className="bg-white border border-slate-200 rounded-xl p-4 space-y-3">
             <div className="flex gap-2">
-              {(['RULA', 'REBA'] as MetodoErgo[]).map((m) => (
+              {(Object.keys(METODOS) as MetodoErgo[]).map((m) => (
                 <button key={m} onClick={() => setMetodo(m)} className="px-4 py-2 rounded-lg text-[13px] font-bold border" style={metodo === m ? { background: ACCENT, color: '#fff', borderColor: ACCENT } : { background: '#fff', color: COLORS.muted, borderColor: COLORS.line }}>{m}</button>
               ))}
               <div className="ml-auto flex items-center gap-1.5 text-[12px] text-slate-500">
