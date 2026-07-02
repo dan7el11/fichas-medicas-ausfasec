@@ -13,10 +13,19 @@ import type { MetodoErgo, FotoErgo } from '../../types/ergonomia';
 
 type Modo = 'angulo' | 'vertical' | 'distancia';
 interface Punto { x: number; y: number; }
-interface Medicion { modo: Modo; puntos: Punto[]; valor: number; segmento?: string; }
+interface Medicion { modo: Modo; puntos: Punto[]; valor: number; segmento?: string; etiqueta: string; }
 
 const COLOR = '#0d9488';
 const MAX_W = 900;
+
+// Articulaciones y objetos típicos para etiquetar mediciones (lista sugerida,
+// el campo acepta texto libre).
+const ETIQUETAS_SUGERIDAS = [
+  'Hombro', 'Codo', 'Muñeca', 'Cuello', 'Tronco', 'Rodilla', 'Cadera',
+  'Monitor', 'Teclado', 'Ratón', 'Respaldo', 'Asiento', 'Teléfono', 'Mesa',
+];
+
+const textoValor = (m: Medicion) => (m.modo === 'distancia' ? `${Math.round(m.valor)} px` : `${m.valor.toFixed(0)}°`);
 
 function gradosIncluido(a: Punto, v: Punto, b: Punto): number {
   const v1 = { x: a.x - v.x, y: a.y - v.y };
@@ -81,7 +90,7 @@ export default function MedidorAngulos({ trabajadorId, metodo, onAplicarPuntaje,
       dibujarPuntos(m.puntos, COLOR);
       const v = m.modo === 'angulo' ? m.puntos[1] : m.puntos[0];
       ctx.fillStyle = '#fff'; ctx.strokeStyle = COLOR; ctx.lineWidth = 3; ctx.font = 'bold 14px sans-serif';
-      const txt = m.modo === 'distancia' ? `${Math.round(m.valor)} px` : `${m.valor.toFixed(0)}°`;
+      const txt = m.etiqueta ? `${m.etiqueta}: ${textoValor(m)}` : textoValor(m);
       ctx.strokeText(txt, v.x + 6, v.y - 6); ctx.fillText(txt, v.x + 6, v.y - 6);
     });
     dibujarPuntos(enCurso, '#e11d48');
@@ -96,12 +105,19 @@ export default function MedidorAngulos({ trabajadorId, metodo, onAplicarPuntaje,
     const valor = modo === 'angulo' ? gradosIncluido(pts[0], pts[1], pts[2])
       : modo === 'vertical' ? gradosVertical(pts[0], pts[1])
       : Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y);
-    setMediciones((m) => [...m, { modo, puntos: pts, valor }]);
+    setMediciones((m) => [...m, { modo, puntos: pts, valor, etiqueta: '' }]);
     setEnCurso([]);
   };
 
+  const setEtiqueta = (idx: number, etiqueta: string) => {
+    setMediciones((m) => m.map((x, i) => i === idx ? { ...x, etiqueta } : x));
+  };
+
   const asignar = (idx: number, seg: string) => {
-    setMediciones((m) => m.map((x, i) => i === idx ? { ...x, segmento: seg } : x));
+    // Al asignar a un parámetro, si la medición no tiene etiqueta se usa el
+    // nombre del parámetro (queda rotulada en la foto y en el PDF).
+    const label = METODOS[metodo].campos.find((c) => c.key === seg)?.label ?? seg;
+    setMediciones((m) => m.map((x, i) => i === idx ? { ...x, segmento: seg, etiqueta: x.etiqueta || (seg ? label : x.etiqueta) } : x));
   };
   const aplicar = (m: Medicion) => {
     if (!m.segmento) return;
@@ -118,7 +134,13 @@ export default function MedidorAngulos({ trabajadorId, metodo, onAplicarPuntaje,
       const r = storageRef(storage, path);
       await uploadString(r, dataUrl, 'data_url');
       const url = await getDownloadURL(r);
-      onFotoGuardada({ url, path, nombre: `foto_${Date.now()}.jpg` });
+      onFotoGuardada({
+        url, path, nombre: `foto_${Date.now()}.jpg`,
+        mediciones: mediciones.map((m) => ({
+          etiqueta: m.etiqueta || (m.modo === 'distancia' ? 'Distancia' : 'Ángulo'),
+          valor: textoValor(m),
+        })),
+      });
       onClose();
     } catch (err) { console.error('Error al subir la foto:', err); alert('No se pudo subir la foto. Verifica las reglas de Storage y tu conexión.'); }
     finally { setSubiendo(false); }
@@ -167,15 +189,22 @@ export default function MedidorAngulos({ trabajadorId, metodo, onAplicarPuntaje,
             <div className="text-[12px] font-bold uppercase tracking-wide text-slate-400">Mediciones</div>
             {mediciones.length === 0 && <div className="text-[12.5px] text-slate-400">Aún no hay mediciones.</div>}
             {mediciones.map((m, i) => (
-              <div key={i} className="border border-slate-200 rounded-lg p-2.5">
+              <div key={i} className="border border-slate-200 rounded-lg p-2.5 space-y-1.5">
                 <div className="flex items-center justify-between">
-                  <span className="text-[13px] font-bold" style={{ color: COLOR }}>{m.modo === 'distancia' ? `${Math.round(m.valor)} px` : `${m.valor.toFixed(0)}°`}</span>
+                  <span className="text-[13px] font-bold" style={{ color: COLOR }}>{m.etiqueta ? `${m.etiqueta}: ` : ''}{textoValor(m)}</span>
                   <button onClick={() => setMediciones((arr) => arr.filter((_, j) => j !== i))} className="text-slate-300 hover:text-red-500"><X size={14} /></button>
                 </div>
+                <input
+                  list="etiquetas-medidor"
+                  value={m.etiqueta}
+                  onChange={(e) => setEtiqueta(i, e.target.value)}
+                  placeholder="Etiqueta: hombro, codo, monitor…"
+                  className="w-full px-2 py-1 border border-slate-300 rounded text-[11.5px] bg-white outline-none"
+                />
                 {m.modo !== 'distancia' && (
-                  <div className="flex items-center gap-1.5 mt-1.5">
+                  <div className="flex items-center gap-1.5">
                     <select value={m.segmento ?? ''} onChange={(e) => asignar(i, e.target.value)} className="flex-1 px-2 py-1 border border-slate-300 rounded text-[11.5px] bg-white">
-                      <option value="">Asignar a…</option>
+                      <option value="">Sugerir puntaje a…</option>
                       {segmentos.map((s) => <option key={s} value={s}>{METODOS[metodo].campos.find((c) => c.key === s)?.label}</option>)}
                     </select>
                     <button onClick={() => aplicar(m)} disabled={!m.segmento} className="px-2 py-1 rounded text-[11.5px] font-bold text-white disabled:opacity-40" style={{ background: COLOR }}>Aplicar</button>
@@ -183,6 +212,14 @@ export default function MedidorAngulos({ trabajadorId, metodo, onAplicarPuntaje,
                 )}
               </div>
             ))}
+            <datalist id="etiquetas-medidor">
+              {ETIQUETAS_SUGERIDAS.map((e) => <option key={e} value={e} />)}
+            </datalist>
+            {mediciones.length > 0 && (
+              <p className="text-[10.5px] text-slate-400 m-0">
+                Una misma foto puede tener varias mediciones y sugerir el puntaje de varios parámetros.
+              </p>
+            )}
           </div>
         </div>
 

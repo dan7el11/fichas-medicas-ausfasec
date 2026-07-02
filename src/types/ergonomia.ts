@@ -15,11 +15,18 @@ export interface ResultadoErgo {
   detalle: Record<string, number>; // puntajes intermedios (A, B, C…)
 }
 
-/** Foto adjunta (con sus mediciones de ángulo opcionales, Fase B). */
+/** Medición realizada sobre una foto (articulación u objeto + valor). */
+export interface MedicionFoto {
+  etiqueta: string;  // ej. 'Codo', 'Hombro', 'Monitor', 'Teclado'
+  valor: string;     // ej. '95°', '120 px'
+}
+
+/** Foto adjunta con sus mediciones etiquetadas. */
 export interface FotoErgo {
   url: string;
   path: string;
   nombre: string;
+  mediciones?: MedicionFoto[];
 }
 
 /** Documento de evaluación ergonómica. */
