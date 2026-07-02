@@ -266,7 +266,17 @@ function NuevaEvaluacion({ trabajadores, onCancel, onSaved, medicoId, medicoNomb
               <div className="flex gap-2 flex-wrap">
                 {fotos.map((f, i) => (
                   <div key={i} className="relative">
-                    <img src={f.url} alt="" className="w-20 h-20 object-cover rounded-lg border border-slate-200" />
+                    <img
+                      src={f.url}
+                      alt=""
+                      title={f.mediciones?.length ? f.mediciones.map((m) => `${m.etiqueta}: ${m.valor}`).join(' · ') : 'Sin mediciones'}
+                      className="w-20 h-20 object-cover rounded-lg border border-slate-200"
+                    />
+                    {f.mediciones && f.mediciones.length > 0 && (
+                      <span className="absolute bottom-1 left-1 px-1 py-px rounded text-[9px] font-bold text-white" style={{ background: 'rgba(13,148,136,0.9)' }}>
+                        {f.mediciones.length} med.
+                      </span>
+                    )}
                     <button onClick={() => setFotos((arr) => arr.filter((_, j) => j !== i))} className="absolute -top-1.5 -right-1.5 w-5 h-5 grid place-items-center rounded-full bg-white border border-slate-300 text-slate-500 text-xs">×</button>
                   </div>
                 ))}

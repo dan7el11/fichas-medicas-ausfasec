@@ -4,6 +4,7 @@ import autoTable from 'jspdf-autotable';
 import type { EvaluacionErgonomica } from '../../types/ergonomia';
 import type { DatosEmpresa } from '../../contexts/EmpresaContext';
 import { METODOS } from '../../utils/ergonomia/definiciones';
+import { parrafosInterpretacion } from '../../utils/ergonomia/interpretacion';
 import { toDate } from '../../services/atenciones';
 import { cargarLogoParaPdf } from '../../utils/logoPdf';
 
@@ -111,8 +112,27 @@ export async function generarInformeErgo(
     y = (pdf as any).lastAutoTable.finalY + 5;
   }
 
+  // ── Interpretación del resultado (párrafos explicativos) ──
+  const pageH = pdf.internal.pageSize.height;
+  const escribirParrafo = (texto: string, yy: number): number => {
+    const lineas = pdf.splitTextToSize(texto, W - 28);
+    if (yy + lineas.length * 3.8 > pageH - 18) { pdf.addPage(); yy = 16; }
+    pdf.text(lineas, 14, yy);
+    return yy + lineas.length * 3.8 + 2.5;
+  };
+
+  if (y > pageH - 40) { pdf.addPage(); y = 16; }
+  pdf.setFontSize(10); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(0);
+  pdf.text('Interpretación del resultado', 14, y); y += 5;
+  pdf.setFont('helvetica', 'normal'); pdf.setFontSize(8.5); pdf.setTextColor(40);
+  for (const parrafo of parrafosInterpretacion(ev)) {
+    y = escribirParrafo(parrafo, y);
+  }
+  pdf.setTextColor(0);
+  y += 2;
+
   // Si queda poco espacio, continuar en página nueva
-  if ((ev.observaciones || ev.recomendaciones) && y > pdf.internal.pageSize.height - 45) {
+  if ((ev.observaciones || ev.recomendaciones) && y > pageH - 45) {
     pdf.addPage(); y = 16;
   }
 
@@ -133,20 +153,31 @@ export async function generarInformeErgo(
   pdf.setFontSize(7); pdf.setTextColor(150);
   pdf.text(`Generado por ${ev.medicoNombre || 'Servicio Médico Ocupacional'} — ${empresa.institucion}`, 14, pdf.internal.pageSize.height - 8);
 
-  // Fotos anotadas (cada una en su página)
+  // Fotos anotadas (cada una en su página, con sus mediciones listadas)
+  let nFoto = 0;
   for (const foto of ev.fotos ?? []) {
+    nFoto++;
     const im = await cargarLogoParaPdf(foto.url);
     if (!im) continue;
     try {
       pdf.addPage();
       pdf.setFontSize(10); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(0);
-      pdf.text('Foto de la evaluación', 14, 16);
+      pdf.text(`Fotografía ${nFoto} — mediciones sobre el puesto`, 14, 16);
+      let imgY = 21;
+      if (foto.mediciones && foto.mediciones.length > 0) {
+        pdf.setFont('helvetica', 'normal'); pdf.setFontSize(8.5); pdf.setTextColor(40);
+        const texto = 'Mediciones: ' + foto.mediciones.map((m) => `${m.etiqueta}: ${m.valor}`).join('  ·  ');
+        const lineas = pdf.splitTextToSize(texto, W - 28);
+        pdf.text(lineas, 14, imgY);
+        imgY += lineas.length * 3.8 + 3;
+        pdf.setTextColor(0);
+      }
       const props = pdf.getImageProperties(im.data);
       const maxW = W - 28;
-      const maxH = pdf.internal.pageSize.height - 30;
+      const maxH = pdf.internal.pageSize.height - imgY - 12;
       let w = maxW, h = (props.height / props.width) * w;
       if (h > maxH) { h = maxH; w = (props.width / props.height) * h; }
-      pdf.addImage(im.data, im.format, 14, 22, w, h);
+      pdf.addImage(im.data, im.format, 14, imgY, w, h);
     } catch (err) { console.warn('No se pudo añadir una foto al PDF:', err); }
   }
 
