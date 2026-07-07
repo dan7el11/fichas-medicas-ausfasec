@@ -4,6 +4,8 @@ import { doc, getDoc, updateDoc, collection, query, where, getDocs } from 'fireb
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../../services/firebase';
 import { registrarAuditoria } from '../../services/auditoria';
+import { getEvaluacionesErgoDeTrabajador } from '../../services/ergonomia';
+import type { EvaluacionErgonomica } from '../../types/ergonomia';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import type { Trabajador, EvaluacionMedica } from '../../types';
@@ -154,6 +156,7 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
   const [atenciones, setAtenciones] = useState<any[]>([]);
   const [ordenes, setOrdenes] = useState<OrdenExamen[]>([]);
   const [totalPatologicos, setTotalPatologicos] = useState(0);
+  const [evalsErgo, setEvalsErgo] = useState<EvaluacionErgonomica[]>([]);
   const [cargando, setCargando] = useState(true);
 
   // Drawer evaluacion
@@ -193,16 +196,18 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
     setCargando(true);
     (async () => {
       try {
-        const [workerSnap, evSnap, permisosSnap, atencionSnap, patSnap, ords] = await Promise.all([
+        const [workerSnap, evSnap, permisosSnap, atencionSnap, patSnap, ords, ergos] = await Promise.all([
           getDoc(doc(db, 'trabajadores', trabajadorId)),
           getDocs(query(collection(db, 'evaluaciones'), where('trabajadorId', '==', trabajadorId))),
           getDocs(query(collection(db, 'permisos'), where('trabajadorId', '==', trabajadorId))),
           getDocs(query(collection(db, 'atenciones'), where('trabajadorId', '==', trabajadorId))),
           getDocs(query(collection(db, 'examenes'), where('trabajadorId', '==', trabajadorId), where('estado', '==', 'patologico'))).catch(() => ({ size: 0 })),
           getOrdenes().catch(() => [] as OrdenExamen[]),
+          getEvaluacionesErgoDeTrabajador(trabajadorId).catch(() => []),
         ]);
 
         if (cancelled) return;
+        setEvalsErgo(ergos);
 
         if (workerSnap.exists()) {
           setTrabajador({ id: workerSnap.id, ...workerSnap.data() } as Trabajador);
@@ -952,6 +957,43 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
         onVerOrden={setOrdenDetalle}
         onDeleteOrden={eliminarOrdenExamen}
         onVerPdf={(url, nombre) => setPdfVisor({ url, nombre })}
+        ergonomia={
+          <div className="max-w-[1100px] mx-auto px-6 pb-6">
+            <div className="bg-white border border-slate-200 rounded-xl p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-[13px] font-bold text-slate-800">Evaluaciones ergonómicas</span>
+                <span className="text-[11px] text-slate-400">{evalsErgo.length}</span>
+                <button
+                  onClick={() => navigate('/ergonomia')}
+                  className="ml-auto text-[12px] font-semibold bg-transparent border-none cursor-pointer p-0"
+                  style={{ color: '#0d9488' }}
+                >
+                  Abrir módulo de Ergonomía →
+                </button>
+              </div>
+              {evalsErgo.length === 0 ? (
+                <p className="m-0 text-[12px] text-slate-400">Sin evaluaciones ergonómicas registradas para este trabajador.</p>
+              ) : (
+                <div className="flex flex-col gap-1">
+                  {evalsErgo.slice(0, 5).map((ev) => {
+                    const tone = ev.resultado.tone === 'danger' ? { fg: '#a01f2a', bg: '#fce8eb' }
+                      : ev.resultado.tone === 'warning' ? { fg: '#8a4a0a', bg: '#fff4e3' } : { fg: '#0a6b3b', bg: '#e6f6ee' };
+                    return (
+                      <div key={ev.id} className="flex items-center gap-2.5 py-1.5 border-b border-slate-50 last:border-0 text-[12.5px]">
+                        <span className="font-bold" style={{ color: '#0d9488' }}>{ev.metodo}</span>
+                        <span className="text-slate-500">{fmtF(ev.fecha)}</span>
+                        <span className="text-slate-400 truncate flex-1">{ev.tarea || '—'}</span>
+                        <span className="px-2 py-0.5 rounded-full text-[10.5px] font-bold whitespace-nowrap" style={{ color: tone.fg, background: tone.bg }}>
+                          {ev.resultado.puntajeFinal} · {ev.resultado.nivel}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        }
       />
 
       {/* hidden file input for cert upload */}

@@ -67,6 +67,8 @@ export interface FichaLayoutProps {
   onVerOrden: (o: OrdenExamen) => void;
   onDeleteOrden: (id: string) => void;
   onVerPdf?: (url: string, nombre: string) => void;
+  /** Sección opcional de evaluaciones ergonómicas (se muestra en Resumen). */
+  ergonomia?: ReactNode;
 }
 
 type Tab = 'resumen' | 'evaluaciones' | 'signos' | 'consultas' | 'examenes' | 'permisos';
@@ -165,7 +167,12 @@ export default function FichaLayout(props: FichaLayoutProps) {
 
       {/* CONTENIDO */}
       <div className="max-w-[1080px] mx-auto px-8 py-6">
-        {tab === 'resumen' && <Resumen {...props} ultEval={ultEval} apt={apt} futuros={futuros.length} setTab={setTab} />}
+        {tab === 'resumen' && (
+          <>
+            <Resumen {...props} ultEval={ultEval} apt={apt} futuros={futuros.length} setTab={setTab} />
+            {props.ergonomia}
+          </>
+        )}
         {tab === 'evaluaciones' && <Evaluaciones {...props} />}
         {tab === 'signos' && (
           <SeguimientoSignos
