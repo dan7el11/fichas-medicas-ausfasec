@@ -70,14 +70,14 @@ export default function TopBar({ userRol, onNewWorker }: TopBarProps) {
         </div>
       </div>
 
-      <nav className="flex gap-0.5 ml-4">
+      <nav className="flex gap-0.5 ml-4 flex-1 min-w-0 overflow-x-auto [scrollbar-width:none]">
         {TABS.map(({ key, label }) => {
           const active = location.pathname === key || (key !== '/' && location.pathname.startsWith(key));
           return (
             <button
               key={key}
               onClick={() => navigate(key)}
-              className="relative px-[11px] py-1.5 rounded-md text-[13px] border-none cursor-pointer bg-transparent transition-colors"
+              className="relative px-[11px] py-1.5 rounded-md text-[13px] border-none cursor-pointer bg-transparent transition-colors whitespace-nowrap flex-shrink-0"
               style={{
                 color: active ? '#fff' : 'rgba(255,255,255,0.62)',
                 fontWeight: active ? 600 : 500,

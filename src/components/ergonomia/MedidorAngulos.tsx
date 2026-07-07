@@ -54,6 +54,7 @@ interface Props {
 export default function MedidorAngulos({ trabajadorId, metodo, onAplicarPuntaje, onFotoGuardada, onClose }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const camaraRef = useRef<HTMLInputElement>(null);
   const [img, setImg] = useState<HTMLImageElement | null>(null);
   const [modo, setModo] = useState<Modo>('vertical');
   const [enCurso, setEnCurso] = useState<Punto[]>([]);
@@ -163,13 +164,22 @@ export default function MedidorAngulos({ trabajadorId, metodo, onAplicarPuntaje,
         <div className="p-5 grid md:grid-cols-[1fr_280px] gap-4">
           <div>
             {!img ? (
-              <button onClick={() => fileRef.current?.click()} className="w-full aspect-video border-2 border-dashed border-slate-300 rounded-xl grid place-items-center text-slate-400 hover:bg-slate-50">
-                <div className="text-center"><Upload size={28} className="mx-auto mb-2" /><div className="text-sm font-semibold">Subir foto</div></div>
-              </button>
+              <div className="w-full aspect-video border-2 border-dashed border-slate-300 rounded-xl grid place-items-center text-slate-400">
+                <div className="flex flex-col items-center gap-2.5">
+                  <button onClick={() => camaraRef.current?.click()} className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-white text-sm font-bold" style={{ background: COLOR }}>
+                    <Upload size={16} /> Tomar foto con la cámara
+                  </button>
+                  <button onClick={() => fileRef.current?.click()} className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-slate-300 bg-white text-slate-600 text-[13px] font-semibold">
+                    Elegir de la galería
+                  </button>
+                </div>
+              </div>
             ) : (
-              <canvas ref={canvasRef} onClick={click} className="w-full border border-slate-200 rounded-lg cursor-crosshair" />
+              <canvas ref={canvasRef} onClick={click} className="w-full border border-slate-200 rounded-lg cursor-crosshair touch-manipulation" />
             )}
             <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) cargarImagen(f); e.target.value = ''; }} />
+            {/* capture=environment: en el teléfono abre directamente la cámara trasera */}
+            <input ref={camaraRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) cargarImagen(f); e.target.value = ''; }} />
             {img && (
               <div className="flex gap-2 mt-2 flex-wrap">
                 {MODOS.map((m) => (
@@ -177,7 +187,7 @@ export default function MedidorAngulos({ trabajadorId, metodo, onAplicarPuntaje,
                     <m.icon size={13} /> {m.label}
                   </button>
                 ))}
-                <button onClick={() => fileRef.current?.click()} className="ml-auto inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[12px] font-semibold border border-slate-200 text-slate-600"><Upload size={13} /> Otra</button>
+                <button onClick={() => camaraRef.current?.click()} className="ml-auto inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[12px] font-semibold border border-slate-200 text-slate-600"><Upload size={13} /> Otra foto</button>
                 {enCurso.length > 0 && <button onClick={() => setEnCurso([])} className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[12px] font-semibold border border-slate-200 text-slate-600"><RotateCcw size={13} /> Reiniciar punto</button>}
               </div>
             )}

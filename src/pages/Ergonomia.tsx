@@ -129,7 +129,8 @@ export default function Ergonomia() {
                   {evaluaciones.length === 0 ? 'Aún no hay evaluaciones ergonómicas. Pulsa «Nueva evaluación».' : `No hay evaluaciones ${filtroMetodo}.`}
                 </div>
               ) : (
-                <table className="w-full text-[13px]">
+                <div className="overflow-x-auto">
+                <table className="w-full text-[13px] min-w-[640px]">
                   <thead>
                     <tr className="border-b text-left" style={{ background: COLORS.bg, borderColor: COLORS.line }}>
                       {['Fecha', 'Trabajador', 'Método', 'Resultado', 'Acciones'].map((h) => (
@@ -162,6 +163,7 @@ export default function Ergonomia() {
                     })}
                   </tbody>
                 </table>
+                </div>
               )}
             </div>
           </>
