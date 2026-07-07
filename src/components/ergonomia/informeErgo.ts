@@ -4,9 +4,9 @@ import autoTable from 'jspdf-autotable';
 import type { EvaluacionErgonomica } from '../../types/ergonomia';
 import type { DatosEmpresa } from '../../contexts/EmpresaContext';
 import { METODOS } from '../../utils/ergonomia/definiciones';
-import { parrafosInterpretacion } from '../../utils/ergonomia/interpretacion';
+import { parrafosInterpretacion, DETALLE_LABEL } from '../../utils/ergonomia/interpretacion';
 import { toDate } from '../../services/atenciones';
-import { cargarLogoParaPdf } from '../../utils/logoPdf';
+import { cargarFotoParaPdf } from '../../utils/logoPdf';
 
 const TONE_RGB: Record<string, [number, number, number]> = {
   success: [16, 160, 90],
@@ -14,17 +14,6 @@ const TONE_RGB: Record<string, [number, number, number]> = {
   danger: [220, 46, 60],
 };
 
-// Etiquetas legibles de los puntajes intermedios (resultado.detalle)
-const DETALLE_LABEL: Record<string, string> = {
-  posturaA: 'Postura grupo A', puntajeA: 'Puntaje grupo A',
-  posturaB: 'Postura grupo B', puntajeB: 'Puntaje grupo B', puntajeC: 'Puntaje C',
-  RWL: 'Peso límite recomendado — RWL (kg)', LI: 'Índice de levantamiento (LI)',
-  HM: 'Multiplicador horizontal (HM)', VM: 'Multiplicador vertical (VM)',
-  DM: 'Multiplicador de desplazamiento (DM)', AM: 'Multiplicador de asimetría (AM)',
-  FM: 'Multiplicador de frecuencia (FM)', CM: 'Multiplicador de agarre (CM)',
-  silla: 'Puntaje silla', monitorTelefono: 'Monitor y teléfono',
-  ratonTeclado: 'Ratón y teclado', perifericos: 'Periféricos y pantalla',
-};
 
 export async function generarInformeErgo(
   ev: EvaluacionErgonomica,
@@ -157,7 +146,7 @@ export async function generarInformeErgo(
   let nFoto = 0;
   for (const foto of ev.fotos ?? []) {
     nFoto++;
-    const im = await cargarLogoParaPdf(foto.url);
+    const im = await cargarFotoParaPdf(foto.path, foto.url);
     if (!im) continue;
     try {
       pdf.addPage();

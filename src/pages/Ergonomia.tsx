@@ -15,6 +15,7 @@ import TopBar from '../components/dashboard/TopBar';
 import FormularioErgo from '../components/ergonomia/FormularioErgo';
 import MedidorAngulos from '../components/ergonomia/MedidorAngulos';
 import { generarInformeErgo } from '../components/ergonomia/informeErgo';
+import { generarInformeGlobalErgo } from '../components/ergonomia/informeGlobalErgo';
 import { getEvaluacionesErgo, crearEvaluacionErgo, eliminarEvaluacionErgo } from '../services/ergonomia';
 import { getTrabajadores } from '../services/trabajadores';
 import { valoresIniciales, METODOS } from '../utils/ergonomia/definiciones';
@@ -42,6 +43,7 @@ export default function Ergonomia() {
   const confirm = useConfirm();
 
   const [vista, setVista] = useState<'lista' | 'nueva'>('lista');
+  const [filtroMetodo, setFiltroMetodo] = useState<'Todos' | MetodoErgo>('Todos');
   const [trabajadores, setTrabajadores] = useState<Trabajador[]>([]);
   const [evaluaciones, setEvaluaciones] = useState<EvaluacionErgonomica[]>([]);
   const [cargando, setCargando] = useState(true);
@@ -69,6 +71,8 @@ export default function Ergonomia() {
     return () => { cancel = true; };
   }, [empresa.logoUrl]);
 
+  const filtradas = filtroMetodo === 'Todos' ? evaluaciones : evaluaciones.filter((e) => e.metodo === filtroMetodo);
+
   const eliminar = async (ev: EvaluacionErgonomica) => {
     if (!ev.id) return;
     if (!(await confirm({ message: `¿Eliminar la evaluación ${ev.metodo} de ${ev.apellidos} ${ev.nombres}?`, danger: true }))) return;
@@ -95,11 +99,35 @@ export default function Ergonomia() {
               </button>
             </div>
 
+            {/* Filtro por método + informe global */}
+            <div className="flex items-center gap-2 mb-4 flex-wrap">
+              {(['Todos', ...Object.keys(METODOS)] as ('Todos' | MetodoErgo)[]).map((m) => (
+                <button key={m} onClick={() => setFiltroMetodo(m)}
+                  className="px-3 py-1.5 rounded-full text-[12.5px] font-bold border cursor-pointer"
+                  style={filtroMetodo === m ? { background: ACCENT, color: '#fff', borderColor: ACCENT } : { background: '#fff', color: COLORS.muted, borderColor: COLORS.line }}>
+                  {m}{m !== 'Todos' && ` (${evaluaciones.filter((e) => e.metodo === m).length})`}
+                </button>
+              ))}
+              {filtroMetodo !== 'Todos' && (
+                <button
+                  onClick={() => generarInformeGlobalErgo(filtroMetodo, filtradas, empresa, logoPdf)}
+                  disabled={filtradas.length === 0}
+                  title={`Informe consolidado de todas las evaluaciones ${filtroMetodo}: promedios, distribución por nivel de riesgo y detalle`}
+                  className="ml-auto inline-flex items-center gap-1.5 px-3.5 py-2 bg-white border rounded-lg text-[12.5px] font-semibold cursor-pointer hover:bg-slate-50 disabled:opacity-40"
+                  style={{ borderColor: ACCENT, color: ACCENT }}
+                >
+                  <FileText size={14} /> Informe global {filtroMetodo} ({filtradas.length})
+                </button>
+              )}
+            </div>
+
             <div className="bg-white border rounded-[14px] overflow-hidden shadow-sm" style={{ borderColor: COLORS.line }}>
               {cargando ? (
                 <div className="p-12 text-center text-slate-400">Cargando…</div>
-              ) : evaluaciones.length === 0 ? (
-                <div className="p-12 text-center text-slate-400 text-sm">Aún no hay evaluaciones ergonómicas. Pulsa «Nueva evaluación».</div>
+              ) : filtradas.length === 0 ? (
+                <div className="p-12 text-center text-slate-400 text-sm">
+                  {evaluaciones.length === 0 ? 'Aún no hay evaluaciones ergonómicas. Pulsa «Nueva evaluación».' : `No hay evaluaciones ${filtroMetodo}.`}
+                </div>
               ) : (
                 <table className="w-full text-[13px]">
                   <thead>
@@ -110,7 +138,7 @@ export default function Ergonomia() {
                     </tr>
                   </thead>
                   <tbody>
-                    {evaluaciones.map((ev) => {
+                    {filtradas.map((ev) => {
                       const t = TONE_STYLE[ev.resultado.tone] ?? { fg: COLORS.muted, bg: COLORS.bg };
                       const f = toDate(ev.fecha);
                       return (
@@ -194,7 +222,8 @@ function NuevaEvaluacion({ trabajadores, onCancel, onSaved, medicoId, medicoNomb
         metodo,
         fecha: Timestamp.now(),
         tarea: tarea.trim(),
-        lado,
+        // El lado solo aplica a métodos de miembro/cuerpo (ROSA y NIOSH son globales)
+        ...(metodo === 'RULA' || metodo === 'REBA' ? { lado } : {}),
         entradas: vals,
         resultado,
         fotos,
@@ -250,10 +279,12 @@ function NuevaEvaluacion({ trabajadores, onCancel, onSaved, medicoId, medicoNomb
               {(Object.keys(METODOS) as MetodoErgo[]).map((m) => (
                 <button key={m} onClick={() => setMetodo(m)} className="px-4 py-2 rounded-lg text-[13px] font-bold border" style={metodo === m ? { background: ACCENT, color: '#fff', borderColor: ACCENT } : { background: '#fff', color: COLORS.muted, borderColor: COLORS.line }}>{m}</button>
               ))}
-              <div className="ml-auto flex items-center gap-1.5 text-[12px] text-slate-500">
-                <span>Lado:</span>
-                <select value={lado} onChange={(e) => setLado(e.target.value as any)} className="px-2 py-1 border border-slate-300 rounded text-[12px] bg-white"><option value="derecho">Derecho</option><option value="izquierdo">Izquierdo</option></select>
-              </div>
+              {(metodo === 'RULA' || metodo === 'REBA') && (
+                <div className="ml-auto flex items-center gap-1.5 text-[12px] text-slate-500">
+                  <span>Lado evaluado:</span>
+                  <select value={lado} onChange={(e) => setLado(e.target.value as any)} className="px-2 py-1 border border-slate-300 rounded text-[12px] bg-white"><option value="derecho">Derecho</option><option value="izquierdo">Izquierdo</option></select>
+                </div>
+              )}
             </div>
             <input value={tarea} onChange={(e) => setTarea(e.target.value)} placeholder="Tarea / actividad evaluada (ej. levantamiento de cajas en bodega)" className={inputCls} />
             <div className="flex items-center gap-2 flex-wrap">

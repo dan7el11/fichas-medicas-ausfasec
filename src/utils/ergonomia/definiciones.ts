@@ -50,9 +50,9 @@ const RULA: DefinicionMetodo = {
       ajustes: [{ key: 'desviada', label: 'Desviada de la línea media', delta: 1 }] },
     { key: 'giroMuneca', label: 'Giro de muñeca', grupo: 'A · Brazo, antebrazo y muñeca', min: 1, max: 2,
       opciones: [{ valor: 1, label: 'Rango medio' }, { valor: 2, label: 'Cerca del límite del giro' }] },
-    { key: 'usoMuscular', label: 'Uso muscular', grupo: 'A · Carga y esfuerzo', min: 0, max: 1,
+    { key: 'usoMuscularA', label: 'Uso muscular (brazo-muñeca)', grupo: 'A · Carga y esfuerzo', min: 0, max: 1,
       opciones: [{ valor: 0, label: 'No' }, { valor: 1, label: 'Estático >1 min o repetido >4/min' }] },
-    { key: 'carga', label: 'Carga / fuerza', grupo: 'A · Carga y esfuerzo', min: 0, max: 3,
+    { key: 'cargaA', label: 'Carga / fuerza (brazo-muñeca)', grupo: 'A · Carga y esfuerzo', min: 0, max: 3,
       opciones: [{ valor: 0, label: '<2 kg intermitente' }, { valor: 1, label: '2–10 kg intermitente' }, { valor: 2, label: '2–10 kg estático/repetido o 10+ kg intermitente' }, { valor: 3, label: '10+ kg estático/repetido o golpes' }] },
     { key: 'cuello', label: 'Cuello', grupo: 'B · Cuello, tronco y piernas', min: 1, max: 6,
       opciones: [{ valor: 1, label: '0–10° flex.' }, { valor: 2, label: '10–20° flex.' }, { valor: 3, label: '>20° flex.' }, { valor: 4, label: 'En extensión' }],
@@ -62,11 +62,15 @@ const RULA: DefinicionMetodo = {
       ajustes: [{ key: 'girado', label: 'Tronco girado', delta: 1 }, { key: 'inclinado', label: 'Tronco inclinado', delta: 1 }] },
     { key: 'piernas', label: 'Piernas', grupo: 'B · Cuello, tronco y piernas', min: 1, max: 2,
       opciones: [{ valor: 1, label: 'Apoyadas y equilibradas' }, { valor: 2, label: 'No apoyadas / desequilibradas' }] },
+    { key: 'usoMuscularB', label: 'Uso muscular (cuello-tronco)', grupo: 'B · Carga y esfuerzo', min: 0, max: 1,
+      opciones: [{ valor: 0, label: 'No' }, { valor: 1, label: 'Estático >1 min o repetido >4/min' }] },
+    { key: 'cargaB', label: 'Carga / fuerza (cuello-tronco)', grupo: 'B · Carga y esfuerzo', min: 0, max: 3,
+      opciones: [{ valor: 0, label: '<2 kg intermitente' }, { valor: 1, label: '2–10 kg intermitente' }, { valor: 2, label: '2–10 kg estático/repetido o 10+ kg intermitente' }, { valor: 3, label: '10+ kg estático/repetido o golpes' }] },
   ],
   calcular: (v) => calcularRULA({
     brazo: v.brazo, antebrazo: v.antebrazo, muneca: v.muneca, giroMuneca: v.giroMuneca,
     cuello: v.cuello, tronco: v.tronco, piernas: v.piernas,
-    usoMuscularA: v.usoMuscular, cargaA: v.carga, usoMuscularB: v.usoMuscular, cargaB: v.carga,
+    usoMuscularA: v.usoMuscularA, cargaA: v.cargaA, usoMuscularB: v.usoMuscularB, cargaB: v.cargaB,
   }),
 };
 
