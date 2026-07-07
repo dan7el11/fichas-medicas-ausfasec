@@ -1,0 +1,16 @@
+{
+  "name": "Fichas Médicas Ocupacionales",
+  "short_name": "Fichas Médicas",
+  "description": "Sistema de salud ocupacional: fichas, consultas, permisos, exámenes y evaluaciones ergonómicas.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f5f7fa",
+  "theme_color": "#1a2332",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" },
+    { "src": "/logo.png", "sizes": "534x157", "type": "image/png", "purpose": "any" }
+  ]
+}
