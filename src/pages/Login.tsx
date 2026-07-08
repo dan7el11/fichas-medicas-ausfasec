@@ -4,6 +4,7 @@ import { signInWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/aut
 import { auth } from '../services/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { useEmpresa } from '../contexts/EmpresaContext';
+import { APP_VERSION } from '../version';
 
 export default function Login() {
   const { empresa } = useEmpresa();
@@ -119,6 +120,7 @@ export default function Login() {
             {cargando ? 'Iniciando sesión...' : 'Ingresar al Sistema'}
           </button>
         </form>
+        <p className="text-center text-[11px] text-slate-300 mt-5 mb-0">{APP_VERSION}</p>
       </div>
     </div>
   );

@@ -3,6 +3,7 @@ import { Plus, UserCircle, LogOut, ChevronDown, Users, History } from 'lucide-re
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useEmpresa } from '../../contexts/EmpresaContext';
+import { APP_VERSION } from '../../version';
 import { COLORS, FONTS } from '../../theme';
 
 interface TopBarProps {
@@ -129,6 +130,7 @@ export default function TopBar({ userRol, onNewWorker }: TopBarProps) {
               <div className="px-4 py-3 border-b border-slate-100">
                 <div className="text-[13px] font-bold text-slate-900 truncate">{displayName}</div>
                 <div className="text-[11px] text-slate-400">{rolLabel}</div>
+                <div className="text-[10px] text-slate-300 mt-0.5">{APP_VERSION}</div>
               </div>
               <button
                 onClick={() => { setMenuOpen(false); navigate('/perfil'); }}
