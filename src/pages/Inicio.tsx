@@ -86,7 +86,7 @@ export default function Inicio() {
           </div>
 
           {/* KPIs en línea */}
-          <div className="flex mb-7 bg-white border border-slate-200 rounded-[14px] overflow-hidden shadow-sm">
+          <div className="grid grid-cols-2 md:flex mb-7 bg-white border border-slate-200 rounded-[14px] overflow-hidden shadow-sm">
             <Kpi value={cargando ? '·' : stats.trabajadores} label="Trabajadores" sub="registrados" icon={<Users size={16} />} color="#0d1b2a" />
             <Kpi value={cargando ? '·' : stats.atencionesHoy} label="Atenciones" sub="hoy" icon={<Activity size={16} />} color="#1d4fad" />
             <Kpi value={cargando ? '·' : stats.permisosActivos} label="Permisos activos" sub="en reposo" icon={<Calendar size={16} />} color="#7c5cf2" />
@@ -98,7 +98,7 @@ export default function Inicio() {
             <h2 className="m-0 text-[16px] font-bold">Módulos del sistema</h2>
             <span className="text-[12px] text-slate-400">Accede directo a cada área</span>
           </div>
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {modulos.map((m) => <ModuloTarjeta key={m.key} m={m} onGo={() => navigate(m.ruta)} />)}
             {isAdmin && (
               <ModuloTarjeta
@@ -161,7 +161,7 @@ function Quick({ label, onClick, color }: { label: string; onClick: () => void; 
 
 function Kpi({ value, label, sub, icon, color, last }: { value: ReactNode; label: string; sub: string; icon: ReactNode; color: string; last?: boolean }) {
   return (
-    <div className={`flex-1 p-[16px_20px] ${last ? '' : 'border-r border-slate-100'}`}>
+    <div className={`flex-1 p-[16px_20px] border-b md:border-b-0 border-slate-100 ${last ? '' : 'md:border-r'}`}>
       <div className="flex items-center justify-between">
         <div className="text-[26px] font-extrabold tracking-tight leading-none" style={{ color }}>{value}</div>
         <span className="grid place-items-center w-7 h-7 rounded-lg" style={{ background: `${color}14`, color }}>{icon}</span>

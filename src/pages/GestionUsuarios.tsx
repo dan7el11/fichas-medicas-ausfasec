@@ -87,13 +87,13 @@ export default function GestionUsuarios() {
           </button>
         </div>
 
-        <div className="bg-white border rounded-[14px] overflow-hidden shadow-sm" style={{ borderColor: COLORS.line }}>
+        <div className="bg-white border rounded-[14px] overflow-x-auto shadow-sm" style={{ borderColor: COLORS.line }}>
           {cargando ? (
             <div className="p-12 text-center text-slate-400">Cargando usuarios…</div>
           ) : usuarios.length === 0 ? (
             <div className="p-12 text-center text-slate-400 text-sm">No hay usuarios registrados todavía.</div>
           ) : (
-            <table className="w-full text-[13px]">
+            <table className="w-full text-[13px] min-w-[640px]">
               <thead>
                 <tr className="border-b text-left" style={{ background: COLORS.bg, borderColor: COLORS.line }}>
                   {['Usuario', 'Rol', 'Estado', 'Acciones'].map((h) => (

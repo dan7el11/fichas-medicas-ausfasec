@@ -101,14 +101,14 @@ export default function FichaLayout(props: FichaLayoutProps) {
     <div style={{ fontFamily: "'Public Sans', system-ui, sans-serif", color: INK }}>
       {/* HERO — papel blanco + barra de acento roja (sin gradiente) */}
       <div className="border-b" style={{ background: '#fff', borderColor: '#e4e6ea', borderTop: `3px solid ${BRAND}` }}>
-        <div className="max-w-[1080px] mx-auto px-8 pt-4">
+        <div className="max-w-[1080px] mx-auto px-4 md:px-8 pt-4">
           {props.onBack && (
             <button onClick={props.onBack} className="inline-flex items-center gap-1.5 bg-transparent border-none cursor-pointer text-[12.5px] font-semibold mb-3.5 p-0" style={{ color: '#646b75' }}>
               <ArrowLeft size={15} /> Volver
             </button>
           )}
           <div className="flex items-start gap-4 pb-4 flex-wrap">
-            <div className="flex items-start gap-4 flex-1" style={{ minWidth: 360 }}>
+            <div className="flex items-start gap-4 flex-1 min-w-0 sm:min-w-[360px]">
               <div className="w-16 h-16 grid place-items-center font-bold text-[22px] flex-shrink-0" style={{ background: BRAND_SOFT, color: BRAND, border: '1px solid #eccdd1', borderRadius: 14, fontFamily: SERIF }}>{ini}</div>
               <div className="flex-1 min-w-0">
                 <div className="text-[11px] font-semibold uppercase mb-1" style={{ color: BRAND, letterSpacing: '1.4px' }}>Expediente médico-ocupacional</div>
@@ -150,7 +150,7 @@ export default function FichaLayout(props: FichaLayoutProps) {
             <HeroKpi v={apt ? apt.label : '—'} l="Aptitud actual" color={apt ? apt.fg : undefined} />
           </div>
           {/* TABS */}
-          <div className="flex gap-1 flex-wrap">
+          <div className="flex gap-1 overflow-x-auto [scrollbar-width:none] whitespace-nowrap">
             {tabs.map((tb) => {
               const on = tab === tb.key;
               return (
@@ -166,7 +166,7 @@ export default function FichaLayout(props: FichaLayoutProps) {
       </div>
 
       {/* CONTENIDO */}
-      <div className="max-w-[1080px] mx-auto px-8 py-6">
+      <div className="max-w-[1080px] mx-auto px-4 md:px-8 py-6">
         {tab === 'resumen' && (
           <>
             <Resumen {...props} ultEval={ultEval} apt={apt} futuros={futuros.length} setTab={setTab} />

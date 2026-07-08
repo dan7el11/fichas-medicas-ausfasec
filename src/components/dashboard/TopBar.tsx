@@ -3,6 +3,7 @@ import { Plus, UserCircle, LogOut, ChevronDown, Users, History } from 'lucide-re
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useEmpresa } from '../../contexts/EmpresaContext';
+import { APP_VERSION } from '../../version';
 import { COLORS, FONTS } from '../../theme';
 
 interface TopBarProps {
@@ -60,12 +61,12 @@ export default function TopBar({ userRol, onNewWorker }: TopBarProps) {
       className="h-[54px] flex items-center gap-5 px-5 text-[13px] text-white"
       style={{ background: COLORS.ink, fontFamily: FONTS.sans }}
     >
-      <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigate('/')}>
+      <div className="flex items-center gap-3 cursor-pointer flex-shrink-0" onClick={() => navigate('/')}>
         <div className="w-[34px] h-[34px] bg-white rounded-[8px] flex items-center justify-center p-1 shadow-sm overflow-hidden">
           <img src={empresa.logoUrl || '/logo.png'} alt="Logo" className="w-full h-full object-contain" />
         </div>
-        <div className="flex flex-col leading-[1.15]">
-          <span className="font-bold tracking-[0.1px] text-[13px]">{empresa.institucion}</span>
+        <div className="hidden md:flex flex-col leading-[1.15]">
+          <span className="font-bold tracking-[0.1px] text-[13px] max-w-[180px] truncate">{empresa.institucion}</span>
           <span className="text-[10px] text-white/60">Medicina Ocupacional</span>
         </div>
       </div>
@@ -98,10 +99,10 @@ export default function TopBar({ userRol, onNewWorker }: TopBarProps) {
       <div className="ml-auto flex items-center gap-2.5">
         <button
           onClick={onNewWorker}
-          className="px-3 py-1.5 text-white border-none rounded-[8px] text-xs font-bold cursor-pointer flex items-center gap-1.5"
+          className="px-3 py-1.5 text-white border-none rounded-[8px] text-xs font-bold cursor-pointer flex items-center gap-1.5 whitespace-nowrap"
           style={{ background: COLORS.brand }}
         >
-          <Plus size={14} strokeWidth={2.5} /> Nuevo trabajador
+          <Plus size={14} strokeWidth={2.5} /> <span className="hidden sm:inline">Nuevo trabajador</span>
         </button>
         <div className="w-px h-[22px] bg-white/10" />
 
@@ -111,7 +112,7 @@ export default function TopBar({ userRol, onNewWorker }: TopBarProps) {
             onClick={() => setMenuOpen((v) => !v)}
             className="flex items-center gap-2 bg-transparent border-none cursor-pointer text-white p-0 rounded-lg hover:bg-white/5 transition-colors px-1.5 py-1"
           >
-            <div className="text-right leading-[1.15]">
+            <div className="hidden sm:block text-right leading-[1.15]">
               <div className="text-xs font-semibold">{displayName}</div>
               <div className="text-[10px] text-white/60">{rolLabel}</div>
             </div>
@@ -129,6 +130,7 @@ export default function TopBar({ userRol, onNewWorker }: TopBarProps) {
               <div className="px-4 py-3 border-b border-slate-100">
                 <div className="text-[13px] font-bold text-slate-900 truncate">{displayName}</div>
                 <div className="text-[11px] text-slate-400">{rolLabel}</div>
+                <div className="text-[10px] text-slate-300 mt-0.5">{APP_VERSION}</div>
               </div>
               <button
                 onClick={() => { setMenuOpen(false); navigate('/perfil'); }}
