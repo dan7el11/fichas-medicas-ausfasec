@@ -92,9 +92,9 @@ export default function Ergonomia() {
                 <h1 className="m-0 text-[26px] font-bold tracking-tight flex items-center gap-2" style={{ fontFamily: FONTS.serif }}>
                   <Activity size={24} style={{ color: ACCENT }} /> Evaluaciones ergonómicas
                 </h1>
-                <p className="m-0 text-sm text-slate-500 mt-1">Métodos RULA y REBA para carga postural.</p>
+                <p className="m-0 text-sm text-slate-500 mt-1">RULA, REBA, NIOSH y ROSA.</p>
               </div>
-              <button onClick={() => setVista('nueva')} className="inline-flex items-center gap-1.5 px-4 py-2.5 text-white font-bold rounded-[9px] text-sm" style={{ background: ACCENT }}>
+              <button onClick={() => setVista('nueva')} className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-4 py-2.5 text-white font-bold rounded-[9px] text-sm" style={{ background: ACCENT }}>
                 <Plus size={16} /> Nueva evaluación
               </button>
             </div>
@@ -113,7 +113,7 @@ export default function Ergonomia() {
                   onClick={() => generarInformeGlobalErgo(filtroMetodo, filtradas, empresa, logoPdf)}
                   disabled={filtradas.length === 0}
                   title={`Informe consolidado de todas las evaluaciones ${filtroMetodo}: promedios, distribución por nivel de riesgo y detalle`}
-                  className="ml-auto inline-flex items-center gap-1.5 px-3.5 py-2 bg-white border rounded-lg text-[12.5px] font-semibold cursor-pointer hover:bg-slate-50 disabled:opacity-40"
+                  className="w-full sm:w-auto sm:ml-auto inline-flex items-center justify-center gap-1.5 px-3.5 py-2 bg-white border rounded-lg text-[12.5px] font-semibold cursor-pointer hover:bg-slate-50 disabled:opacity-40"
                   style={{ borderColor: ACCENT, color: ACCENT }}
                 >
                   <FileText size={14} /> Informe global {filtroMetodo} ({filtradas.length})
@@ -129,7 +129,33 @@ export default function Ergonomia() {
                   {evaluaciones.length === 0 ? 'Aún no hay evaluaciones ergonómicas. Pulsa «Nueva evaluación».' : `No hay evaluaciones ${filtroMetodo}.`}
                 </div>
               ) : (
-                <div className="overflow-x-auto">
+                <>
+                {/* Móvil: tarjetas */}
+                <div className="md:hidden divide-y" style={{ borderColor: COLORS.line }}>
+                  {filtradas.map((ev) => {
+                    const t = TONE_STYLE[ev.resultado.tone] ?? { fg: COLORS.muted, bg: COLORS.bg };
+                    const f = toDate(ev.fecha);
+                    return (
+                      <div key={ev.id} className="p-4">
+                        <div className="flex items-center gap-2 mb-1.5">
+                          <span className="text-[13px] font-bold" style={{ color: ACCENT }}>{ev.metodo}</span>
+                          <span className="text-[11.5px] text-slate-400" style={{ fontFamily: FONTS.mono }}>{isNaN(f.getTime()) ? '—' : f.toLocaleDateString('es-EC')}</span>
+                          <span className="ml-auto px-2 py-0.5 rounded-full text-[11px] font-bold whitespace-nowrap" style={{ color: t.fg, background: t.bg }}>
+                            {ev.resultado.puntajeFinal} · {ev.resultado.nivel}
+                          </span>
+                        </div>
+                        <div className="text-[14px] font-semibold text-slate-900">{ev.apellidos} {ev.nombres}</div>
+                        <div className="text-[12px] text-slate-400 mb-2.5">{ev.puesto}{ev.tarea ? ` · ${ev.tarea}` : ''}</div>
+                        <div className="flex gap-2">
+                          <button onClick={() => generarInformeErgo(ev, empresa, logoPdf)} className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-[12.5px] font-semibold border bg-white" style={{ borderColor: COLORS.line, color: COLORS.muted }}><FileText size={14} /> PDF</button>
+                          <button onClick={() => eliminar(ev)} className="inline-flex items-center justify-center px-3.5 py-2 rounded-lg border border-red-200 text-red-700 bg-white"><Trash2 size={14} /></button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                {/* Escritorio: tabla */}
+                <div className="hidden md:block overflow-x-auto">
                 <table className="w-full text-[13px] min-w-[640px]">
                   <thead>
                     <tr className="border-b text-left" style={{ background: COLORS.bg, borderColor: COLORS.line }}>
@@ -164,6 +190,7 @@ export default function Ergonomia() {
                   </tbody>
                 </table>
                 </div>
+                </>
               )}
             </div>
           </>
@@ -244,7 +271,7 @@ function NuevaEvaluacion({ trabajadores, onCancel, onSaved, medicoId, medicoNomb
   const inputCls = 'w-full px-3 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-teal-600/30';
 
   return (
-    <div>
+    <div className="pb-24 lg:pb-0">
       <button onClick={onCancel} className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-800 font-medium mb-4"><ArrowLeft size={15} /> Volver a la lista</button>
       <h1 className="m-0 text-[24px] font-bold tracking-tight mb-5" style={{ fontFamily: FONTS.serif }}>Nueva evaluación ergonómica</h1>
 
@@ -277,12 +304,12 @@ function NuevaEvaluacion({ trabajadores, onCancel, onSaved, medicoId, medicoNomb
 
           {/* Método + tarea */}
           <div className="bg-white border border-slate-200 rounded-xl p-4 space-y-3">
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap items-center">
               {(Object.keys(METODOS) as MetodoErgo[]).map((m) => (
-                <button key={m} onClick={() => setMetodo(m)} className="px-4 py-2 rounded-lg text-[13px] font-bold border" style={metodo === m ? { background: ACCENT, color: '#fff', borderColor: ACCENT } : { background: '#fff', color: COLORS.muted, borderColor: COLORS.line }}>{m}</button>
+                <button key={m} onClick={() => setMetodo(m)} className="flex-1 sm:flex-none px-2 sm:px-4 py-2 rounded-lg text-[13px] font-bold border" style={metodo === m ? { background: ACCENT, color: '#fff', borderColor: ACCENT } : { background: '#fff', color: COLORS.muted, borderColor: COLORS.line }}>{m}</button>
               ))}
               {(metodo === 'RULA' || metodo === 'REBA') && (
-                <div className="ml-auto flex items-center gap-1.5 text-[12px] text-slate-500">
+                <div className="w-full sm:w-auto sm:ml-auto flex items-center gap-1.5 text-[12px] text-slate-500">
                   <span>Lado evaluado:</span>
                   <select value={lado} onChange={(e) => setLado(e.target.value as any)} className="px-2 py-1 border border-slate-300 rounded text-[12px] bg-white"><option value="derecho">Derecho</option><option value="izquierdo">Izquierdo</option></select>
                 </div>
@@ -327,8 +354,8 @@ function NuevaEvaluacion({ trabajadores, onCancel, onSaved, medicoId, medicoNomb
           </div>
         </div>
 
-        {/* Panel de resultado (sticky) */}
-        <div className="lg:sticky lg:top-4 space-y-3">
+        {/* Panel de resultado (escritorio: columna sticky) */}
+        <div className="hidden lg:block lg:sticky lg:top-4 space-y-3">
           <div className="rounded-xl border p-5 text-center" style={{ background: tone?.bg ?? COLORS.bg, borderColor: COLORS.line }}>
             <div className="text-[11px] font-bold uppercase tracking-wide" style={{ color: tone?.fg ?? COLORS.muted }}>{metodo} · puntaje final</div>
             <div className="text-[44px] font-extrabold leading-none my-1.5" style={{ color: tone?.fg ?? COLORS.ink, fontFamily: FONTS.mono }}>{resultado?.puntajeFinal ?? '—'}</div>
@@ -339,6 +366,23 @@ function NuevaEvaluacion({ trabajadores, onCancel, onSaved, medicoId, medicoNomb
             {guardando ? 'Guardando…' : 'Guardar evaluación'}
           </button>
         </div>
+      </div>
+
+      {/* Móvil: barra fija inferior con el puntaje en vivo + guardar */}
+      <div className="lg:hidden fixed bottom-0 inset-x-0 z-40 border-t bg-white px-4 py-2.5 flex items-center gap-3"
+        style={{ borderColor: COLORS.line, boxShadow: '0 -4px 16px rgba(13,27,42,0.08)', paddingBottom: 'calc(10px + env(safe-area-inset-bottom))' }}>
+        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+          <span className="grid place-items-center min-w-[46px] h-[46px] rounded-xl text-[20px] font-extrabold px-1" style={{ background: tone?.bg ?? COLORS.bg, color: tone?.fg ?? COLORS.ink, fontFamily: FONTS.mono }}>
+            {resultado?.puntajeFinal ?? '—'}
+          </span>
+          <div className="min-w-0">
+            <div className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{metodo}</div>
+            <div className="text-[13px] font-bold truncate" style={{ color: tone?.fg ?? COLORS.ink }}>{resultado?.nivel ?? '—'}</div>
+          </div>
+        </div>
+        <button onClick={guardar} disabled={guardando || !sel} className="inline-flex items-center gap-1.5 px-5 py-2.5 text-white font-bold rounded-[9px] text-sm disabled:opacity-50 whitespace-nowrap" style={{ background: ACCENT }}>
+          {guardando ? 'Guardando…' : 'Guardar'}
+        </button>
       </div>
 
       {medidor && sel && (
