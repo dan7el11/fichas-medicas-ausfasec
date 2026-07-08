@@ -98,7 +98,7 @@ export default function Inventario() {
       />
 
       {/* Sub-header con pestañas (mismo patrón que Exámenes) */}
-      <div className="border-b px-8 flex items-center gap-1 flex-shrink-0 overflow-x-auto" style={{ background: COLORS.panel, borderColor: COLORS.line }}>
+      <div className="border-b px-3 md:px-8 flex items-center gap-1 flex-shrink-0 overflow-x-auto" style={{ background: COLORS.panel, borderColor: COLORS.line }}>
         <span className="grid place-items-center w-[30px] h-[30px] rounded-lg mr-2.5 flex-shrink-0" style={{ background: ACCENT_BG, color: ACCENT }}><Package size={17} /></span>
         <span className="text-[15px] font-semibold mr-4 whitespace-nowrap" style={{ fontFamily: FONTS.serif }}>Inventario médico</span>
         {TABS_DEF.map((t) => {
@@ -113,7 +113,7 @@ export default function Inventario() {
       </div>
 
       <main className="flex-1 overflow-y-auto">
-        <div className="max-w-[1180px] mx-auto p-[24px_32px_80px]">
+        <div className="max-w-[1180px] mx-auto p-[16px_12px_60px] md:p-[24px_32px_80px]">
           {/* Eyebrow + KPIs */}
           <div className="text-[11px] font-semibold uppercase mb-3" style={{ color: COLORS.brand, letterSpacing: '1.4px' }}>
             {hoy.charAt(0).toUpperCase() + hoy.slice(1)}

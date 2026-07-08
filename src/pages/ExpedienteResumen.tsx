@@ -83,7 +83,7 @@ export default function ExpedienteResumen() {
 
               {/* Signos */}
               <Seccion icon={<Activity size={17} />} color={BRAND} titulo="Seguimiento de signos" sub={`${data!.signos.length} mediciones registradas`}>
-                <div className="grid grid-cols-4 gap-3">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                   <SignoCard icon={<Weight size={16} />} label="Peso" unidad="kg" color="#0f766e" info={ultimoConDelta(data!.signos, 'peso')} />
                   <PACard signos={data!.signos} />
                   <SignoCard icon={<Activity size={16} />} label="IMC" unidad="" color="#7c5cf2" info={ultimoConDelta(data!.signos, 'imc')} invertirColor />

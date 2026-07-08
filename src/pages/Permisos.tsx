@@ -73,9 +73,9 @@ export default function Permisos() {
     <div className="w-screen h-screen flex flex-col overflow-hidden" style={{ background: COLORS.bg, color: COLORS.ink, fontFamily: FONTS.sans }}>
       <TopBar userInitials={userInitials} userName={user?.email ?? 'Médico'} userRol="Medicina Ocupacional" onNewWorker={() => navigate('/nuevo-trabajador')} />
 
-      <main className="flex-1 overflow-hidden grid" style={{ gridTemplateColumns: '1fr 360px' }}>
+      <main className="flex-1 grid grid-cols-1 lg:grid-cols-[1fr_360px] overflow-y-auto lg:overflow-hidden">
         {/* Columna principal */}
-        <div className="overflow-y-auto p-[24px_28px_80px]">
+        <div className="lg:overflow-y-auto p-[16px_16px_60px] md:p-[24px_28px_80px]">
           <div className="max-w-[720px] mx-auto">
             {/* Header */}
             <div className="flex items-end gap-3 mb-[20px] flex-wrap">
@@ -138,7 +138,7 @@ export default function Permisos() {
         </div>
 
         {/* Panel lateral derecho */}
-        <div className="border-l overflow-y-auto p-[24px_22px]" style={{ borderColor: COLORS.line, background: '#e9ebef' }}>
+        <div className="border-t lg:border-t-0 lg:border-l lg:overflow-y-auto p-[24px_22px]" style={{ borderColor: COLORS.line, background: '#e9ebef' }}>
           {/* KPIs */}
           <div className="grid grid-cols-2 gap-2.5 mb-4">
             <MiniKpi value={stats.activos} label="En reposo" sub="hoy" icon={<BedDouble size={16} />} tone="info" />

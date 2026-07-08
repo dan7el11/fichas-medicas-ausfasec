@@ -84,7 +84,7 @@ export default function Ergonomia() {
     <div className="min-h-screen" style={{ background: COLORS.bg, fontFamily: FONTS.sans, color: COLORS.ink }}>
       <TopBar userInitials={userInitials} userName={user?.email ?? 'Médico'} userRol="Medicina Ocupacional" onNewWorker={() => navigate('/nuevo-trabajador')} />
 
-      <div className="max-w-5xl mx-auto p-6 md:p-8">
+      <div className="max-w-5xl mx-auto p-4 md:p-8">
         {vista === 'lista' ? (
           <>
             <div className="flex items-end justify-between gap-3 mb-6 flex-wrap">

@@ -80,7 +80,7 @@ export default function AgendaExamenes() {
       <TopBar userInitials={userInitials} userName={user?.email ?? 'Médico'} userRol="Medicina Ocupacional" onNewWorker={() => navigate('/nuevo-trabajador')} />
 
       {/* Sub-header con pestañas */}
-      <div className="border-b px-8 flex items-center gap-1 flex-shrink-0" style={{ background: COLORS.panel, borderColor: COLORS.line }}>
+      <div className="border-b px-3 md:px-8 flex items-center gap-1 flex-shrink-0 overflow-x-auto" style={{ background: COLORS.panel, borderColor: COLORS.line }}>
         <span className="grid place-items-center w-[30px] h-[30px] rounded-lg mr-2.5" style={{ background: ACCENT_BG, color: ACCENT }}><ClipboardList size={17} /></span>
         <span className="text-[15px] font-semibold mr-4 whitespace-nowrap" style={{ fontFamily: FONTS.serif }}>Exámenes ocupacionales</span>
         {TABS.map((t) => {
@@ -95,7 +95,7 @@ export default function AgendaExamenes() {
       </div>
 
       <main className="flex-1 overflow-y-auto">
-        <div className="max-w-[1240px] mx-auto p-[24px_32px_80px]">
+        <div className="max-w-[1240px] mx-auto p-[16px_12px_60px] md:p-[24px_32px_80px]">
           {cargando ? (
             <div className="p-16 text-center font-semibold" style={{ color: COLORS.faint }}>Cargando exámenes…</div>
           ) : tab === 'protocolos' ? (
@@ -106,7 +106,7 @@ export default function AgendaExamenes() {
               <div className="text-[11px] font-semibold uppercase mb-3" style={{ color: COLORS.brand, letterSpacing: '1.4px' }}>
                 {hoy.charAt(0).toUpperCase() + hoy.slice(1)}
               </div>
-              <div className="grid grid-cols-4 gap-3 mb-[22px]">
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-[22px]">
                 <Kpi value={stats.programados} label="Programados" sub="por realizar" icon={<Calendar size={16} />} tone="info" />
                 <Kpi value={stats.atrasados} label="Atrasados" sub="pasaron su fecha" icon={<AlertTriangle size={16} />} tone="danger" />
                 <Kpi value={stats.realizadosMes} label="Realizados" sub="este mes" icon={<Check size={16} />} tone="success" />
@@ -186,7 +186,7 @@ function CoberturaTab({ grupos, stats, total }: { grupos: Record<EstadoOrden, Or
   ];
   const max = Math.max(...filas.map((f) => f.n), 1);
   return (
-    <div className="grid gap-4 items-start" style={{ gridTemplateColumns: '1fr 360px' }}>
+    <div className="grid gap-4 items-start grid-cols-1 lg:grid-cols-[1fr_360px]">
       <div className="rounded-[16px] border p-[20px_22px]" style={{ background: COLORS.panel, borderColor: COLORS.line }}>
         <h2 className="m-0 mb-1 text-[17px] font-semibold tracking-tight" style={{ fontFamily: FONTS.serif }}>Cobertura de exámenes</h2>
         <p className="mt-0 mb-4 text-[13px]" style={{ color: COLORS.muted }}>Distribución de las {total} órdenes por estado</p>

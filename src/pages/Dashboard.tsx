@@ -44,6 +44,8 @@ export default function Dashboard() {
   const [tipoFilter, setTipoFilter] = useState<string>('Todos');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('Todos');
   const [selectedId, setSelectedId] = useState<string | undefined>();
+  // Móvil: lista y ficha se muestran como dos "pantallas" (maestro-detalle)
+  const [fichaMovil, setFichaMovil] = useState(false);
 
   // Carga inicial — sin selectedId en deps para evitar re-fetch al seleccionar trabajador
   useEffect(() => {
@@ -101,17 +103,25 @@ export default function Dashboard() {
       style={{ background: '#f5f7fa', fontFamily: "'Public Sans', system-ui, sans-serif" }}>
       <TopBar userInitials={userInitials} userName={user?.email ?? 'Médico'} userRol="Medicina Ocupacional" onNewWorker={handleNewWorker} />
 
-      <div className="flex-1 grid overflow-hidden" style={{ gridTemplateColumns: '360px 1fr' }}>
-        <Sidebar
-          trabajadores={trabajadores} evalsPorTrabajador={evalsPorTrabajador} filtered={filtered}
-          query={query} setQuery={setQuery} areaFilter={areaFilter} setAreaFilter={setAreaFilter}
-          tipoFilter={tipoFilter} setTipoFilter={setTipoFilter} statusFilter={statusFilter} setStatusFilter={setStatusFilter}
-          selectedId={selected?.id}
-          onSelect={(id) => { setSelectedId(id); }}
-          onNewWorker={handleNewWorker}
-        />
+      <div className="flex-1 grid overflow-hidden grid-cols-1 md:grid-cols-[360px_1fr]">
+        <div className={`${fichaMovil ? 'hidden md:block' : 'block'} h-full min-h-0 overflow-hidden`}>
+          <Sidebar
+            trabajadores={trabajadores} evalsPorTrabajador={evalsPorTrabajador} filtered={filtered}
+            query={query} setQuery={setQuery} areaFilter={areaFilter} setAreaFilter={setAreaFilter}
+            tipoFilter={tipoFilter} setTipoFilter={setTipoFilter} statusFilter={statusFilter} setStatusFilter={setStatusFilter}
+            selectedId={selected?.id}
+            onSelect={(id) => { setSelectedId(id); setFichaMovil(true); }}
+            onNewWorker={handleNewWorker}
+          />
+        </div>
 
-        <main className="overflow-y-auto" style={{ background: '#f5f7fa' }}>
+        <main className={`${fichaMovil ? 'block' : 'hidden md:block'} overflow-y-auto`} style={{ background: '#f5f7fa' }}>
+          <button
+            onClick={() => setFichaMovil(false)}
+            className="md:hidden sticky top-0 z-20 w-full text-left px-4 py-2.5 bg-white border-b border-slate-200 text-[13px] font-semibold text-slate-700"
+          >
+            ← Volver a la lista
+          </button>
           {selected?.id ? (
             <FichaTrabajador trabajadorId={selected.id} />
           ) : (

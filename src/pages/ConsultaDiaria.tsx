@@ -170,7 +170,7 @@ export default function ConsultaDiaria() {
       <TopBar userInitials={userInitials} userName={user?.email ?? 'Médico'} userRol="Medicina Ocupacional" onNewWorker={() => navigate('/nuevo-trabajador')} />
 
       <main className="flex-1 overflow-y-auto">
-        <div className={`mx-auto p-[24px_32px_80px] ${vista === 'tabla' ? 'max-w-[1380px]' : 'max-w-[1180px]'}`}>
+        <div className={`mx-auto p-[16px_12px_60px] md:p-[24px_32px_80px] ${vista === 'tabla' ? 'max-w-[1380px]' : 'max-w-[1180px]'}`}>
           {/* Header */}
           <div className="flex items-end gap-3 mb-[14px] flex-wrap">
             <div>
@@ -233,7 +233,7 @@ export default function ConsultaDiaria() {
           </div>
 
           {/* KPIs */}
-          <div className="grid grid-cols-5 gap-[11px] mb-5">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-[11px] mb-5">
             <Kpi value={stats.total} label="Atendidos" sub={subPeriodo} icon={<Check size={16} />} tone="info" />
             <Kpi value={stats.espera} label="En espera" sub="por atender" icon={<Clock size={16} />} tone="warning" />
             <Kpi value={`${stats.primeras}/${stats.subsec}`} label="1ª / subsec." sub="primeras vs control" icon={<User size={16} />} tone="muted" />
@@ -245,7 +245,7 @@ export default function ConsultaDiaria() {
           {cargando ? (
             <div className="p-16 text-center font-semibold" style={{ color: COLORS.faint }}>Cargando atenciones…</div>
           ) : vista === 'feed' ? (
-            <div className="grid gap-[18px] items-start" style={{ gridTemplateColumns: '1fr 340px' }}>
+            <div className="grid gap-[18px] items-start grid-cols-1 lg:grid-cols-[1fr_340px]">
               <div className="flex flex-col gap-4">
                 {espera.length > 0 && (
                   <Grupo color={COLORS.warn} label="En espera" count={espera.length}>
@@ -263,7 +263,7 @@ export default function ConsultaDiaria() {
                   )}
                 </Grupo>
               </div>
-              <div className="sticky top-0"><ConsultaResumen atenciones={atenciones} /></div>
+              <div className="lg:sticky lg:top-0"><ConsultaResumen atenciones={atenciones} /></div>
             </div>
           ) : (
             <RegistroAtenciones atenciones={atenciones} tituloPeriodo={titulo} />

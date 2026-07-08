@@ -111,7 +111,7 @@ export default function Sidebar({
     statusFilter !== 'Todos';
 
   return (
-    <aside className="bg-white border-r border-slate-200 flex flex-col overflow-hidden">
+    <aside className="bg-white border-r border-slate-200 flex flex-col overflow-hidden h-full">
       {/* Resumen */}
       <div className="px-4 pt-3.5 pb-3 border-b border-slate-100">
         <div className="flex items-center justify-between mb-1">

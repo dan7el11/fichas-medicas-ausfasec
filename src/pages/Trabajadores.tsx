@@ -88,7 +88,7 @@ export default function Trabajadores() {
       <TopBar userInitials={userInitials} userName={user?.email ?? 'Médico'} userRol="Medicina Ocupacional" onNewWorker={() => navigate('/nuevo-trabajador')} />
 
       <main className="flex-1 overflow-y-auto">
-        <div className="max-w-[1280px] mx-auto p-[24px_32px_80px]">
+        <div className="max-w-[1280px] mx-auto p-[16px_12px_60px] md:p-[24px_32px_80px]">
           {/* Header */}
           <div className="flex items-end gap-3.5 mb-5 flex-wrap">
             <div>
@@ -102,7 +102,7 @@ export default function Trabajadores() {
           </div>
 
           {/* Stat chips */}
-          <div className="grid grid-cols-5 gap-3 mb-[18px]">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-[18px]">
             {statChips.map((c) => {
               const on = statusSel === c.key;
               return (
@@ -157,7 +157,7 @@ export default function Trabajadores() {
 function Tabla({ list, onSel, sel }: { list: Entry[]; onSel: (e: Entry) => void; sel: Entry | null }) {
   const cols = '2.2fr 1.3fr 1.6fr 1.3fr 1.2fr 40px';
   return (
-    <div className="bg-white border border-slate-200 rounded-[14px] overflow-hidden shadow-sm">
+    <div className="bg-white border border-slate-200 rounded-[14px] overflow-x-auto shadow-sm [&>div]:min-w-[720px]">
       <div className="grid gap-3.5 p-[11px_18px] bg-slate-50 border-b border-slate-100 text-[11px] font-bold tracking-[0.4px] uppercase text-slate-400" style={{ gridTemplateColumns: cols }}>
         <span>Trabajador</span><span>Área</span><span>Puesto</span><span>Última eval.</span><span>Estado</span><span></span>
       </div>
