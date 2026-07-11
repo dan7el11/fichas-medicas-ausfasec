@@ -2,7 +2,17 @@
 // (SO-RE-38 periódica, SO-RE-40 retiro, SO-RE-41 preocupacional).
 // Extraídos de las hojas oficiales para que todos los formularios usen
 // exactamente las mismas listas.
-import type { AntecedenteClinico, AntecedenteQuirurgico, Alergia, AntecedenteEmpleo, ExamenTamizaje, AntecedentesGineco, AntecedentesReproductivos } from '../types';
+import type { AntecedenteClinico, AntecedenteQuirurgico, Alergia, AntecedenteEmpleo, ExamenTamizaje, AntecedentesGineco, AntecedentesReproductivos, DatosPersonalesSO41 } from '../types';
+
+// ── Catálogos demográficos de la Sección A del SO-RE-41 ─────────────────────
+export const RELIGIONES = ['Católica', 'Evangélica', 'Testigos de Jehová', 'Mormona', 'Ninguna', 'Otras'];
+export const GRUPOS_SANGUINEOS = ['O+', 'O-', 'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'No conoce'];
+export const LATERALIDADES = ['Diestro', 'Zurdo', 'Ambidiestro'];
+export const ORIENTACIONES_SEXUALES = ['Heterosexual', 'Lesbiana', 'Gay', 'Bisexual', 'No sabe / no responde'];
+export const IDENTIDADES_GENERO = ['Femenino', 'Masculino', 'Trans-femenino', 'Trans-masculino', 'No sabe / no responde'];
+export const RAZAS = ['Mestiza', 'Indígena', 'Blanca', 'Afrodescendiente', 'Otros'];
+export const ESTADOS_CIVILES = ['Soltero', 'Casado', 'Divorciado', 'Viudo', 'Unión libre', 'Otros'];
+export const GRADOS_INSTRUCCION = ['Básica General', 'Bachillerato General', 'Tercer Nivel', 'Cuarto Nivel'];
 
 // Opciones de recomendaciones predefinidas
 export const OPCIONES_RECOMENDACIONES = [
@@ -230,4 +240,12 @@ export const emptyAntecedentesGineco = (): AntecedentesGineco => ({
 export const emptyAntecedentesReproductivos = (): AntecedentesReproductivos => ({
   antigenoProstatico: emptyExamenTamizaje(), ecoProstatico: emptyExamenTamizaje(),
   planificacionFamiliar: null, planificacionTipo: '', hijosVivos: '', hijosMuertos: '',
+});
+
+export const emptyDatosPersonales = (): DatosPersonalesSO41 => ({
+  religion: '', grupoSanguineo: '', lateralidad: '',
+  orientacionSexual: '', identidadGenero: '',
+  discapacidad: null, discapacidadTipo: '', discapacidadPorcentaje: '',
+  raza: '', estadoCivil: '', gradoInstruccion: '',
+  profesion: '', actividadesRelevantes: '',
 });

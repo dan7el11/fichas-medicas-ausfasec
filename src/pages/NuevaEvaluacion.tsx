@@ -10,6 +10,7 @@ import type { Trabajador, SignosVitales, HabitoToxico, EstiloVida, AccidenteTrab
 import BuscadorCIE10 from '../components/BuscadorCIE10';
 import { useEmpresa } from '../hooks/useEmpresa';
 import { SeccionE, SeccionG, SeccionI } from '../components/evaluacion/SeccionesEvaluacion';
+import { combinarAntecedentes, ordenarEvaluacionesDesc } from '../utils/antecedentesPrevios';
 
 // Opciones de recomendaciones predefinidas (Sección M)
 const OPCIONES_RECOMENDACIONES = [
@@ -388,32 +389,37 @@ export default function NuevaEvaluacion() {
           console.error("Error al cargar la evaluación para editar:", err);
         }
       } else {
-        // MODO CREACIÓN: Cargar última evaluación para pre-llenar antecedentes
-        const evalQuery = query(
-          collection(db, 'evaluaciones'),
-          where('trabajadorId', '==', trabajadorId),
-          orderBy('fecha', 'desc'),
-          limit(1)
-        );
-        const evalSnap = await getDocs(evalQuery);
-        
-        if (!evalSnap.empty) {
-          const ultimaEval = evalSnap.docs[0].data();
-          if (ultimaEval.antecedentesClinicosQ !== undefined) setAntecedentesClinicosQ(ultimaEval.antecedentesClinicosQ);
-          if (ultimaEval.antecedentesClinicosLista) setAntecedentesClinicosLista(ultimaEval.antecedentesClinicosLista);
-          if (ultimaEval.antecedentesQuirurgicosQ !== undefined) setAntecedentesQuirurgicosQ(ultimaEval.antecedentesQuirurgicosQ);
-          if (ultimaEval.antecedentesQuirurgicosLista) setAntecedentesQuirurgicosLista(ultimaEval.antecedentesQuirurgicosLista);
-          if (ultimaEval.alergiasTiene !== undefined) setAlergiasTiene(ultimaEval.alergiasTiene);
-          if (ultimaEval.alergias) setAlergias(ultimaEval.alergias);
-          if (ultimaEval.antecedentesFamiliares) setAntecedentesFamiliares(ultimaEval.antecedentesFamiliares);
-          if (ultimaEval.habitosToxicos) setHabitosToxicos(ultimaEval.habitosToxicos);
-          if (ultimaEval.estiloVida) setEstiloVida(ultimaEval.estiloVida);
-          if (ultimaEval.medicacionesHabituales) setMedicacionesHabituales(ultimaEval.medicacionesHabituales);
-          if (ultimaEval.incidentes) setIncidentes(ultimaEval.incidentes);
-          if (ultimaEval.factoresRiesgo) setFactoresRiesgo(ultimaEval.factoresRiesgo);
-          if (ultimaEval.signosVitales?.talla) {
-            setSignosVitales(prev => ({ ...prev, talla: ultimaEval.signosVitales.talla }));
+        // MODO CREACIÓN: precargar los antecedentes FUSIONADOS de todas las
+        // evaluaciones previas (preocupacional, periódicas y retiro). Los
+        // antecedentes se añaden sin duplicar (la versión más reciente gana);
+        // el usuario puede eliminar del formulario lo que no quiera conservar.
+        // Nota: sin orderBy en la consulta (evita depender de un índice
+        // compuesto de Firestore); el orden se resuelve en el cliente.
+        try {
+          const evalSnap = await getDocs(query(
+            collection(db, 'evaluaciones'),
+            where('trabajadorId', '==', trabajadorId),
+          ));
+          const previas = evalSnap.docs.map(d => d.data());
+          if (previas.length > 0) {
+            const m = combinarAntecedentes(previas);
+            const ultima = ordenarEvaluacionesDesc(previas)[0];
+            if (m.antecedentesClinicosQ !== null) setAntecedentesClinicosQ(m.antecedentesClinicosQ);
+            if (m.antecedentesClinicosLista.length) setAntecedentesClinicosLista(m.antecedentesClinicosLista);
+            if (m.antecedentesQuirurgicosQ !== null) setAntecedentesQuirurgicosQ(m.antecedentesQuirurgicosQ);
+            if (m.antecedentesQuirurgicosLista.length) setAntecedentesQuirurgicosLista(m.antecedentesQuirurgicosLista);
+            if (m.alergiasTiene !== null) setAlergiasTiene(m.alergiasTiene);
+            if (m.alergias.length) setAlergias(m.alergias);
+            if (m.antecedentesFamiliares.length) setAntecedentesFamiliares(m.antecedentesFamiliares);
+            if (m.habitosToxicos) setHabitosToxicos(m.habitosToxicos);
+            if (m.estiloVida) setEstiloVida(m.estiloVida);
+            if (m.medicacionesHabituales.length) setMedicacionesHabituales(m.medicacionesHabituales);
+            if (ultima?.incidentes) setIncidentes(ultima.incidentes);
+            if (ultima?.factoresRiesgo) setFactoresRiesgo(ultima.factoresRiesgo);
+            if (m.talla) setSignosVitales(prev => ({ ...prev, talla: m.talla }));
           }
+        } catch (err) {
+          console.error('Error al precargar antecedentes previos:', err);
         }
 
         // Auto-cargar exámenes del último año
@@ -521,14 +527,14 @@ export default function NuevaEvaluacion() {
     setMostrarModalExamenes(true);
     setCargandoExamenesHist(true);
     try {
-      const q = query(
-        collection(db, 'examenes'), 
-        where('trabajadorId', '==', trabajadorId), 
-        orderBy('fecha', 'desc')
-      );
-      const snap = await getDocs(q);
+      // Sin orderBy en la consulta (evita el índice compuesto); orden en cliente.
+      const snap = await getDocs(query(
+        collection(db, 'examenes'),
+        where('trabajadorId', '==', trabajadorId),
+      ));
       const docs: any[] = [];
       snap.forEach(doc => docs.push({ id: doc.id, ...doc.data() }));
+      docs.sort((a, b) => (b.fecha?.seconds ?? 0) - (a.fecha?.seconds ?? 0));
       setExamenesDisponibles(docs);
     } catch (error) {
       console.error("Error al cargar historial de exámenes:", error);
