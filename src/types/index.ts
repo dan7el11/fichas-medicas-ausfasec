@@ -202,6 +202,29 @@ export interface AntecedentesReproductivos {
   hijosMuertos: string;
 }
 
+// ====================================================================
+// CERTIFICADO DE APTITUD MÉDICO LABORAL (SO-RE-20)
+// Anexo a cualquier evaluación (preocupacional, periódica, retiro).
+// ====================================================================
+
+export interface LimitacionCertificado {
+  actividad: string;
+  severidad: 'LEVE' | 'MODERADA' | 'GRAVE';
+}
+
+export interface CertificadoAptitud {
+  fechaEmision: string; // aaaa-mm-dd
+  tipoEvaluacion: 'INGRESO' | 'PERIÓDICO' | 'REINTEGRO' | 'RETIRO';
+  aptitud: 'apto' | 'aptoObservacion' | 'aptoLimitaciones' | 'noApto';
+  observaciones: string;
+  limitaciones: LimitacionCertificado[];
+  // Sección D (aplica solo a evaluaciones de retiro)
+  retiroRealizada: boolean | null;
+  retiroCondicionDiagnostico: 'presuntiva' | 'definitiva' | 'noAplica';
+  retiroRelacionadaTrabajo: 'si' | 'no' | 'noAplica';
+  recomendaciones: string;
+}
+
 export interface FactorRiesgoPuesto {
   puestoArea: string;
   actividades: string;
@@ -353,6 +376,9 @@ export interface EvaluacionMedica {
   antecedentesReproductivos?: AntecedentesReproductivos;
   /** Actividades extra laborales (Sección G del SO-RE-41). */
   actividadesExtraLaborales?: string;
+
+  /** Certificado de aptitud médico laboral (SO-RE-20) anexo a esta evaluación. */
+  certificadoAptitud?: CertificadoAptitud;
 
   createdAt: any;
 }

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { doc, getDoc, updateDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../../services/firebase';
@@ -25,6 +25,7 @@ import type { OrdenExamen } from '../../types/examenPlan';
 import type { PermisoMedico } from '../../types/permiso';
 import SeguimientoSignos from './SeguimientoSignos';
 import FichaLayout from './FichaLayout';
+import CertificadoAptitudModal from './CertificadoAptitud';
 
 // ============================================================================
 // CONSTANTES
@@ -163,6 +164,10 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
   const [evDrawer, setEvDrawer] = useState<any>(null);
   const [busquedaEval, setBusquedaEval] = useState('');
 
+  // Certificado de aptitud (SO-RE-20): evaluación a la que se anexa
+  const [certEval, setCertEval] = useState<any>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+
   // Modal orden examen
   const [ordenDetalle, setOrdenDetalle] = useState<OrdenExamen | null>(null);
 
@@ -239,6 +244,20 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
     })();
     return () => { cancelled = true; };
   }, [trabajadorId]);
+
+  // Al volver de guardar una evaluación con ?certificado=<id>, abrir el
+  // certificado de aptitud autocompletado para esa evaluación.
+  useEffect(() => {
+    const certId = searchParams.get('certificado');
+    if (!certId || evaluaciones.length === 0) return;
+    const ev = evaluaciones.find(e => e.id === certId);
+    if (ev) setCertEval(ev);
+    // Limpiar el parámetro para que no se reabra al refrescar
+    const next = new URLSearchParams(searchParams);
+    next.delete('certificado');
+    setSearchParams(next, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [evaluaciones]);
 
   // ----------------------------------------------------------------
   // MODAL EDITAR
@@ -1496,6 +1515,11 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
                   }}
                   className="px-3 py-1.5 bg-red-600 text-white text-xs font-semibold rounded-lg hover:bg-red-700"
                 >📄 PDF</button>
+                <button
+                  onClick={() => { setCertEval(evDrawer); setEvDrawer(null); }}
+                  title="Certificado de Aptitud Médico Laboral (SO-RE-20)"
+                  className="px-3 py-1.5 bg-teal-600 text-white text-xs font-semibold rounded-lg hover:bg-teal-700"
+                >📜 Certificado{(evDrawer as any).certificadoAptitud ? ' ✓' : ''}</button>
                 <button onClick={() => setEvDrawer(null)} className="ml-2 text-slate-400 hover:text-slate-700 text-2xl leading-none">&times;</button>
               </div>
             </div>
@@ -1636,6 +1660,21 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
           </div>
         </div>
       )}
+      {/* ── CERTIFICADO DE APTITUD (SO-RE-20) ── */}
+      {certEval && trabajador && (
+        <CertificadoAptitudModal
+          evaluacion={certEval}
+          trabajador={trabajador}
+          empresa={empresa}
+          logoPdf={logoPdf}
+          onClose={() => setCertEval(null)}
+          onGuardado={(cert) => {
+            setEvaluaciones(prev => prev.map(e => e.id === certEval.id ? { ...e, certificadoAptitud: cert } : e));
+            toast.success('Certificado de aptitud guardado y descargado.');
+          }}
+        />
+      )}
+
       {/* ── VISOR PDF FLOTANTE ── */}
       {pdfVisor && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4" onClick={() => setPdfVisor(null)}>

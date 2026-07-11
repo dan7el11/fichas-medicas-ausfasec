@@ -630,6 +630,7 @@ export default function NuevaEvaluacion() {
         recomendacionesOtras,
       };
 
+      let idParaCertificado = editEvalId;
       if (editEvalId) {
         await updateDoc(doc(db, 'evaluaciones', editEvalId), {
           ...evaluacionData,
@@ -654,9 +655,12 @@ export default function NuevaEvaluacion() {
         });
         await registrarAuditoria('crear', 'evaluacion', docRef.id, `Evaluación periódica de ${trabajador.primerApellido} ${trabajador.primerNombre}`);
         toast.success('Evaluación guardada exitosamente');
+        idParaCertificado = docRef.id;
       }
 
-      navigate(`/trabajador/${trabajadorId}`);
+      // Al terminar, en la ficha se ofrece llenar el Certificado de Aptitud
+      // (SO-RE-20) autocompletado con los datos de esta evaluación.
+      navigate(idParaCertificado ? `/trabajador/${trabajadorId}?certificado=${idParaCertificado}` : `/trabajador/${trabajadorId}`);
     } catch (error) {
       console.error('Error al guardar:', error);
       toast.error('Hubo un error al procesar la evaluación.');

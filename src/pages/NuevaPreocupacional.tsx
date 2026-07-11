@@ -451,6 +451,7 @@ export default function NuevaPreocupacional() {
       if (trabajador.sexo === 'F') evaluacionData.antecedentesGineco = antecedentesGineco;
       else evaluacionData.antecedentesReproductivos = antecedentesReproductivos;
 
+      let idParaCertificado = editEvalId;
       if (editEvalId) {
         await updateDoc(doc(db, 'evaluaciones', editEvalId), { ...evaluacionData, updatedAt: hoy, updatedBy: user.uid });
         await registrarAuditoria('editar', 'evaluacion', editEvalId, `Editó la evaluación preocupacional de ${trabajador.primerApellido} ${trabajador.primerNombre}`);
@@ -471,8 +472,11 @@ export default function NuevaPreocupacional() {
         });
         await registrarAuditoria('crear', 'evaluacion', docRef.id, `Evaluación preocupacional de ${trabajador.primerApellido} ${trabajador.primerNombre}`);
         toast.success('Evaluación preocupacional guardada exitosamente');
+        idParaCertificado = docRef.id;
       }
-      navigate(`/trabajador/${trabajadorId}`);
+      // Al terminar, en la ficha se ofrece llenar el Certificado de Aptitud
+      // (SO-RE-20) autocompletado con los datos de esta evaluación.
+      navigate(idParaCertificado ? `/trabajador/${trabajadorId}?certificado=${idParaCertificado}` : `/trabajador/${trabajadorId}`);
     } catch (error) {
       console.error('Error al guardar:', error);
       toast.error('Hubo un error al procesar la evaluación.');
