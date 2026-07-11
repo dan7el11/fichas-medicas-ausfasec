@@ -1,12 +1,14 @@
-// Herramienta de medición sobre una foto (canvas). El usuario sube una imagen y
-// marca puntos para medir: ángulo de articulación (3 puntos), inclinación
-// respecto a la vertical (2 puntos) o distancia en píxeles (2 puntos). Cada
-// medición de ángulo puede asignarse a un segmento y sugerir su puntaje. La foto
-// anotada se sube a Storage (ergonomia/{trabajadorId}/).
+// Herramienta de medición sobre una foto (canvas). El usuario toma/sube una
+// imagen y marca puntos para medir: ángulo de articulación (3 puntos),
+// inclinación respecto a la vertical (2 puntos) o distancia en píxeles (2 puntos).
+// Cada medición de ángulo puede asignarse a un segmento y sugerir su puntaje.
+//
+// La foto anotada NO se sube aquí: se devuelve como imagen local (data URL) para
+// que quede retenida en la pantalla de la evaluación. La subida a Storage se
+// hace en una fase posterior (ver services/fotosPendientes.ts), así funciona
+// aunque el teléfono no tenga conexión en ese momento.
 import { useRef, useState, useEffect } from 'react';
-import { ref as storageRef, uploadString, getDownloadURL } from 'firebase/storage';
-import { storage } from '../../services/firebase';
-import { X, Upload, RotateCcw, Check, Loader2, Ruler, Spline, Move } from 'lucide-react';
+import { X, Upload, RotateCcw, Check, Ruler, Spline, Move } from 'lucide-react';
 import { METODOS } from '../../utils/ergonomia/definiciones';
 import { anguloAPuntaje, SEGMENTOS_ANGULO } from '../../utils/ergonomia/anguloAPuntaje';
 import type { MetodoErgo, FotoErgo } from '../../types/ergonomia';
@@ -59,7 +61,6 @@ export default function MedidorAngulos({ trabajadorId, metodo, onAplicarPuntaje,
   const [modo, setModo] = useState<Modo>('vertical');
   const [enCurso, setEnCurso] = useState<Punto[]>([]);
   const [mediciones, setMediciones] = useState<Medicion[]>([]);
-  const [subiendo, setSubiendo] = useState(false);
 
   const segmentos = SEGMENTOS_ANGULO.filter((k) => METODOS[metodo].campos.some((c) => c.key === k));
   const puntosNecesarios = modo === 'angulo' ? 3 : 2;
@@ -85,22 +86,23 @@ export default function MedidorAngulos({ trabajadorId, metodo, onAplicarPuntaje,
       ctx.beginPath();
       pts.forEach((p, i) => { i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y); });
       ctx.stroke();
-      pts.forEach((p) => { ctx.beginPath(); ctx.arc(p.x, p.y, 4, 0, Math.PI * 2); ctx.fill(); });
+      pts.forEach((p) => { ctx.beginPath(); ctx.arc(p.x, p.y, 5, 0, Math.PI * 2); ctx.fill(); });
     };
     mediciones.forEach((m) => {
       dibujarPuntos(m.puntos, COLOR);
       const v = m.modo === 'angulo' ? m.puntos[1] : m.puntos[0];
-      ctx.fillStyle = '#fff'; ctx.strokeStyle = COLOR; ctx.lineWidth = 3; ctx.font = 'bold 14px sans-serif';
+      ctx.fillStyle = '#fff'; ctx.strokeStyle = COLOR; ctx.lineWidth = 3; ctx.font = 'bold 15px sans-serif';
       const txt = m.etiqueta ? `${m.etiqueta}: ${textoValor(m)}` : textoValor(m);
       ctx.strokeText(txt, v.x + 6, v.y - 6); ctx.fillText(txt, v.x + 6, v.y - 6);
     });
     dibujarPuntos(enCurso, '#e11d48');
   }, [img, mediciones, enCurso]);
 
-  const click = (e: React.MouseEvent<HTMLCanvasElement>) => {
+  // Marca un punto a partir de coordenadas de cliente (sirve para ratón y táctil)
+  const marcarEn = (clientX: number, clientY: number) => {
     const canvas = canvasRef.current; if (!canvas || !img) return;
     const rect = canvas.getBoundingClientRect();
-    const p = { x: (e.clientX - rect.left) * (canvas.width / rect.width), y: (e.clientY - rect.top) * (canvas.height / rect.height) };
+    const p = { x: (clientX - rect.left) * (canvas.width / rect.width), y: (clientY - rect.top) * (canvas.height / rect.height) };
     const pts = [...enCurso, p];
     if (pts.length < puntosNecesarios) { setEnCurso(pts); return; }
     const valor = modo === 'angulo' ? gradosIncluido(pts[0], pts[1], pts[2])
@@ -109,6 +111,8 @@ export default function MedidorAngulos({ trabajadorId, metodo, onAplicarPuntaje,
     setMediciones((m) => [...m, { modo, puntos: pts, valor, etiqueta: '' }]);
     setEnCurso([]);
   };
+
+  const click = (e: React.MouseEvent<HTMLCanvasElement>) => marcarEn(e.clientX, e.clientY);
 
   const setEtiqueta = (idx: number, etiqueta: string) => {
     setMediciones((m) => m.map((x, i) => i === idx ? { ...x, etiqueta } : x));
@@ -126,117 +130,134 @@ export default function MedidorAngulos({ trabajadorId, metodo, onAplicarPuntaje,
     if (p != null) onAplicarPuntaje(m.segmento, p);
   };
 
-  const guardarFoto = async () => {
+  // Retiene la foto anotada en local (data URL). NO sube nada: la subida a
+  // Storage se hace después desde la cola de fotos pendientes.
+  const adjuntarFoto = () => {
     const canvas = canvasRef.current; if (!canvas || !img) return;
-    setSubiendo(true);
-    try {
-      const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
-      const path = `ergonomia/${trabajadorId || 'sin-id'}/${Date.now()}.jpg`;
-      const r = storageRef(storage, path);
-      await uploadString(r, dataUrl, 'data_url');
-      const url = await getDownloadURL(r);
-      onFotoGuardada({
-        url, path, nombre: `foto_${Date.now()}.jpg`,
-        mediciones: mediciones.map((m) => ({
-          etiqueta: m.etiqueta || (m.modo === 'distancia' ? 'Distancia' : 'Ángulo'),
-          valor: textoValor(m),
-        })),
-      });
-      onClose();
-    } catch (err) { console.error('Error al subir la foto:', err); alert('No se pudo subir la foto. Verifica las reglas de Storage y tu conexión.'); }
-    finally { setSubiendo(false); }
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+    const sello = Date.now();
+    onFotoGuardada({
+      url: '',
+      path: `ergonomia/${trabajadorId || 'sin-id'}/${sello}.jpg`,
+      nombre: `foto_${sello}.jpg`,
+      dataUrl,
+      pendiente: true,
+      mediciones: mediciones.map((m) => ({
+        etiqueta: m.etiqueta || (m.modo === 'distancia' ? 'Distancia' : 'Ángulo'),
+        valor: textoValor(m),
+      })),
+    });
+    onClose();
   };
 
-  const MODOS: { id: Modo; label: string; icon: any }[] = [
-    { id: 'vertical', label: 'Inclinación (2 pts)', icon: Move },
-    { id: 'angulo', label: 'Ángulo articular (3 pts)', icon: Spline },
-    { id: 'distancia', label: 'Distancia (2 pts)', icon: Ruler },
+  const MODOS: { id: Modo; label: string; corto: string; icon: any }[] = [
+    { id: 'vertical', label: 'Inclinación (2 pts)', corto: 'Inclinación', icon: Move },
+    { id: 'angulo', label: 'Ángulo articular (3 pts)', corto: 'Ángulo', icon: Spline },
+    { id: 'distancia', label: 'Distancia (2 pts)', corto: 'Distancia', icon: Ruler },
   ];
 
   return (
-    <div className="fixed inset-0 z-[200] grid place-items-center p-4" style={{ background: 'rgba(13,27,42,0.6)' }} onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-2xl w-[920px] max-w-full max-h-[92vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-5 py-3 border-b border-slate-100">
+    <div className="fixed inset-0 z-[200] md:grid md:place-items-center md:p-4" style={{ background: 'rgba(13,27,42,0.6)' }} onClick={onClose}>
+      <div
+        className="bg-white w-full h-full flex flex-col md:h-auto md:rounded-2xl md:shadow-2xl md:w-[920px] md:max-w-full md:max-h-[92vh]"
+        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Encabezado (fijo) */}
+        <div className="flex items-center justify-between px-4 md:px-5 py-3 border-b border-slate-100 flex-shrink-0"
+          style={{ paddingTop: 'calc(10px + env(safe-area-inset-top))' }}>
           <h2 className="m-0 text-base font-bold">Medir sobre foto</h2>
-          <button onClick={onClose} className="text-slate-400"><X size={20} /></button>
+          <button onClick={onClose} className="grid place-items-center w-9 h-9 -mr-1.5 rounded-lg text-slate-400 hover:bg-slate-100"><X size={22} /></button>
         </div>
 
-        <div className="p-5 grid md:grid-cols-[1fr_280px] gap-4">
-          <div>
-            {!img ? (
-              <div className="w-full aspect-video border-2 border-dashed border-slate-300 rounded-xl grid place-items-center text-slate-400">
-                <div className="flex flex-col items-center gap-2.5">
-                  <button onClick={() => camaraRef.current?.click()} className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-white text-sm font-bold" style={{ background: COLOR }}>
-                    <Upload size={16} /> Tomar foto con la cámara
-                  </button>
-                  <button onClick={() => fileRef.current?.click()} className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-slate-300 bg-white text-slate-600 text-[13px] font-semibold">
-                    Elegir de la galería
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <canvas ref={canvasRef} onClick={click} className="w-full border border-slate-200 rounded-lg cursor-crosshair touch-manipulation" />
-            )}
-            <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) cargarImagen(f); e.target.value = ''; }} />
-            {/* capture=environment: en el teléfono abre directamente la cámara trasera */}
-            <input ref={camaraRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) cargarImagen(f); e.target.value = ''; }} />
-            {img && (
-              <div className="flex gap-2 mt-2 flex-wrap">
-                {MODOS.map((m) => (
-                  <button key={m.id} onClick={() => { setModo(m.id); setEnCurso([]); }} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[12px] font-semibold border" style={modo === m.id ? { background: COLOR, color: '#fff', borderColor: COLOR } : { background: '#fff', color: '#475569', borderColor: '#e2e8f0' }}>
-                    <m.icon size={13} /> {m.label}
-                  </button>
-                ))}
-                <button onClick={() => camaraRef.current?.click()} className="ml-auto inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[12px] font-semibold border border-slate-200 text-slate-600"><Upload size={13} /> Otra foto</button>
-                {enCurso.length > 0 && <button onClick={() => setEnCurso([])} className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[12px] font-semibold border border-slate-200 text-slate-600"><RotateCcw size={13} /> Reiniciar punto</button>}
-              </div>
-            )}
-            {img && <p className="text-[11px] text-slate-400 mt-1.5">Haz clic para marcar {puntosNecesarios} puntos. La inclinación se mide respecto a la vertical; la distancia es referencial (en píxeles).</p>}
-          </div>
-
-          {/* Mediciones */}
-          <div className="space-y-2">
-            <div className="text-[12px] font-bold uppercase tracking-wide text-slate-400">Mediciones</div>
-            {mediciones.length === 0 && <div className="text-[12.5px] text-slate-400">Aún no hay mediciones.</div>}
-            {mediciones.map((m, i) => (
-              <div key={i} className="border border-slate-200 rounded-lg p-2.5 space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <span className="text-[13px] font-bold" style={{ color: COLOR }}>{m.etiqueta ? `${m.etiqueta}: ` : ''}{textoValor(m)}</span>
-                  <button onClick={() => setMediciones((arr) => arr.filter((_, j) => j !== i))} className="text-slate-300 hover:text-red-500"><X size={14} /></button>
-                </div>
-                <input
-                  list="etiquetas-medidor"
-                  value={m.etiqueta}
-                  onChange={(e) => setEtiqueta(i, e.target.value)}
-                  placeholder="Etiqueta: hombro, codo, monitor…"
-                  className="w-full px-2 py-1 border border-slate-300 rounded text-[11.5px] bg-white outline-none"
-                />
-                {m.modo !== 'distancia' && (
-                  <div className="flex items-center gap-1.5">
-                    <select value={m.segmento ?? ''} onChange={(e) => asignar(i, e.target.value)} className="flex-1 px-2 py-1 border border-slate-300 rounded text-[11.5px] bg-white">
-                      <option value="">Sugerir puntaje a…</option>
-                      {segmentos.map((s) => <option key={s} value={s}>{METODOS[metodo].campos.find((c) => c.key === s)?.label}</option>)}
-                    </select>
-                    <button onClick={() => aplicar(m)} disabled={!m.segmento} className="px-2 py-1 rounded text-[11.5px] font-bold text-white disabled:opacity-40" style={{ background: COLOR }}>Aplicar</button>
+        {/* Cuerpo (desplazable) */}
+        <div className="flex-1 overflow-y-auto p-4 md:p-5">
+          <div className="grid md:grid-cols-[1fr_280px] gap-4">
+            <div>
+              {!img ? (
+                <div className="w-full aspect-[4/3] md:aspect-video border-2 border-dashed border-slate-300 rounded-xl grid place-items-center text-slate-400">
+                  <div className="flex flex-col items-center gap-3 w-full px-6">
+                    <button onClick={() => camaraRef.current?.click()} className="w-full max-w-xs inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-white text-[15px] font-bold" style={{ background: COLOR }}>
+                      <Upload size={18} /> Tomar foto con la cámara
+                    </button>
+                    <button onClick={() => fileRef.current?.click()} className="w-full max-w-xs inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-slate-300 bg-white text-slate-600 text-sm font-semibold">
+                      Elegir de la galería
+                    </button>
                   </div>
-                )}
-              </div>
-            ))}
-            <datalist id="etiquetas-medidor">
-              {ETIQUETAS_SUGERIDAS.map((e) => <option key={e} value={e} />)}
-            </datalist>
-            {mediciones.length > 0 && (
-              <p className="text-[10.5px] text-slate-400 m-0">
-                Una misma foto puede tener varias mediciones y sugerir el puntaje de varios parámetros.
-              </p>
-            )}
+                </div>
+              ) : (
+                <canvas
+                  ref={canvasRef}
+                  onClick={click}
+                  className="w-full max-h-[52vh] md:max-h-none object-contain border border-slate-200 rounded-lg cursor-crosshair touch-manipulation select-none"
+                />
+              )}
+              <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) cargarImagen(f); e.target.value = ''; }} />
+              {/* capture=environment: en el teléfono abre directamente la cámara trasera */}
+              <input ref={camaraRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) cargarImagen(f); e.target.value = ''; }} />
+              {img && (
+                <div className="grid grid-cols-3 gap-1.5 mt-2.5">
+                  {MODOS.map((m) => (
+                    <button key={m.id} onClick={() => { setModo(m.id); setEnCurso([]); }} className="inline-flex flex-col items-center justify-center gap-1 px-1 py-2 rounded-lg text-[11.5px] font-semibold border leading-tight" style={modo === m.id ? { background: COLOR, color: '#fff', borderColor: COLOR } : { background: '#fff', color: '#475569', borderColor: '#e2e8f0' }}>
+                      <m.icon size={16} /> <span className="text-center">{m.corto}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+              {img && (
+                <div className="flex gap-2 mt-2 flex-wrap">
+                  <button onClick={() => camaraRef.current?.click()} className="inline-flex items-center gap-1 px-3 py-2 rounded-lg text-[12.5px] font-semibold border border-slate-200 text-slate-600"><Upload size={14} /> Otra foto</button>
+                  {enCurso.length > 0 && <button onClick={() => setEnCurso([])} className="inline-flex items-center gap-1 px-3 py-2 rounded-lg text-[12.5px] font-semibold border border-slate-200 text-slate-600"><RotateCcw size={14} /> Reiniciar punto</button>}
+                </div>
+              )}
+              {img && <p className="text-[11.5px] text-slate-400 mt-2">Toca la foto para marcar {puntosNecesarios} puntos. La inclinación se mide respecto a la vertical; la distancia es referencial (en píxeles).</p>}
+            </div>
+
+            {/* Mediciones */}
+            <div className="space-y-2">
+              <div className="text-[12px] font-bold uppercase tracking-wide text-slate-400">Mediciones</div>
+              {mediciones.length === 0 && <div className="text-[12.5px] text-slate-400">Aún no hay mediciones.</div>}
+              {mediciones.map((m, i) => (
+                <div key={i} className="border border-slate-200 rounded-lg p-2.5 space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[13px] font-bold" style={{ color: COLOR }}>{m.etiqueta ? `${m.etiqueta}: ` : ''}{textoValor(m)}</span>
+                    <button onClick={() => setMediciones((arr) => arr.filter((_, j) => j !== i))} className="grid place-items-center w-7 h-7 text-slate-300 hover:text-red-500"><X size={16} /></button>
+                  </div>
+                  <input
+                    list="etiquetas-medidor"
+                    value={m.etiqueta}
+                    onChange={(e) => setEtiqueta(i, e.target.value)}
+                    placeholder="Etiqueta: hombro, codo, monitor…"
+                    className="w-full px-2.5 py-2 border border-slate-300 rounded text-[12.5px] bg-white outline-none"
+                  />
+                  {m.modo !== 'distancia' && (
+                    <div className="flex items-center gap-1.5">
+                      <select value={m.segmento ?? ''} onChange={(e) => asignar(i, e.target.value)} className="flex-1 px-2 py-2 border border-slate-300 rounded text-[12.5px] bg-white">
+                        <option value="">Sugerir puntaje a…</option>
+                        {segmentos.map((s) => <option key={s} value={s}>{METODOS[metodo].campos.find((c) => c.key === s)?.label}</option>)}
+                      </select>
+                      <button onClick={() => aplicar(m)} disabled={!m.segmento} className="px-3 py-2 rounded text-[12.5px] font-bold text-white disabled:opacity-40" style={{ background: COLOR }}>Aplicar</button>
+                    </div>
+                  )}
+                </div>
+              ))}
+              <datalist id="etiquetas-medidor">
+                {ETIQUETAS_SUGERIDAS.map((e) => <option key={e} value={e} />)}
+              </datalist>
+              {mediciones.length > 0 && (
+                <p className="text-[10.5px] text-slate-400 m-0">
+                  Una misma foto puede tener varias mediciones y sugerir el puntaje de varios parámetros.
+                </p>
+              )}
+            </div>
           </div>
         </div>
 
-        <div className="flex justify-end gap-2 px-5 py-3 border-t border-slate-100 bg-slate-50">
-          <button onClick={onClose} className="px-4 py-2 bg-white border border-slate-300 rounded-lg text-sm font-semibold">Cerrar</button>
-          <button onClick={guardarFoto} disabled={!img || subiendo} className="inline-flex items-center gap-1.5 px-4 py-2 text-white rounded-lg text-sm font-bold disabled:opacity-50" style={{ background: COLOR }}>
-            {subiendo ? <Loader2 size={15} className="animate-spin" /> : <Check size={15} />}{subiendo ? 'Subiendo…' : 'Adjuntar foto anotada'}
+        {/* Pie (fijo) */}
+        <div className="flex gap-2 px-4 md:px-5 py-3 border-t border-slate-100 bg-slate-50 flex-shrink-0">
+          <button onClick={onClose} className="flex-1 md:flex-none px-4 py-2.5 bg-white border border-slate-300 rounded-lg text-sm font-semibold">Cerrar</button>
+          <button onClick={adjuntarFoto} disabled={!img} className="flex-1 md:flex-none md:ml-auto inline-flex items-center justify-center gap-1.5 px-4 py-2.5 text-white rounded-lg text-sm font-bold disabled:opacity-50" style={{ background: COLOR }}>
+            <Check size={16} /> Adjuntar foto
           </button>
         </div>
       </div>

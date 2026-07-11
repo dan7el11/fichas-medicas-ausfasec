@@ -5,7 +5,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { collection, getDocs, query as fbQuery, orderBy, Timestamp } from 'firebase/firestore';
-import { Activity, Plus, Search, FileText, Trash2, ArrowLeft, Camera } from 'lucide-react';
+import { Activity, Plus, Search, FileText, Trash2, ArrowLeft, Camera, CloudOff, UploadCloud, Loader2 } from 'lucide-react';
 import { db } from '../services/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { useEmpresa } from '../contexts/EmpresaContext';
@@ -17,6 +17,7 @@ import MedidorAngulos from '../components/ergonomia/MedidorAngulos';
 import { generarInformeErgo } from '../components/ergonomia/informeErgo';
 import { generarInformeGlobalErgo } from '../components/ergonomia/informeGlobalErgo';
 import { getEvaluacionesErgo, crearEvaluacionErgo, eliminarEvaluacionErgo } from '../services/ergonomia';
+import { guardarFotoPendiente, contarFotosPendientes, sincronizarFotosPendientes } from '../services/fotosPendientes';
 import { getTrabajadores } from '../services/trabajadores';
 import { valoresIniciales, METODOS } from '../utils/ergonomia/definiciones';
 import { matchTrabajador, areaDeTrabajador, nombreCompleto } from '../utils/medicalHelpers';
@@ -48,8 +49,30 @@ export default function Ergonomia() {
   const [evaluaciones, setEvaluaciones] = useState<EvaluacionErgonomica[]>([]);
   const [cargando, setCargando] = useState(true);
   const [logoPdf, setLogoPdf] = useState<{ data: string; format: string }>({ data: LOGO_EMPRESA, format: 'PNG' });
+  const [pendientes, setPendientes] = useState(0);
+  const [sincronizando, setSincronizando] = useState(false);
 
   const userInitials = user?.email?.slice(0, 2).toUpperCase() ?? 'DR';
+
+  const refrescarPendientes = useCallback(async () => {
+    setPendientes(await contarFotosPendientes());
+  }, []);
+
+  // Sube las fotos que quedaron en cola (sin conexión) y refresca la lista.
+  const sincronizar = useCallback(async (silencioso = false) => {
+    setSincronizando(true);
+    try {
+      const r = await sincronizarFotosPendientes();
+      setPendientes(r.pendientes);
+      if (r.subidas > 0) {
+        toast.success(`${r.subidas} foto${r.subidas !== 1 ? 's' : ''} subida${r.subidas !== 1 ? 's' : ''} correctamente.`);
+        cargar();
+      } else if (!silencioso && r.pendientes > 0) {
+        toast.error('No se pudieron subir las fotos. Revisa tu conexión e inténtalo de nuevo.');
+      }
+    } finally { setSincronizando(false); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [toast]);
 
   const cargar = async () => {
     setCargando(true);
@@ -70,6 +93,16 @@ export default function Ergonomia() {
     if (empresa.logoUrl) cargarLogoParaPdf(empresa.logoUrl).then((r) => { if (!cancel && r) setLogoPdf(r); });
     return () => { cancel = true; };
   }, [empresa.logoUrl]);
+
+  // Fotos pendientes de subir: contar al entrar e intentar sincronizar
+  // automáticamente (al montar y cada vez que vuelva la conexión).
+  useEffect(() => {
+    refrescarPendientes();
+    sincronizar(true);
+    const alVolverLaRed = () => sincronizar(true);
+    window.addEventListener('online', alVolverLaRed);
+    return () => window.removeEventListener('online', alVolverLaRed);
+  }, [refrescarPendientes, sincronizar]);
 
   const filtradas = filtroMetodo === 'Todos' ? evaluaciones : evaluaciones.filter((e) => e.metodo === filtroMetodo);
 
@@ -98,6 +131,23 @@ export default function Ergonomia() {
                 <Plus size={16} /> Nueva evaluación
               </button>
             </div>
+
+            {/* Fotos pendientes de subir (modo sin conexión) */}
+            {pendientes > 0 && (
+              <div className="flex items-center gap-3 mb-4 px-4 py-3 rounded-xl border" style={{ background: COLORS.warnBg, borderColor: '#ecdcc0' }}>
+                <CloudOff size={20} style={{ color: COLORS.warn }} className="flex-shrink-0" />
+                <div className="min-w-0 flex-1">
+                  <div className="text-[13px] font-bold" style={{ color: COLORS.warn }}>
+                    {pendientes} foto{pendientes !== 1 ? 's' : ''} pendiente{pendientes !== 1 ? 's' : ''} de subir
+                  </div>
+                  <div className="text-[11.5px] text-slate-500">Se guardaron en este dispositivo. Se subirán automáticamente al recuperar la conexión.</div>
+                </div>
+                <button onClick={() => sincronizar(false)} disabled={sincronizando} className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[12.5px] font-bold text-white disabled:opacity-60 flex-shrink-0" style={{ background: COLORS.warn }}>
+                  {sincronizando ? <Loader2 size={14} className="animate-spin" /> : <UploadCloud size={14} />}
+                  {sincronizando ? 'Subiendo…' : 'Subir ahora'}
+                </button>
+              </div>
+            )}
 
             {/* Filtro por método + informe global */}
             <div className="flex items-center gap-2 mb-4 flex-wrap">
@@ -198,7 +248,7 @@ export default function Ergonomia() {
           <NuevaEvaluacion
             trabajadores={trabajadores}
             onCancel={() => setVista('lista')}
-            onSaved={() => { setVista('lista'); cargar(); }}
+            onSaved={() => { setVista('lista'); cargar(); refrescarPendientes(); sincronizar(true); }}
             medicoId={user?.uid ?? ''}
             medicoNombre={displayName}
           />
@@ -241,7 +291,12 @@ function NuevaEvaluacion({ trabajadores, onCancel, onSaved, medicoId, medicoNomb
     if (!resultado) return;
     setGuardando(true);
     try {
-      await crearEvaluacionErgo({
+      // Las fotos con imagen local (dataUrl) se guardan en el documento SIN la
+      // imagen (es muy pesada para Firestore): solo la ruta reservada y el flag
+      // `pendiente`. La imagen se retiene en IndexedDB y se sube después.
+      const fotosDoc: FotoErgo[] = fotos.map(({ dataUrl, ...f }) => (dataUrl ? { ...f, url: '', pendiente: true } : f));
+
+      const evaluacionId = await crearEvaluacionErgo({
         trabajadorId: sel.id,
         apellidos: `${sel.primerApellido} ${sel.segundoApellido || ''}`.trim(),
         nombres: `${sel.primerNombre} ${sel.segundoNombre || ''}`.trim(),
@@ -255,12 +310,28 @@ function NuevaEvaluacion({ trabajadores, onCancel, onSaved, medicoId, medicoNomb
         ...(metodo === 'RULA' || metodo === 'REBA' ? { lado } : {}),
         entradas: vals,
         resultado,
-        fotos,
+        fotos: fotosDoc,
         observaciones: observaciones.trim(),
         recomendaciones: recomendaciones.trim(),
         medicoId,
         medicoNombre,
       });
+
+      // Encolar en el dispositivo cada foto anotada para subirla después.
+      for (const f of fotos) {
+        if (!f.dataUrl) continue;
+        await guardarFotoPendiente({
+          evaluacionId,
+          trabajadorId: sel.id,
+          path: f.path,
+          nombre: f.nombre,
+          dataUrl: f.dataUrl,
+          mediciones: f.mediciones,
+        });
+      }
+      // Intento inmediato de subida (si hay conexión); si no, quedan en cola.
+      if (fotos.some((f) => f.dataUrl)) sincronizarFotosPendientes().catch(() => {});
+
       toast.success('Evaluación guardada.');
       onSaved();
     } catch (err) { console.error(err); toast.error('No se pudo guardar la evaluación.'); }
@@ -327,7 +398,7 @@ function NuevaEvaluacion({ trabajadores, onCancel, onSaved, medicoId, medicoNomb
                 {fotos.map((f, i) => (
                   <div key={i} className="relative">
                     <img
-                      src={f.url}
+                      src={f.dataUrl || f.url}
                       alt=""
                       title={f.mediciones?.length ? f.mediciones.map((m) => `${m.etiqueta}: ${m.valor}`).join(' · ') : 'Sin mediciones'}
                       className="w-20 h-20 object-cover rounded-lg border border-slate-200"

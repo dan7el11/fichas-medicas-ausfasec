@@ -23,10 +23,15 @@ export interface MedicionFoto {
 
 /** Foto adjunta con sus mediciones etiquetadas. */
 export interface FotoErgo {
-  url: string;
-  path: string;
+  url: string;        // URL de descarga en Storage (vacía mientras está pendiente de subir)
+  path: string;       // ruta en Storage (se reserva aunque aún no se haya subido)
   nombre: string;
   mediciones?: MedicionFoto[];
+  /** Imagen anotada en local (data URL). Solo existe en el navegador mientras la
+   *  foto está pendiente de subir; NUNCA se guarda en Firestore (es muy pesada). */
+  dataUrl?: string;
+  /** true = tomada/anotada pero todavía sin subir a Storage (modo sin conexión). */
+  pendiente?: boolean;
 }
 
 /** Documento de evaluación ergonómica. */
