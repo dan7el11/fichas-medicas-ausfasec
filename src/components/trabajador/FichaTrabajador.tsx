@@ -1116,8 +1116,11 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
 
     if (ev.factoresRiesgo) {
       secHeaderP('F. FACTORES DE RIESGOS DEL PUESTO DE TRABAJO ACTUAL');
-      // Matriz oficial: una columna por factor (rótulo rotado) con X en lo marcado.
-      y = dibujarFactoresRiesgoPdf(pdf, ev.factoresRiesgo, { M, CW, y, puestoDefault: trabajador.puestoTrabajo });
+      // Matriz oficial: una columna por factor (rótulo rotado) con X en lo
+      // marcado. En este formato la matriz se alarga (encabezado más alto y
+      // 3 filas compactas) para que la página quede completa, sin espacio
+      // muerto al final.
+      y = dibujarFactoresRiesgoPdf(pdf, ev.factoresRiesgo, { M, CW, y, puestoDefault: trabajador.puestoTrabajo, filas: 3, altoEncabezado: 48, altoFila: 5 });
       y += 2;
     }
 
