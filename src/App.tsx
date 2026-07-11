@@ -14,6 +14,7 @@ const UserProfile = lazy(() => import('./pages/UserProfile'));
 const NuevoTrabajador = lazy(() => import('./pages/NuevoTrabajador'));
 const NuevaEvaluacion = lazy(() => import('./pages/NuevaEvaluacion'));
 const NuevaEvaluacionRetiro = lazy(() => import('./pages/NuevaEvaluacionRetiro'));
+const NuevaPreocupacional = lazy(() => import('./pages/NuevaPreocupacional'));
 const DetalleTrabajador = lazy(() => import('./pages/DetalleTrabajador'));
 const Reportes = lazy(() => import('./pages/Reportes'));
 const NuevoReposo = lazy(() => import('./pages/NuevoReposo'));
@@ -82,6 +83,7 @@ function App() {
                   {/* Evaluaciones */}
                   <Route path="/evaluar/:trabajadorId" element={<ProtectedRoute><NuevaEvaluacion /></ProtectedRoute>} />
                   <Route path="/evaluar-retiro/:trabajadorId" element={<ProtectedRoute><NuevaEvaluacionRetiro /></ProtectedRoute>} />
+                  <Route path="/evaluar-preocupacional/:trabajadorId" element={<ProtectedRoute><NuevaPreocupacional /></ProtectedRoute>} />
 
                   {/* Consulta diaria */}
                   <Route path="/consulta-diaria" element={<ProtectedRoute><ConsultaDiaria /></ProtectedRoute>} />

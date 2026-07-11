@@ -150,6 +150,58 @@ export interface Diagnostico {
   tipo: 'presuntivo' | 'definitivo';
 }
 
+// ====================================================================
+// ANTECEDENTES ESPECÍFICOS DEL FORMATO SO-RE-41 (PREOCUPACIONAL)
+// ====================================================================
+
+/** Empleo anterior (Sección D del SO-RE-41: antecedentes de trabajo). */
+export interface AntecedenteEmpleo {
+  empresa: string;
+  puesto: string;
+  actividades: string;
+  tiempoMeses: string;
+  /** Riesgos a los que estuvo expuesto: FÍSICO, MECÁNICO, QUÍMICO, BIOLÓGICO, ERGONÓMICO, PSICOSOCIAL. */
+  riesgos: string[];
+  observaciones: string;
+}
+
+/** Examen de tamizaje con antigüedad y resultado (PAP, mamografía, PSA, etc.). */
+export interface ExamenTamizaje {
+  realizado: boolean | null;
+  tiempoAnios: string;
+  resultado: string;
+}
+
+/** Antecedentes gineco-obstétricos (SO-RE-41, solo sexo femenino). */
+export interface AntecedentesGineco {
+  menarquia: string;
+  ciclos: string;
+  fum: string;              // fecha de última menstruación (aaaa-mm-dd)
+  gestas: string;
+  partos: string;
+  cesareas: string;
+  abortos: string;
+  hijosVivos: string;
+  hijosMuertos: string;
+  vidaSexualActiva: boolean | null;
+  planificacionFamiliar: boolean | null;
+  planificacionTipo: string;
+  papanicolaou: ExamenTamizaje;
+  colposcopia: ExamenTamizaje;
+  ecoMamario: ExamenTamizaje;
+  mamografia: ExamenTamizaje;
+}
+
+/** Antecedentes reproductivos masculinos (SO-RE-41, solo sexo masculino). */
+export interface AntecedentesReproductivos {
+  antigenoProstatico: ExamenTamizaje;
+  ecoProstatico: ExamenTamizaje;
+  planificacionFamiliar: boolean | null;
+  planificacionTipo: string;
+  hijosVivos: string;
+  hijosMuertos: string;
+}
+
 export interface FactorRiesgoPuesto {
   puestoArea: string;
   actividades: string;
@@ -247,6 +299,8 @@ export interface ExamenComplementarioDoc {
 export interface EvaluacionMedica {
   id?: string;
   tipo?: 'PERIODICA' | 'RETIRO';
+  /** 'preocupacional' para el formato SO-RE-41 (evaluación de ingreso). */
+  tipoEvaluacion?: string;
   trabajadorId: string;
   medicoId: string;
   medicoNombre: string;
@@ -287,6 +341,18 @@ export interface EvaluacionMedica {
 
   /** IDs de exámenes vinculados desde la colección `examenes` */
   examenesVinculados?: string[];
+
+  // ── Campos específicos del SO-RE-41 (preocupacional) ──
+  /** Edad a la que inició su actividad laboral. */
+  edadInicioLaboral?: string;
+  /** Antecedentes de empleos anteriores (Sección D). */
+  antecedentesEmpleos?: AntecedenteEmpleo[];
+  /** Antecedentes gineco-obstétricos (sexo femenino). */
+  antecedentesGineco?: AntecedentesGineco;
+  /** Antecedentes reproductivos masculinos. */
+  antecedentesReproductivos?: AntecedentesReproductivos;
+  /** Actividades extra laborales (Sección G del SO-RE-41). */
+  actividadesExtraLaborales?: string;
 
   createdAt: any;
 }

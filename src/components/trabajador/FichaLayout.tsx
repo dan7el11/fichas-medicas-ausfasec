@@ -14,6 +14,7 @@ import {
   ChevronDown, ChevronRight, Search, Plus, FileText, Upload, Pencil, X, Check, ArrowRight,
 } from 'lucide-react';
 import { estadoPermiso, duracionPermiso, fmtFecha as fmtPF, toDate } from '../../services/permisos';
+import { tipoEvaluacionLabel } from '../../utils/medicalHelpers';
 import { TIPOS_PERMISO } from '../../types/permiso';
 import type { PermisoMedico } from '../../types/permiso';
 import type { OrdenExamen } from '../../types/examenPlan';
@@ -37,6 +38,17 @@ const APT: Record<string, { label: string; fg: string; bg: string; bar: string }
 };
 function aptInfo(a: string) { return APT[a] ?? { label: a || 'Pendiente', fg: '#646b75', bg: '#eef0f3', bar: '#98a0ab' }; }
 
+// Estilo del distintivo por tipo de evaluación
+const TIPO_BADGE: Record<string, { bg: string; fg: string }> = {
+  'Retiro': { bg: '#f8eddc', fg: '#9a4a07' },
+  'Pre-ocupacional': { bg: '#d8f3ee', fg: '#0d6b5f' },
+  'Periódica': { bg: '#eaf0f9', fg: '#2a4d8f' },
+};
+function tipoBadge(ev: any) {
+  const label = tipoEvaluacionLabel(ev);
+  return { label, ...(TIPO_BADGE[label] ?? TIPO_BADGE['Periódica']) };
+}
+
 const fmtF = (f: any): string => {
   if (!f) return '—';
   const d = f?.seconds ? new Date(f.seconds * 1000) : f instanceof Date ? f : new Date(f);
@@ -59,6 +71,7 @@ export interface FichaLayoutProps {
   onEditarDatos: () => void;
   onNuevaPeriodica: () => void;
   onNuevaRetiro: () => void;
+  onNuevaPreocupacional?: () => void;
   onNuevoPermiso: () => void;
   onEditPermiso: (p: PermisoMedico) => void;
   onDeletePermiso: (id: string) => void;
@@ -129,8 +142,13 @@ export default function FichaLayout(props: FichaLayoutProps) {
                 {menuEval && (
                   <>
                     <div onClick={() => setMenuEval(false)} className="fixed inset-0 z-30" />
-                    <div className="absolute right-0 mt-1.5 z-40 bg-white rounded-xl shadow-xl border border-slate-200 overflow-hidden min-w-[220px]">
-                      <button onClick={() => { setMenuEval(false); props.onNuevaPeriodica(); }} className="flex items-center gap-2 w-full text-left px-3.5 py-3 text-[13px] font-semibold hover:bg-blue-50 border-none bg-white cursor-pointer">
+                    <div className="absolute right-0 mt-1.5 z-40 bg-white rounded-xl shadow-xl border border-slate-200 overflow-hidden min-w-[240px]">
+                      {props.onNuevaPreocupacional && (
+                        <button onClick={() => { setMenuEval(false); props.onNuevaPreocupacional!(); }} className="flex items-center gap-2 w-full text-left px-3.5 py-3 text-[13px] font-semibold hover:bg-teal-50 border-none bg-white cursor-pointer">
+                          <span className="text-[10px] font-bold bg-teal-100 text-teal-700 px-1.5 py-0.5 rounded">PREOCUPACIONAL</span> SO-RE-41
+                        </button>
+                      )}
+                      <button onClick={() => { setMenuEval(false); props.onNuevaPeriodica(); }} className="flex items-center gap-2 w-full text-left px-3.5 py-3 text-[13px] font-semibold hover:bg-blue-50 border-t border-slate-100 border-x-0 border-b-0 bg-white cursor-pointer">
                         <span className="text-[10px] font-bold bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">PERIÓDICA</span> SO-RE-38
                       </button>
                       <button onClick={() => { setMenuEval(false); props.onNuevaRetiro(); }} className="flex items-center gap-2 w-full text-left px-3.5 py-3 text-[13px] font-semibold hover:bg-orange-50 border-t border-slate-100 border-x-0 border-b-0 bg-white cursor-pointer">
@@ -221,12 +239,15 @@ function Resumen(p: FichaLayoutProps & { ultEval: any; apt: any; futuros: number
       <SecCard icon={<HeartPulse size={17} />} color={C_SIGNOS} title="Seguimiento de signos" action={<Link onClick={() => p.setTab('signos')}>Ver detalle</Link>}>
         <SignosGrid evaluaciones={p.evaluaciones} />
       </SecCard>
+      <AntecedentesCard evaluaciones={p.evaluaciones} onVerEval={p.onOpenEval} />
       <div className="grid grid-cols-2 gap-4">
         <SecCard icon={<ClipboardList size={17} />} color={C_EVAL} title="Última evaluación" action={<Link onClick={() => p.setTab('evaluaciones')}>Todas</Link>}>
           {p.ultEval ? (
             <div>
               <div className="flex items-center gap-2 mb-2">
-                <span className="text-[10px] font-bold uppercase px-2.5 py-0.5 rounded" style={{ color: p.ultEval.tipo === 'RETIRO' ? '#9a4a07' : C_EVAL, background: p.ultEval.tipo === 'RETIRO' ? '#f8eddc' : '#eaf0f9', letterSpacing: '.4px' }}>{p.ultEval.tipo === 'RETIRO' ? 'Retiro' : 'Periódica'}</span>
+                {(() => { const tb = tipoBadge(p.ultEval); return (
+                  <span className="text-[10px] font-bold uppercase px-2.5 py-0.5 rounded" style={{ color: tb.fg, background: tb.bg, letterSpacing: '.4px' }}>{tb.label}</span>
+                ); })()}
                 <span className="text-[14px] font-bold">{p.apt?.label}</span>
               </div>
               <div className="text-[12.5px]" style={{ color: '#646b75' }}>Realizada <span style={{ fontFamily: MONO, fontSize: 12 }}>{fmtF(p.ultEval.fecha)}</span></div>
@@ -263,6 +284,7 @@ function Evaluaciones(p: FichaLayoutProps) {
       </div>
       {list.length === 0 ? <div className="p-4"><Empty>Sin evaluaciones.</Empty></div> : list.map((ev, i) => {
         const a = aptInfo(ev.aptitudMedica); const retiro = ev.tipo === 'RETIRO';
+        const tb = tipoBadge(ev);
         const dxCount = Array.isArray(ev.diagnosticos) ? ev.diagnosticos.length : 0;
         return (
           <button key={ev.id} onClick={() => p.onOpenEval(ev)} className="flex items-center gap-3.5 w-full text-left p-[13px_18px] bg-white cursor-pointer hover:bg-slate-50" style={{ border: 'none', borderTop: i > 0 ? '1px solid #eef0f3' : 'none' }}>
@@ -271,10 +293,10 @@ function Evaluaciones(p: FichaLayoutProps) {
               <div className="text-[10.5px] uppercase mt-0.5" style={{ fontFamily: MONO, color: '#98a0ab' }}>{fmtF(ev.fecha).split(' ').slice(1).join(' ')}</div>
             </div>
             <div className="flex-1 min-w-0">
-              <div className="text-[13.5px] font-semibold">{retiro ? 'Evaluación de retiro' : (ev.motivoConsulta || 'Evaluación periódica')}</div>
+              <div className="text-[13.5px] font-semibold">{retiro ? 'Evaluación de retiro' : (ev.motivoConsulta || `Evaluación ${tb.label.toLowerCase()}`)}</div>
               <div className="text-[12px]" style={{ color: '#98a0ab' }}>{dxCount > 0 ? `${dxCount} diagnóstico${dxCount > 1 ? 's' : ''}` : 'Sin diagnósticos'}{ev.medicoNombre ? ` · Dr. ${ev.medicoNombre}` : ''}</div>
             </div>
-            <span className="text-[10px] font-bold uppercase px-2.5 py-0.5 rounded" style={{ background: retiro ? '#f8eddc' : '#eaf0f9', color: retiro ? '#9a4a07' : C_EVAL, letterSpacing: '.4px' }}>{retiro ? 'Retiro' : 'Periódica'}</span>
+            <span className="text-[10px] font-bold uppercase px-2.5 py-0.5 rounded" style={{ background: tb.bg, color: tb.fg, letterSpacing: '.4px' }}>{tb.label}</span>
             <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full" style={{ background: a.bg, color: a.fg }}>{a.label}</span>
             <ChevronRight size={16} style={{ color: '#cabfb4' }} />
           </button>
@@ -360,6 +382,88 @@ function Permisos(p: FichaLayoutProps) {
           </div>
         );
       })}
+    </SecCard>
+  );
+}
+
+// ── Antecedentes consolidados ────────────────────────────────────────────────
+// Los antecedentes se registran extensamente en la evaluación preocupacional
+// (SO-RE-41) y se actualizan en las posteriores. Este recuadro muestra la
+// versión más reciente de cada bloque para consultarlos de un vistazo.
+function AntecedentesCard({ evaluaciones, onVerEval }: { evaluaciones: any[]; onVerEval: (ev: any) => void }) {
+  // Primera evaluación (más reciente) que traiga datos de antecedentes.
+  const fuente = evaluaciones.find((e) =>
+    e.antecedentesClinicosQ !== undefined || (e.antecedentesClinicosLista?.length ?? 0) > 0 ||
+    (e.antecedentesFamiliares?.length ?? 0) > 0 || (e.habitosToxicos?.length ?? 0) > 0 ||
+    (e.antecedentesEmpleos?.length ?? 0) > 0 || e.antecedentesGineco || e.antecedentesReproductivos,
+  );
+
+  if (!fuente) {
+    return (
+      <SecCard icon={<ClipboardList size={17} />} color="#0d6b5f" title="Antecedentes">
+        <Empty>Sin antecedentes registrados. Se llenan en la evaluación preocupacional (SO-RE-41) y quedan disponibles para las siguientes evaluaciones.</Empty>
+      </SecCard>
+    );
+  }
+
+  const tb = tipoBadge(fuente);
+  const clinicos: string[] = fuente.antecedentesClinicosQ === true
+    ? (fuente.antecedentesClinicosLista ?? []).map((a: any) => `${a.enfermedad || '?'}${a.desdeCuando ? ` (desde ${a.desdeCuando})` : ''}${a.tomaMedicacion && a.medicacionNombre ? ` · Med: ${a.medicacionNombre}` : ''}`)
+    : [];
+  const quirurgicos: string[] = fuente.antecedentesQuirurgicosQ === true
+    ? (fuente.antecedentesQuirurgicosLista ?? []).map((a: any) => `${a.procedimiento || '?'}${a.fechaAproximada ? ` (${a.fechaAproximada})` : ''}${a.secuelas ? ` · Secuelas: ${a.secuelas}` : ''}`)
+    : [];
+  const alergias: string[] = fuente.alergiasTiene === true
+    ? (fuente.alergias ?? []).map((a: any) => `${a.alergeno || '?'}${a.intensidadReaccion ? ` — ${a.intensidadReaccion}` : ''}`)
+    : [];
+  const habitos: string[] = (fuente.habitosToxicos ?? [])
+    .filter((h: any) => h.consume || h.exConsumidor)
+    .map((h: any) => `${h.tipo}${h.consume ? ` (${h.cantidad || 'consume'})` : ' (ex consumidor)'}`);
+  const familiares: string[] = (fuente.antecedentesFamiliares ?? [])
+    .map((a: any) => `${a.tipo}${a.parentesco ? `: ${a.parentesco}` : ''}${a.descripcion ? ` (${a.descripcion})` : ''}`);
+  const empleos: string[] = (fuente.antecedentesEmpleos ?? [])
+    .map((e: any) => `${e.empresa || '?'} — ${e.puesto || '?'}${e.tiempoMeses ? ` (${e.tiempoMeses} meses)` : ''}${e.riesgos?.length ? ` · ${e.riesgos.join(', ')}` : ''}`);
+
+  const gineco = fuente.antecedentesGineco;
+  const repro = fuente.antecedentesReproductivos;
+  const ginecoResumen: string[] = gineco ? [
+    gineco.gestas !== '' ? `G${gineco.gestas || 0} P${gineco.partos || 0} C${gineco.cesareas || 0} A${gineco.abortos || 0}` : '',
+    gineco.papanicolaou?.realizado === true ? `PAP: ${gineco.papanicolaou.resultado || 'realizado'}` : '',
+    gineco.mamografia?.realizado === true ? `Mamografía: ${gineco.mamografia.resultado || 'realizada'}` : '',
+    gineco.planificacionFamiliar === true ? `Planificación: ${gineco.planificacionTipo || 'sí'}` : '',
+  ].filter(Boolean) : [];
+  const reproResumen: string[] = repro ? [
+    repro.antigenoProstatico?.realizado === true ? `PSA: ${repro.antigenoProstatico.resultado || 'realizado'}` : '',
+    repro.ecoProstatico?.realizado === true ? `Eco prostático: ${repro.ecoProstatico.resultado || 'realizado'}` : '',
+  ].filter(Boolean) : [];
+
+  const Bloque = ({ titulo, items, vacio }: { titulo: string; items: string[]; vacio: string }) => (
+    <div className="border rounded-[11px] p-[12px_14px]" style={{ background: '#f6f7f9', borderColor: '#e4e6ea' }}>
+      <div className="text-[11px] font-bold uppercase mb-1.5" style={{ color: '#98a0ab' }}>{titulo}</div>
+      {items.length === 0
+        ? <div className="text-[12px]" style={{ color: '#98a0ab' }}>{vacio}</div>
+        : <ul className="m-0 pl-4 space-y-0.5">{items.map((it, i) => <li key={i} className="text-[12.5px]" style={{ color: '#3a4250' }}>{it}</li>)}</ul>}
+    </div>
+  );
+
+  return (
+    <SecCard icon={<ClipboardList size={17} />} color="#0d6b5f" title="Antecedentes"
+      action={<Link onClick={() => onVerEval(fuente)}>Ver ficha origen</Link>}>
+      <div className="mb-3 text-[11.5px]" style={{ color: '#98a0ab' }}>
+        Fuente: <span className="font-bold px-1.5 py-0.5 rounded" style={{ background: tb.bg, color: tb.fg }}>{tb.label}</span>
+        {' '}del <span style={{ fontFamily: MONO }}>{fmtF(fuente.fecha)}</span>
+        {fuente.edadInicioLaboral ? <> · Inició actividad laboral a los <span style={{ fontFamily: MONO }}>{fuente.edadInicioLaboral}</span> años</> : null}
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <Bloque titulo="Clínicos" items={clinicos} vacio={fuente.antecedentesClinicosQ === false ? 'Sin antecedentes clínicos.' : 'No registrados.'} />
+        <Bloque titulo="Quirúrgicos" items={quirurgicos} vacio={fuente.antecedentesQuirurgicosQ === false ? 'Sin antecedentes quirúrgicos.' : 'No registrados.'} />
+        <Bloque titulo="Alergias" items={alergias} vacio={fuente.alergiasTiene === false ? 'Sin alergias conocidas.' : 'No registradas.'} />
+        <Bloque titulo="Hábitos tóxicos" items={habitos} vacio="Sin consumos nocivos reportados." />
+        <Bloque titulo="Familiares" items={familiares} vacio="Sin antecedentes familiares de importancia." />
+        {gineco && <Bloque titulo="Gineco-obstétricos" items={ginecoResumen} vacio="No registrados." />}
+        {repro && <Bloque titulo="Reproductivos" items={reproResumen} vacio="No registrados." />}
+        <Bloque titulo="Empleos anteriores" items={empleos} vacio="Sin empleos anteriores registrados." />
+      </div>
     </SecCard>
   );
 }
