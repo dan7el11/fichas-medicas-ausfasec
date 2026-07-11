@@ -52,6 +52,10 @@ export default function SignosVitalesForm({ onDataChange, initialData }: SignosV
     onDataChange({ ...datos, imc: nuevoImc });
   }, [datos.peso, datos.talla, datos.presionSistolica, datos.presionDiastolica, datos.temperatura, datos.frecuenciaCardiaca, datos.frecuenciaRespiratoria, datos.saturacion, datos.perimetroAbdominal, datos.glucosaCapilar, onDataChange]);
 
+  // Campo que se está escribiendo AHORA: no se valida hasta salir de él, para
+  // no alertar con cada dígito (ej. al teclear "1", "12" antes de "120").
+  const [campoActivo, setCampoActivo] = useState<string | null>(null);
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     // PA: solo dígitos, máximo 3
@@ -61,13 +65,15 @@ export default function SignosVitalesForm({ onDataChange, initialData }: SignosV
     setDatos(prev => ({ ...prev, [name]: value }));
   };
 
-  // Validación de coherencia de la presión (diastólica < sistólica)
-  const paCoherencia = validarPresion(datos.presionSistolica, datos.presionDiastolica);
+  // Validación de coherencia de la presión (diastólica < sistólica): solo
+  // cuando ambas están completas y ninguna se está escribiendo.
+  const paLista = campoActivo !== 'presionSistolica' && campoActivo !== 'presionDiastolica';
+  const paCoherencia = paLista ? validarPresion(datos.presionSistolica, datos.presionDiastolica) : { nivel: 'ok' as const };
 
   // Recolectar mensajes para el resumen inferior
   const erroresGlobales: string[] = [];
   const alertasGlobales: string[] = [];
-  if (paCoherencia.nivel === 'error') erroresGlobales.push(paCoherencia.mensaje!);
+  if (paCoherencia.nivel === 'error') erroresGlobales.push((paCoherencia as any).mensaje!);
 
   return (
     <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
@@ -75,7 +81,9 @@ export default function SignosVitalesForm({ onDataChange, initialData }: SignosV
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3 text-xs">
         {CAMPOS.flatMap((campo) => {
           const valor = (datos as any)[campo.name] as string;
-          const r = validarSigno(campo.name, valor);
+          // No validar el campo mientras se está escribiendo en él: la alerta
+          // aparece recién al pasar al siguiente campo (dato completo).
+          const r = campoActivo === campo.name ? { nivel: 'ok' as const, mensaje: undefined } : validarSigno(campo.name, valor);
           if (r.nivel === 'error') erroresGlobales.push(`${campo.label}: ${r.mensaje}`);
           else if (r.nivel === 'alerta') alertasGlobales.push(`${campo.label}: ${r.mensaje}`);
 
@@ -107,6 +115,8 @@ export default function SignosVitalesForm({ onDataChange, initialData }: SignosV
                 name={campo.name}
                 value={valor}
                 onChange={handleChange}
+                onFocus={() => setCampoActivo(campo.name)}
+                onBlur={() => setCampoActivo(null)}
                 maxLength={campo.pa ? 3 : undefined}
                 placeholder={campo.ph}
                 className={`w-full px-2 py-1.5 border rounded-md outline-none focus:ring-1 focus:ring-blue-500 ${borde}`}

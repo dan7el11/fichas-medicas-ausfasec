@@ -154,6 +154,23 @@ export interface Diagnostico {
 // ANTECEDENTES ESPECÍFICOS DEL FORMATO SO-RE-41 (PREOCUPACIONAL)
 // ====================================================================
 
+/** Datos personales/demográficos de la Sección A del SO-RE-41. */
+export interface DatosPersonalesSO41 {
+  religion: string;
+  grupoSanguineo: string;
+  lateralidad: string;
+  orientacionSexual: string;
+  identidadGenero: string;
+  discapacidad: boolean | null;
+  discapacidadTipo: string;
+  discapacidadPorcentaje: string;
+  raza: string;
+  estadoCivil: string;
+  gradoInstruccion: string;
+  profesion: string;
+  actividadesRelevantes: string;
+}
+
 /** Empleo anterior (Sección D del SO-RE-41: antecedentes de trabajo). */
 export interface AntecedenteEmpleo {
   empresa: string;
@@ -376,6 +393,8 @@ export interface EvaluacionMedica {
   antecedentesReproductivos?: AntecedentesReproductivos;
   /** Actividades extra laborales (Sección G del SO-RE-41). */
   actividadesExtraLaborales?: string;
+  /** Datos personales/demográficos de la Sección A del SO-RE-41. */
+  datosPersonales?: DatosPersonalesSO41;
 
   /** Certificado de aptitud médico laboral (SO-RE-20) anexo a esta evaluación. */
   certificadoAptitud?: CertificadoAptitud;

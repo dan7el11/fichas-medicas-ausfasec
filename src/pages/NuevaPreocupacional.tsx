@@ -17,14 +17,17 @@ import {
   OPCIONES_RECOMENDACIONES, SISTEMAS, REGIONES_EXAMEN_FISICO, TIPOS_ANTECEDENTES_FAMILIARES,
   RIESGOS_FISICOS, RIESGOS_MECANICOS, RIESGOS_QUIMICOS, RIESGOS_BIOLOGICOS, RIESGOS_ERGONOMICOS, RIESGOS_PSICOSOCIALES,
   CATEGORIAS_RIESGO_EMPLEO,
+  RELIGIONES, GRUPOS_SANGUINEOS, LATERALIDADES, ORIENTACIONES_SEXUALES, IDENTIDADES_GENERO,
+  RAZAS, ESTADOS_CIVILES, GRADOS_INSTRUCCION,
   emptyAntecedenteClinico, emptyAntecedenteQuirurgico, emptyAlergia, emptyAntecedenteEmpleo,
-  emptyAntecedentesGineco, emptyAntecedentesReproductivos,
+  emptyAntecedentesGineco, emptyAntecedentesReproductivos, emptyDatosPersonales,
 } from '../utils/catalogosEvaluacion';
+import { combinarAntecedentes } from '../utils/antecedentesPrevios';
 import type {
   Trabajador, SignosVitales, HabitoToxico, EstiloVida, AccidenteTrabajo, EnfermedadProfesional,
   AntecedenteFamiliar, ExamenFisicoHallazgo, ExamenComplementario, Diagnostico, Usuario,
   FactorRiesgoPuesto, AntecedenteClinico, AntecedenteQuirurgico, Alergia, MedicacionHabitual,
-  AntecedenteEmpleo, AntecedentesGineco, AntecedentesReproductivos, ExamenTamizaje,
+  AntecedenteEmpleo, AntecedentesGineco, AntecedentesReproductivos, ExamenTamizaje, DatosPersonalesSO41,
 } from '../types';
 
 const INPUT_XS = 'w-full px-2 py-1.5 border rounded-lg text-xs';
@@ -82,6 +85,9 @@ export default function NuevaPreocupacional() {
   const [cargandoExamenesHist, setCargandoExamenesHist] = useState(false);
 
   // ===== ESTADOS DEL FORMULARIO (mismos nombres de campo que SO-RE-38) =====
+
+  // A. Datos personales/demográficos (SO-RE-41)
+  const [datosPersonales, setDatosPersonales] = useState<DatosPersonalesSO41>(emptyDatosPersonales());
 
   // B. Motivo de consulta
   const [motivoConsulta, setMotivoConsulta] = useState('EVALUACIÓN MÉDICA PREOCUPACIONAL DE INGRESO');
@@ -189,6 +195,7 @@ export default function NuevaPreocupacional() {
           const evalDoc = await getDoc(doc(db, 'evaluaciones', editEvalId));
           if (evalDoc.exists()) {
             const ev = evalDoc.data();
+            if (ev.datosPersonales) setDatosPersonales({ ...emptyDatosPersonales(), ...ev.datosPersonales });
             setMotivoConsulta(ev.motivoConsulta || '');
             if (ev.antecedentesClinicosQ !== undefined) setAntecedentesClinicosQ(ev.antecedentesClinicosQ);
             if (ev.antecedentesClinicosLista) setAntecedentesClinicosLista(ev.antecedentesClinicosLista);
@@ -234,32 +241,33 @@ export default function NuevaPreocupacional() {
           console.error('Error al cargar la evaluación para editar:', err);
         }
       } else {
-        // MODO CREACIÓN: precargar antecedentes de la última evaluación (si existe)
+        // MODO CREACIÓN: precargar los antecedentes FUSIONADOS de todas las
+        // evaluaciones previas (se añaden sin duplicar; el usuario puede
+        // eliminar del formulario lo que no quiera conservar).
         try {
-          const evalQuery = query(
+          const evalSnap = await getDocs(query(
             collection(db, 'evaluaciones'),
             where('trabajadorId', '==', trabajadorId),
-            orderBy('fecha', 'desc'),
-            limit(1),
-          );
-          const evalSnap = await getDocs(evalQuery);
-          if (!evalSnap.empty) {
-            const ult = evalSnap.docs[0].data();
-            if (ult.antecedentesClinicosQ !== undefined) setAntecedentesClinicosQ(ult.antecedentesClinicosQ);
-            if (ult.antecedentesClinicosLista) setAntecedentesClinicosLista(ult.antecedentesClinicosLista);
-            if (ult.antecedentesQuirurgicosQ !== undefined) setAntecedentesQuirurgicosQ(ult.antecedentesQuirurgicosQ);
-            if (ult.antecedentesQuirurgicosLista) setAntecedentesQuirurgicosLista(ult.antecedentesQuirurgicosLista);
-            if (ult.alergiasTiene !== undefined) setAlergiasTiene(ult.alergiasTiene);
-            if (ult.alergias) setAlergias(ult.alergias);
-            if (ult.antecedentesGineco) setAntecedentesGineco({ ...emptyAntecedentesGineco(), ...ult.antecedentesGineco });
-            if (ult.antecedentesReproductivos) setAntecedentesReproductivos({ ...emptyAntecedentesReproductivos(), ...ult.antecedentesReproductivos });
-            if (ult.antecedentesFamiliares) setAntecedentesFamiliares(ult.antecedentesFamiliares);
-            if (ult.habitosToxicos) setHabitosToxicos(ult.habitosToxicos);
-            if (ult.estiloVida) setEstiloVida(ult.estiloVida);
-            if (ult.medicacionesHabituales) setMedicacionesHabituales(ult.medicacionesHabituales);
-            if (ult.edadInicioLaboral) setEdadInicioLaboral(ult.edadInicioLaboral);
-            if (ult.antecedentesEmpleos) setAntecedentesEmpleos(ult.antecedentesEmpleos);
-            if (ult.signosVitales?.talla) setSignosVitales(prev => ({ ...prev, talla: ult.signosVitales.talla }));
+          ));
+          const previas = evalSnap.docs.map(d => d.data());
+          if (previas.length > 0) {
+            const m = combinarAntecedentes(previas);
+            if (m.antecedentesClinicosQ !== null) setAntecedentesClinicosQ(m.antecedentesClinicosQ);
+            if (m.antecedentesClinicosLista.length) setAntecedentesClinicosLista(m.antecedentesClinicosLista);
+            if (m.antecedentesQuirurgicosQ !== null) setAntecedentesQuirurgicosQ(m.antecedentesQuirurgicosQ);
+            if (m.antecedentesQuirurgicosLista.length) setAntecedentesQuirurgicosLista(m.antecedentesQuirurgicosLista);
+            if (m.alergiasTiene !== null) setAlergiasTiene(m.alergiasTiene);
+            if (m.alergias.length) setAlergias(m.alergias);
+            if (m.antecedentesGineco) setAntecedentesGineco({ ...emptyAntecedentesGineco(), ...m.antecedentesGineco });
+            if (m.antecedentesReproductivos) setAntecedentesReproductivos({ ...emptyAntecedentesReproductivos(), ...m.antecedentesReproductivos });
+            if (m.antecedentesFamiliares.length) setAntecedentesFamiliares(m.antecedentesFamiliares);
+            if (m.habitosToxicos) setHabitosToxicos(m.habitosToxicos);
+            if (m.estiloVida) setEstiloVida(m.estiloVida);
+            if (m.medicacionesHabituales.length) setMedicacionesHabituales(m.medicacionesHabituales);
+            if (m.edadInicioLaboral) setEdadInicioLaboral(m.edadInicioLaboral);
+            if (m.antecedentesEmpleos.length) setAntecedentesEmpleos(m.antecedentesEmpleos);
+            if (m.datosPersonales) setDatosPersonales({ ...emptyDatosPersonales(), ...m.datosPersonales });
+            if (m.talla) setSignosVitales(prev => ({ ...prev, talla: m.talla }));
           }
         } catch (err) {
           console.error('Error al precargar antecedentes:', err);
@@ -359,10 +367,11 @@ export default function NuevaPreocupacional() {
     setMostrarModalExamenes(true);
     setCargandoExamenesHist(true);
     try {
-      const q = query(collection(db, 'examenes'), where('trabajadorId', '==', trabajadorId), orderBy('fecha', 'desc'));
-      const snap = await getDocs(q);
+      // Sin orderBy en la consulta (evita el índice compuesto); orden en cliente.
+      const snap = await getDocs(query(collection(db, 'examenes'), where('trabajadorId', '==', trabajadorId)));
       const docs: any[] = [];
       snap.forEach(d => docs.push({ id: d.id, ...d.data() }));
+      docs.sort((a, b) => (b.fecha?.seconds ?? 0) - (a.fecha?.seconds ?? 0));
       setExamenesDisponibles(docs);
     } catch (error) {
       console.error('Error al cargar historial de exámenes:', error);
@@ -414,6 +423,7 @@ export default function NuevaPreocupacional() {
       const evaluacionData: any = {
         trabajadorId,
         tipoEvaluacion: 'preocupacional',
+        datosPersonales,
         medicoId: user.uid,
         medicoNombre: medicoData?.nombreCompleto || '',
         medicoCedula: medicoData?.cedula || '',
@@ -533,6 +543,61 @@ export default function NuevaPreocupacional() {
             <div><span className="font-semibold text-slate-600">Cédula:</span> <span className="text-slate-800">{trabajador.cedula}</span></div>
             <div><span className="font-semibold text-slate-600">Sexo:</span> <span className="text-slate-800">{trabajador.sexo === 'M' ? 'Masculino' : 'Femenino'}</span></div>
             <div className="md:col-span-2"><span className="font-semibold text-slate-600">Puesto de Trabajo:</span> <span className="text-slate-800">{trabajador.puestoTrabajo}</span></div>
+          </div>
+
+          {/* Datos demográficos del formato SO-RE-41 */}
+          <div className="mt-4 border-t pt-4">
+            <p className="text-xs font-bold text-slate-700 uppercase mb-3">Datos personales del usuario</p>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {([
+                ['religion', 'Religión', RELIGIONES],
+                ['grupoSanguineo', 'Grupo sanguíneo', GRUPOS_SANGUINEOS],
+                ['lateralidad', 'Lateralidad', LATERALIDADES],
+                ['orientacionSexual', 'Orientación sexual', ORIENTACIONES_SEXUALES],
+                ['identidadGenero', 'Identidad de género', IDENTIDADES_GENERO],
+                ['raza', 'Raza / etnia', RAZAS],
+                ['estadoCivil', 'Estado civil', ESTADOS_CIVILES],
+                ['gradoInstruccion', 'Grado de instrucción', GRADOS_INSTRUCCION],
+              ] as [keyof DatosPersonalesSO41, string, string[]][]).map(([key, label, opciones]) => (
+                <div key={key}>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">{label}</label>
+                  <select
+                    value={(datosPersonales as any)[key] as string}
+                    onChange={e => setDatosPersonales(prev => ({ ...prev, [key]: e.target.value }))}
+                    className="w-full px-2 py-1.5 border border-slate-300 rounded-lg text-xs bg-white"
+                  >
+                    <option value="">— Seleccionar —</option>
+                    {opciones.map(op => <option key={op} value={op}>{op}</option>)}
+                  </select>
+                </div>
+              ))}
+              <div className="col-span-2">
+                <label className="block text-xs font-semibold text-slate-600 mb-1">Discapacidad</label>
+                <div className="flex items-center gap-2 flex-wrap">
+                  {([true, false] as const).map(val => (
+                    <button key={String(val)} type="button"
+                      onClick={() => setDatosPersonales(prev => ({ ...prev, discapacidad: prev.discapacidad === val ? null : val }))}
+                      className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${datosPersonales.discapacidad === val ? (val ? 'bg-blue-600 text-white border-blue-600' : 'bg-slate-600 text-white border-slate-600') : 'bg-white text-slate-600 border-slate-300'}`}>
+                      {val ? 'Sí' : 'No'}
+                    </button>
+                  ))}
+                  {datosPersonales.discapacidad === true && (
+                    <>
+                      <input type="text" placeholder="Tipo" value={datosPersonales.discapacidadTipo} onChange={e => setDatosPersonales(prev => ({ ...prev, discapacidadTipo: e.target.value }))} className="flex-1 min-w-[100px] px-2 py-1.5 border border-slate-300 rounded-lg text-xs" />
+                      <input type="text" placeholder="%" value={datosPersonales.discapacidadPorcentaje} onChange={e => setDatosPersonales(prev => ({ ...prev, discapacidadPorcentaje: e.target.value }))} className="w-16 px-2 py-1.5 border border-slate-300 rounded-lg text-xs" />
+                    </>
+                  )}
+                </div>
+              </div>
+              <div className="col-span-2">
+                <label className="block text-xs font-semibold text-slate-600 mb-1">Profesión</label>
+                <input type="text" value={datosPersonales.profesion} onChange={e => setDatosPersonales(prev => ({ ...prev, profesion: e.target.value }))} className="w-full px-2 py-1.5 border border-slate-300 rounded-lg text-xs" placeholder="Profesión u oficio..." />
+              </div>
+              <div className="col-span-2 md:col-span-4">
+                <label className="block text-xs font-semibold text-slate-600 mb-1">Actividades relevantes al puesto de trabajo actual</label>
+                <input type="text" value={datosPersonales.actividadesRelevantes} onChange={e => setDatosPersonales(prev => ({ ...prev, actividadesRelevantes: e.target.value }))} className="w-full px-2 py-1.5 border border-slate-300 rounded-lg text-xs" placeholder="Descripción de las actividades principales..." />
+              </div>
+            </div>
           </div>
         </div>
 

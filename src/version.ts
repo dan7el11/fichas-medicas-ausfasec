@@ -1,4 +1,4 @@
 // Versión visible de la aplicación. Súbela en cada entrega importante para
 // poder verificar qué versión está desplegada (se muestra en el login y en el
 // menú de usuario).
-export const APP_VERSION = 'v2.4 · certificado de aptitud SO-RE-20';
+export const APP_VERSION = 'v2.5 · matriz de riesgos en PDF + antecedentes acumulativos';

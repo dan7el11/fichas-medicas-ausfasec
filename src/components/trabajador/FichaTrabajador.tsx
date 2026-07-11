@@ -26,6 +26,7 @@ import type { PermisoMedico } from '../../types/permiso';
 import SeguimientoSignos from './SeguimientoSignos';
 import FichaLayout from './FichaLayout';
 import CertificadoAptitudModal from './CertificadoAptitud';
+import { dibujarFactoresRiesgoPdf } from './factoresRiesgoPdf';
 
 // ============================================================================
 // CONSTANTES
@@ -564,18 +565,10 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
     } else { textoLibre('No se refieren antecedentes familiares de importancia.', 5); y += 1; }
 
     if (ev.factoresRiesgo) {
-      checkPage(25); secHeader('E. FACTORES DE RIESGOS DEL PUESTO DE TRABAJO');
-      const fr = ev.factoresRiesgo;
-      autoTable(pdf, { startY: y, margin: { left: M, right: M }, theme: 'grid', styles: { ...baseStyles, fontSize: 6.5 }, headStyles: { ...headStyles, fontSize: 6 }, head: [['PUESTO DE TRABAJO / ÁREA', 'ACTIVIDADES', 'TIEMPO DE TRABAJO (MESES)']], body: [[fr.puestoArea || trabajador.puestoTrabajo, fr.actividades || '-', fr.tiempoTrabajoMeses || '-']] });
-      y = (pdf as any).lastAutoTable.finalY;
-      const categorias = [
-        { nombre: 'FÍSICO', items: fr.fisicos || [] }, { nombre: 'MECÁNICO', items: fr.mecanicos || [] },
-        { nombre: 'QUÍMICO', items: fr.quimicos || [] }, { nombre: 'BIOLÓGICO', items: fr.biologicos || [] },
-        { nombre: 'ERGONÓMICO', items: fr.ergonomicos || [] }, { nombre: 'PSICOSOCIAL', items: fr.psicosociales || [] },
-      ].filter(c => c.items.length > 0);
-      if (categorias.length > 0) { autoTable(pdf, { startY: y, margin: { left: M, right: M }, theme: 'grid', styles: { ...baseStyles, fontSize: 6 }, headStyles: { ...headStyles, fontSize: 5.5 }, head: [['CATEGORÍA', 'FACTORES DE RIESGO IDENTIFICADOS']], body: categorias.map(c => [c.nombre, c.items.join(', ')]), columnStyles: { 0: { cellWidth: 25, fontStyle: 'bold' } } }); y = (pdf as any).lastAutoTable.finalY; }
-      autoTable(pdf, { startY: y, margin: { left: M, right: M }, theme: 'grid', styles: { ...baseStyles, fontSize: 6 }, headStyles: { ...headStyles, fontSize: 5.5 }, head: [['MEDIDAS PREVENTIVAS / RECOMENDACIONES']], body: [[fr.medidasPreventivas || (Array.isArray(fr.recomendaciones) ? fr.recomendaciones.join('; ') : fr.recomendaciones) || 'Ninguna descrita']] });
-      y = (pdf as any).lastAutoTable.finalY; y += 2;
+      checkPage(55); secHeader('E. FACTORES DE RIESGOS DEL PUESTO DE TRABAJO');
+      // Matriz oficial: una columna por factor (rótulo rotado) con X en lo marcado.
+      y = dibujarFactoresRiesgoPdf(pdf, ev.factoresRiesgo, { M, CW, y, puestoDefault: trabajador.puestoTrabajo });
+      y += 2;
     }
 
     // PÁGINA 2
@@ -980,6 +973,14 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
     secHeaderP('A. DATOS DEL ESTABLECIMIENTO - EMPRESA Y USUARIO');
     AT({ startY: y, margin: { left: M, right: M }, theme: 'grid', styles: base, headStyles: head, head: [['INSTITUCIÓN DEL SISTEMA O NOMBRE DE LA EMPRESA', 'RUC', 'CIIU', 'ESTABLECIMIENTO DE SALUD', 'N° HISTORIA CLÍNICA', 'N° ARCHIVO']], body: [[empresa.institucion, empresa.ruc, empresa.ciu, empresa.establecimiento, ev.numeroHistoriaClinica || trabajador.cedula, ev.numeroArchivo || '-']] });
     AT({ startY: y, margin: { left: M, right: M }, theme: 'grid', styles: base, headStyles: head, head: [['PRIMER APELLIDO', 'SEGUNDO APELLIDO', 'PRIMER NOMBRE', 'SEGUNDO NOMBRE', 'SEXO', 'FECHA DE INGRESO', 'PUESTO DE TRABAJO (CIUO)', 'ÁREA DE TRABAJO']], body: [[trabajador.primerApellido, (trabajador as any).segundoApellido || '-', trabajador.primerNombre, (trabajador as any).segundoNombre || '-', trabajador.sexo, (trabajador as any).fechaIngreso || '-', trabajador.puestoTrabajo, (trabajador as any).departamento || '-']] });
+    if (ev.datosPersonales) {
+      const dp = ev.datosPersonales;
+      const disc = dp.discapacidad === true
+        ? `SI${dp.discapacidadTipo ? ` · ${dp.discapacidadTipo}` : ''}${dp.discapacidadPorcentaje ? ` · ${dp.discapacidadPorcentaje}%` : ''}`
+        : dp.discapacidad === false ? 'NO' : '-';
+      AT({ startY: y, margin: { left: M, right: M }, theme: 'grid', styles: base, headStyles: head, head: [['RELIGIÓN', 'GRUPO SANGUÍNEO', 'LATERALIDAD', 'ORIENTACIÓN SEXUAL', 'IDENTIDAD DE GÉNERO', 'DISCAPACIDAD']], body: [[dp.religion || '-', dp.grupoSanguineo || '-', dp.lateralidad || '-', dp.orientacionSexual || '-', dp.identidadGenero || '-', disc]] });
+      AT({ startY: y, margin: { left: M, right: M }, theme: 'grid', styles: base, headStyles: head, head: [['RAZA', 'ESTADO CIVIL', 'GRADO DE INSTRUCCIÓN', 'PROFESIÓN', 'ACTIVIDADES RELEVANTES AL PUESTO ACTUAL']], body: [[dp.raza || '-', dp.estadoCivil || '-', dp.gradoInstruccion || '-', dp.profesion || '-', dp.actividadesRelevantes || '-']] });
+    }
     y += 2;
 
     secHeaderP('B. MOTIVO DE CONSULTA');
@@ -1115,17 +1116,8 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
 
     if (ev.factoresRiesgo) {
       secHeaderP('F. FACTORES DE RIESGOS DEL PUESTO DE TRABAJO ACTUAL');
-      const fr = ev.factoresRiesgo;
-      AT({ startY: y, margin: { left: M, right: M }, theme: 'grid', styles: { ...base, fontSize: 6.5 }, headStyles: { ...head, fontSize: 6 }, head: [['PUESTO DE TRABAJO / ÁREA', 'ACTIVIDADES', 'TIEMPO DE TRABAJO (MESES)']], body: [[fr.puestoArea || trabajador.puestoTrabajo, fr.actividades || '-', fr.tiempoTrabajoMeses || '-']] });
-      const categorias = [
-        { nombre: 'FÍSICO', items: fr.fisicos || [] }, { nombre: 'MECÁNICO', items: fr.mecanicos || [] },
-        { nombre: 'QUÍMICO', items: fr.quimicos || [] }, { nombre: 'BIOLÓGICO', items: fr.biologicos || [] },
-        { nombre: 'ERGONÓMICO', items: fr.ergonomicos || [] }, { nombre: 'PSICOSOCIAL', items: fr.psicosociales || [] },
-      ].filter(c => c.items.length > 0);
-      if (categorias.length > 0) {
-        AT({ startY: y, margin: { left: M, right: M }, theme: 'grid', styles: { ...base, fontSize: 6 }, headStyles: { ...head, fontSize: 5.5 }, head: [['CATEGORÍA', 'FACTORES DE RIESGO IDENTIFICADOS']], body: categorias.map(c => [c.nombre, c.items.join(', ')]), columnStyles: { 0: { cellWidth: 25, fontStyle: 'bold' } } });
-      }
-      AT({ startY: y, margin: { left: M, right: M }, theme: 'grid', styles: { ...base, fontSize: 6 }, headStyles: { ...head, fontSize: 5.5 }, head: [['MEDIDAS PREVENTIVAS']], body: [[fr.medidasPreventivas || 'Ninguna descrita']] });
+      // Matriz oficial: una columna por factor (rótulo rotado) con X en lo marcado.
+      y = dibujarFactoresRiesgoPdf(pdf, ev.factoresRiesgo, { M, CW, y, puestoDefault: trabajador.puestoTrabajo });
       y += 2;
     }
 
