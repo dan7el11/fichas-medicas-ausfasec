@@ -25,34 +25,19 @@ interface Opts {
   altoFila?: number;
 }
 
-/** Celda de encabezado con el texto rotado 90° (se dibuja en didDrawCell). */
-const rotada = (txt: string) => ({
-  content: '',
-  textToRotate: txt,
-  styles: { fillColor: VERDE, valign: 'bottom' as const },
-});
+const FUENTE_ROTADA = 4.6; // pt
 
 function dibujarRotados(pdf: jsPDF) {
   return (data: any) => {
     const raw = data.cell.raw as any;
     if (data.section !== 'head' || !raw?.textToRotate) return;
-    pdf.setTextColor(0); pdf.setFontSize(4.6); pdf.setFont('helvetica', 'normal');
-    const alto = data.cell.height;
-    const cx = data.cell.x + data.cell.width / 2;
-    const cy = data.cell.y + alto / 2;
+    pdf.setTextColor(0); pdf.setFontSize(FUENTE_ROTADA); pdf.setFont('helvetica', 'normal');
     const str = String(raw.textToRotate);
-    // El encabezado es lo bastante alto para el nombre completo; si un rótulo
-    // muy largo no cabe en una línea, se reparte en dos (sin recortar).
-    const max = alto - 2;
-    if (pdf.getTextWidth(str) > max) {
-      const partes: string[] = pdf.splitTextToSize(str, max);
-      const l1 = partes[0];
-      const l2 = partes.slice(1).join(' ');
-      pdf.text(l1, cx + 1.4, cy + Math.min(pdf.getTextWidth(l1), max) / 2, { angle: 90 });
-      if (l2) pdf.text(l2, cx - 0.6, cy + Math.min(pdf.getTextWidth(l2), max) / 2, { angle: 90 });
-    } else {
-      pdf.text(str, cx + 0.4, cy + pdf.getTextWidth(str) / 2, { angle: 90 });
-    }
+    // Una sola línea rotada 90°, anclada al borde inferior de la celda. La
+    // celda ya tiene la altura necesaria (calculada con getTextWidth), así
+    // que el texto queda dentro de su recuadro sin invadir otras celdas.
+    const cx = data.cell.x + data.cell.width / 2;
+    pdf.text(str, cx + 0.6, data.cell.y + data.cell.height - 1.5, { angle: 90 });
   };
 }
 
@@ -63,14 +48,34 @@ function dibujarRotados(pdf: jsPDF) {
 export function dibujarFactoresRiesgoPdf(pdf: jsPDF, fr: any, opts: Opts): number {
   const { M, CW, puestoDefault } = opts;
   const FILAS = opts.filas ?? 4;
-  const ALTO_ENCABEZADO = opts.altoEncabezado ?? 34;
   const ALTO_FILA = opts.altoFila ?? 6;
   let y = opts.y;
   const f = fr ?? {};
   const marcado = (lista: string[] | undefined, item: string) => (lista ?? []).includes(item) ? 'X' : '';
 
   const base = { lineColor: NEGRO, lineWidth: 0.2, fontSize: 5.5, cellPadding: 0.8, textColor: NEGRO };
+
+  // Altura de la fila de rótulos rotados: se mide el nombre MÁS largo del
+  // catálogo para que cada rótulo quepa completo en una sola línea dentro de
+  // su recuadro. `altoEncabezado` actúa como mínimo (para estirar la tabla y
+  // llenar la página en el formato preocupacional).
+  pdf.setFontSize(FUENTE_ROTADA); pdf.setFont('helvetica', 'normal');
+  const todosLosRotulos = [
+    ...RIESGOS_FISICOS, ...RIESGOS_MECANICOS, ...RIESGOS_QUIMICOS,
+    ...RIESGOS_BIOLOGICOS, ...RIESGOS_ERGONOMICOS, ...RIESGOS_PSICOSOCIALES,
+    'Otros __________',
+  ];
+  const anchoMaximoRotulo = Math.max(...todosLosRotulos.map(t => pdf.getTextWidth(t)));
+  const ALTO_ENCABEZADO = Math.max(opts.altoEncabezado ?? 0, anchoMaximoRotulo + 4);
+
   const alturaTabla = ALTO_ENCABEZADO + 5 + FILAS * ALTO_FILA + 4;
+
+  /** Celda de encabezado con texto rotado; la altura ya viene en el layout. */
+  const rotada = (txt: string) => ({
+    content: '',
+    textToRotate: txt,
+    styles: { fillColor: VERDE, minCellHeight: ALTO_ENCABEZADO },
+  });
 
   const saltoSiNoCabe = (necesario: number) => {
     if (y + necesario > 285) { pdf.addPage(); y = 7; }
@@ -132,10 +137,6 @@ export function dibujarFactoresRiesgoPdf(pdf: jsPDF, fr: any, opts: Opts): numbe
       columnStyles,
       head: [head1, head2],
       body,
-      willDrawCell: (data: any) => {
-        // La fila de rótulos rotados necesita altura fija.
-        if (data.section === 'head' && data.row.index === 1) data.cell.styles.minCellHeight = ALTO_ENCABEZADO;
-      },
       didDrawCell: dibujarRotados(pdf),
     });
     y = (pdf as any).lastAutoTable.finalY + 1.5;
