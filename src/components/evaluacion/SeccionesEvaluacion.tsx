@@ -45,13 +45,15 @@ interface SeccionEProps {
   RIESGOS_BIOLOGICOS: string[];
   RIESGOS_ERGONOMICOS: string[];
   RIESGOS_PSICOSOCIALES: string[];
+  /** Título de la sección (la letra cambia según el formato: E en SO-RE-38, F en SO-RE-41). */
+  titulo?: string;
 }
 
-export function SeccionE({ factoresRiesgo, setFactoresRiesgo, toggleRiesgo, totalRiesgos, puestoPlaceholder, RIESGOS_FISICOS, RIESGOS_MECANICOS, RIESGOS_QUIMICOS, RIESGOS_BIOLOGICOS, RIESGOS_ERGONOMICOS, RIESGOS_PSICOSOCIALES }: SeccionEProps) {
+export function SeccionE({ factoresRiesgo, setFactoresRiesgo, toggleRiesgo, totalRiesgos, puestoPlaceholder, RIESGOS_FISICOS, RIESGOS_MECANICOS, RIESGOS_QUIMICOS, RIESGOS_BIOLOGICOS, RIESGOS_ERGONOMICOS, RIESGOS_PSICOSOCIALES, titulo }: SeccionEProps) {
   return (
     <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 md:p-6">
-      <h2 className="text-sm font-bold text-slate-800 mb-1 border-b pb-2">E. FACTORES DE RIESGOS DEL PUESTO DE TRABAJO</h2>
-      <p className="text-xs text-slate-500 mb-4">Seleccione los factores de riesgo a los que está expuesto el trabajador, según el catálogo del formato SO-RE-38.</p>
+      <h2 className="text-sm font-bold text-slate-800 mb-1 border-b pb-2">{titulo ?? 'E. FACTORES DE RIESGOS DEL PUESTO DE TRABAJO'}</h2>
+      <p className="text-xs text-slate-500 mb-4">Seleccione los factores de riesgo a los que está expuesto el trabajador, según el catálogo del formato oficial.</p>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-5">
         <div>
@@ -109,12 +111,13 @@ interface SeccionGProps {
   descripciones: Record<string, string>;
   onToggle: (nombre: string, checked: boolean) => void;
   onDescripcion: (nombre: string, valor: string) => void;
+  titulo?: string;
 }
 
-export function SeccionG({ SISTEMAS, seleccionados, descripciones, onToggle, onDescripcion }: SeccionGProps) {
+export function SeccionG({ SISTEMAS, seleccionados, descripciones, onToggle, onDescripcion, titulo }: SeccionGProps) {
   return (
     <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 md:p-6">
-      <h2 className="text-sm font-bold text-slate-800 mb-1 border-b pb-2">G. REVISIÓN DE ÓRGANOS Y SISTEMAS</h2>
+      <h2 className="text-sm font-bold text-slate-800 mb-1 border-b pb-2">{titulo ?? 'G. REVISIÓN DE ÓRGANOS Y SISTEMAS'}</h2>
       <p className="text-xs text-slate-500 mb-3">En caso de existir patología, marcar con "X" y describir por sistema</p>
       <div className="grid grid-cols-2 md:grid-cols-5 gap-2 mb-4">
         {SISTEMAS.map(s => (
@@ -155,12 +158,13 @@ interface SeccionIProps {
   hallazgos: ExamenFisicoHallazgo[];
   onToggle: (key: string, numRegion: number, codigo: string, region: string, subregion: string) => void;
   onHallazgo: (codigo: string, descripcion: string) => void;
+  titulo?: string;
 }
 
-export function SeccionI({ REGIONES, seleccionados, hallazgos, onToggle, onHallazgo }: SeccionIProps) {
+export function SeccionI({ REGIONES, seleccionados, hallazgos, onToggle, onHallazgo, titulo }: SeccionIProps) {
   return (
     <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 md:p-6">
-      <h2 className="text-sm font-bold text-slate-800 mb-1 border-b pb-2">I. EXAMEN FÍSICO REGIONAL</h2>
+      <h2 className="text-sm font-bold text-slate-800 mb-1 border-b pb-2">{titulo ?? 'I. EXAMEN FÍSICO REGIONAL'}</h2>
       <p className="text-xs text-slate-500 mb-3">Marcar si existe evidencia de patología y describir</p>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
         {REGIONES.map(region => (
