@@ -11,22 +11,25 @@ import {
 
 const NEGRO: [number, number, number] = [0, 0, 0];
 const VERDE = '#ccffcc';
-const CELESTE = '#ccffff';
-const ALTO_ENCABEZADO = 30;   // alto (mm) de la fila de rótulos rotados
-const FILAS = 4;              // la hoja oficial trae 4 filas numeradas
 
 interface Opts {
   M: number;        // margen izquierdo
   CW: number;       // ancho útil
   y: number;        // posición vertical actual
   puestoDefault: string;
+  /** Filas numeradas de la matriz (la hoja oficial trae 4). */
+  filas?: number;
+  /** Alto (mm) de la fila de rótulos rotados: debe permitir el nombre completo. */
+  altoEncabezado?: number;
+  /** Alto mínimo (mm) de cada fila numerada del cuerpo. */
+  altoFila?: number;
 }
 
 /** Celda de encabezado con el texto rotado 90° (se dibuja en didDrawCell). */
 const rotada = (txt: string) => ({
   content: '',
   textToRotate: txt,
-  styles: { fillColor: '#ffffff', valign: 'bottom' as const },
+  styles: { fillColor: VERDE, valign: 'bottom' as const },
 });
 
 function dibujarRotados(pdf: jsPDF) {
@@ -37,20 +40,16 @@ function dibujarRotados(pdf: jsPDF) {
     const alto = data.cell.height;
     const cx = data.cell.x + data.cell.width / 2;
     const cy = data.cell.y + alto / 2;
-    let str = String(raw.textToRotate);
-    // Si el rótulo no cabe ni en dos líneas, se recorta con puntos suspensivos.
+    const str = String(raw.textToRotate);
+    // El encabezado es lo bastante alto para el nombre completo; si un rótulo
+    // muy largo no cabe en una línea, se reparte en dos (sin recortar).
     const max = alto - 2;
     if (pdf.getTextWidth(str) > max) {
-      const lineas: string[] = pdf.splitTextToSize(str, max);
-      pdf.text(lineas[0], cx + 1.4, cy + Math.min(pdf.getTextWidth(lineas[0]), max) / 2, { angle: 90 });
-      if (lineas[1]) {
-        let l2 = lineas[1];
-        if (lineas.length > 2 || pdf.getTextWidth(l2) > max) {
-          while (l2.length > 1 && pdf.getTextWidth(l2 + '…') > max) l2 = l2.slice(0, -1);
-          l2 += '…';
-        }
-        pdf.text(l2, cx - 0.6, cy + Math.min(pdf.getTextWidth(l2), max) / 2, { angle: 90 });
-      }
+      const partes: string[] = pdf.splitTextToSize(str, max);
+      const l1 = partes[0];
+      const l2 = partes.slice(1).join(' ');
+      pdf.text(l1, cx + 1.4, cy + Math.min(pdf.getTextWidth(l1), max) / 2, { angle: 90 });
+      if (l2) pdf.text(l2, cx - 0.6, cy + Math.min(pdf.getTextWidth(l2), max) / 2, { angle: 90 });
     } else {
       pdf.text(str, cx + 0.4, cy + pdf.getTextWidth(str) / 2, { angle: 90 });
     }
@@ -63,12 +62,15 @@ function dibujarRotados(pdf: jsPDF) {
  */
 export function dibujarFactoresRiesgoPdf(pdf: jsPDF, fr: any, opts: Opts): number {
   const { M, CW, puestoDefault } = opts;
+  const FILAS = opts.filas ?? 4;
+  const ALTO_ENCABEZADO = opts.altoEncabezado ?? 34;
+  const ALTO_FILA = opts.altoFila ?? 6;
   let y = opts.y;
   const f = fr ?? {};
   const marcado = (lista: string[] | undefined, item: string) => (lista ?? []).includes(item) ? 'X' : '';
 
   const base = { lineColor: NEGRO, lineWidth: 0.2, fontSize: 5.5, cellPadding: 0.8, textColor: NEGRO };
-  const alturaTabla = ALTO_ENCABEZADO + 5 + FILAS * 6 + 4;
+  const alturaTabla = ALTO_ENCABEZADO + 5 + FILAS * ALTO_FILA + 4;
 
   const saltoSiNoCabe = (necesario: number) => {
     if (y + necesario > 285) { pdf.addPage(); y = 7; }
@@ -91,16 +93,17 @@ export function dibujarFactoresRiesgoPdf(pdf: jsPDF, fr: any, opts: Opts): numbe
     const anchoMedidas = medidas ? 38 : 0;
     const anchoCol = (CW - anchoPuesto - anchoActividades - anchoMedidas) / nCols;
 
-    // Encabezado: fila 1 = grupos; fila 2 = rótulos rotados.
+    // Encabezado: fila 1 = grupos; fila 2 = rótulos rotados. Todo en el verde
+    // institucional del formato (igual que PUESTO DE TRABAJO / ÁREA).
     const head1: any[] = [
       { content: 'PUESTO DE TRABAJO / ÁREA', rowSpan: 2, styles: { valign: 'middle' as const, halign: 'center' as const, fillColor: VERDE } },
       { content: 'ACTIVIDADES', rowSpan: 2, styles: { valign: 'middle' as const, halign: 'center' as const, fillColor: VERDE } },
-      ...grupos.map(g => ({ content: g.nombre, colSpan: g.items.length, styles: { halign: 'center' as const, fillColor: CELESTE } })),
+      ...grupos.map(g => ({ content: g.nombre, colSpan: g.items.length, styles: { halign: 'center' as const, fillColor: VERDE } })),
       ...(medidas ? [{ content: 'MEDIDAS PREVENTIVAS', rowSpan: 2, styles: { valign: 'middle' as const, halign: 'center' as const, fillColor: VERDE } }] : []),
     ];
     const head2: any[] = grupos.flatMap(g => g.items.map(rotada));
 
-    // Cuerpo: fila 1 con los datos y las X; filas 2..4 numeradas vacías.
+    // Cuerpo: fila 1 con los datos y las X; el resto numeradas vacías.
     const body: any[][] = [];
     for (let n = 1; n <= FILAS; n++) {
       const primera = n === 1;
@@ -125,7 +128,7 @@ export function dibujarFactoresRiesgoPdf(pdf: jsPDF, fr: any, opts: Opts): numbe
       theme: 'grid',
       styles: base,
       headStyles: { ...base, fontStyle: 'bold', fontSize: 5.5, minCellHeight: 5 },
-      bodyStyles: { minCellHeight: 6 },
+      bodyStyles: { minCellHeight: ALTO_FILA },
       columnStyles,
       head: [head1, head2],
       body,
