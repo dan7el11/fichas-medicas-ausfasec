@@ -324,6 +324,7 @@ export default function NuevaEvaluacionRetiro() {
         createdAt: new Date(),
         createdBy: user.uid,
       };
+      let idParaCertificado = editEvalId;
       if (editEvalId) {
         await updateDoc(doc(db, 'evaluaciones', editEvalId), { ...payload, updatedAt: new Date(), updatedBy: user.uid });
         await registrarAuditoria('editar', 'evaluacion', editEvalId, `Editó la evaluación de retiro de ${trabajador?.primerApellido ?? ''} ${trabajador?.primerNombre ?? ''}`.trim());
@@ -336,9 +337,12 @@ export default function NuevaEvaluacionRetiro() {
           updatedBy: user.uid,
         });
         await registrarAuditoria('crear', 'evaluacion', ref.id, `Evaluación de retiro de ${trabajador?.primerApellido ?? ''} ${trabajador?.primerNombre ?? ''}`.trim());
+        idParaCertificado = ref.id;
       }
       toast.success(editEvalId ? 'Evaluación actualizada correctamente.' : 'Evaluación de retiro guardada correctamente.');
-      navigate(`/trabajador/${trabajadorId}`);
+      // Al terminar, en la ficha se ofrece llenar el Certificado de Aptitud
+      // (SO-RE-20) autocompletado con los datos de esta evaluación.
+      navigate(idParaCertificado ? `/trabajador/${trabajadorId}?certificado=${idParaCertificado}` : `/trabajador/${trabajadorId}`);
     } catch (err) {
       console.error(err);
       toast.error('No se pudo guardar. Intenta nuevamente.');
