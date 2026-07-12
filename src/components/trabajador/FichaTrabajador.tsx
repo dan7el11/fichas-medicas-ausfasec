@@ -565,9 +565,11 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
     } else { textoLibre('No se refieren antecedentes familiares de importancia.', 5); y += 1; }
 
     if (ev.factoresRiesgo) {
-      checkPage(55); secHeader('E. FACTORES DE RIESGOS DEL PUESTO DE TRABAJO');
-      // Matriz oficial: una columna por factor (rótulo rotado) con X en lo marcado.
-      y = dibujarFactoresRiesgoPdf(pdf, ev.factoresRiesgo, { M, CW, y, puestoDefault: trabajador.puestoTrabajo });
+      checkPage(15); secHeader('E. FACTORES DE RIESGOS DEL PUESTO DE TRABAJO');
+      // Matriz oficial: una columna por factor (rótulo rotado) con X en lo
+      // marcado. Solo 2 filas numeradas y compactas para que ambos recuadros
+      // entren en la misma página y el PDF completo quede en 2 páginas.
+      y = dibujarFactoresRiesgoPdf(pdf, ev.factoresRiesgo, { M, CW, y, puestoDefault: trabajador.puestoTrabajo, filas: 2, altoFila: 5 });
       y += 2;
     }
 
