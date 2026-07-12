@@ -43,6 +43,25 @@ describe('dibujarFactoresRiesgoPdf', () => {
     expect(estirada).toBeGreaterThan(normal);
   });
 
+  it('ambos recuadros quedan en la misma página (regresión: la 2ª tabla saltaba a una página huérfana)', () => {
+    // Caso real del SO-RE-38: la sección E empieza cerca de los 167 mm y los
+    // dos recuadros compactos (2 filas) caben hasta los 285 mm. El margen
+    // inferior por defecto de autotable (40 mm) partía la segunda tabla.
+    const pdf = new jsPDF({ unit: 'mm', format: 'a4' });
+    dibujarFactoresRiesgoPdf(pdf, fr, { M: 7, CW: 196, y: 167, puestoDefault: 'Chofer', filas: 2, altoFila: 5 });
+    expect(pdf.getNumberOfPages()).toBe(1);
+  });
+
+  it('si no caben los dos recuadros, ambos pasan JUNTOS a la página siguiente', () => {
+    const pdf = new jsPDF({ unit: 'mm', format: 'a4' });
+    const yFinal = dibujarFactoresRiesgoPdf(pdf, fr, { M: 7, CW: 196, y: 250, puestoDefault: 'Chofer', filas: 2, altoFila: 5 });
+    expect(pdf.getNumberOfPages()).toBe(2);
+    // Ambas tablas dibujadas en la página nueva: la posición final queda muy
+    // por debajo del alto de las dos tablas juntas desde el inicio de página.
+    expect(yFinal).toBeGreaterThan(80);
+    expect(yFinal).toBeLessThan(285);
+  });
+
   it('no marca X para factores no seleccionados (humo: evaluación vacía)', () => {
     const pdf = new jsPDF({ unit: 'mm', format: 'a4' });
     const y = dibujarFactoresRiesgoPdf(pdf, undefined, { M: 7, CW: 196, y: 20, puestoDefault: 'Puesto' });

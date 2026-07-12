@@ -99,14 +99,23 @@ export function dibujarFactoresRiesgoPdf(pdf: jsPDF, fr: any, opts: Opts): numbe
     const anchoCol = (CW - anchoPuesto - anchoActividades - anchoMedidas) / nCols;
 
     // Encabezado: fila 1 = grupos; fila 2 = rótulos rotados. Todo en el verde
-    // institucional del formato (igual que PUESTO DE TRABAJO / ÁREA).
+    // institucional del formato. SIN rowSpan: autotable sobreestima la altura
+    // de los encabezados con rowSpan y salta de página aunque la tabla quepa
+    // (por eso los títulos van centrados en la fila alta, con una celda verde
+    // vacía encima).
+    const titulo = (txt: string) => ({ content: txt, styles: { valign: 'middle' as const, halign: 'center' as const, fillColor: VERDE, minCellHeight: ALTO_ENCABEZADO } });
     const head1: any[] = [
-      { content: 'PUESTO DE TRABAJO / ÁREA', rowSpan: 2, styles: { valign: 'middle' as const, halign: 'center' as const, fillColor: VERDE } },
-      { content: 'ACTIVIDADES', rowSpan: 2, styles: { valign: 'middle' as const, halign: 'center' as const, fillColor: VERDE } },
+      { content: '', styles: { fillColor: VERDE } },
+      { content: '', styles: { fillColor: VERDE } },
       ...grupos.map(g => ({ content: g.nombre, colSpan: g.items.length, styles: { halign: 'center' as const, fillColor: VERDE } })),
-      ...(medidas ? [{ content: 'MEDIDAS PREVENTIVAS', rowSpan: 2, styles: { valign: 'middle' as const, halign: 'center' as const, fillColor: VERDE } }] : []),
+      ...(medidas ? [{ content: '', styles: { fillColor: VERDE } }] : []),
     ];
-    const head2: any[] = grupos.flatMap(g => g.items.map(rotada));
+    const head2: any[] = [
+      titulo('PUESTO DE TRABAJO / ÁREA'),
+      titulo('ACTIVIDADES'),
+      ...grupos.flatMap(g => g.items.map(rotada)),
+      ...(medidas ? [titulo('MEDIDAS PREVENTIVAS')] : []),
+    ];
 
     // Cuerpo: fila 1 con los datos y las X; el resto numeradas vacías.
     const body: any[][] = [];
@@ -129,7 +138,13 @@ export function dibujarFactoresRiesgoPdf(pdf: jsPDF, fr: any, opts: Opts): numbe
 
     autoTable(pdf, {
       startY: y,
-      margin: { left: M, right: M },
+      // OJO: sin `bottom` explícito, autotable usa un margen inferior por
+      // defecto de 40 mm y rompía página en los 257 mm aunque el cálculo de
+      // espacio de esta sección llega hasta 285 mm — por eso la segunda tabla
+      // saltaba sola a una página huérfana. Se fija el mismo límite (285).
+      // No usar pageBreak 'avoid': sobreestima la altura con los rowSpan del
+      // encabezado y vuelve a mover la tabla; el salto lo decide saltoSiNoCabe.
+      margin: { left: M, right: M, top: 7, bottom: 12 },
       theme: 'grid',
       styles: base,
       headStyles: { ...base, fontStyle: 'bold', fontSize: 5.5, minCellHeight: 5 },
