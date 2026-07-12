@@ -142,9 +142,10 @@ export function dibujarFactoresRiesgoPdf(pdf: jsPDF, fr: any, opts: Opts): numbe
     y = (pdf as any).lastAutoTable.finalY + 1.5;
   };
 
-  saltoSiNoCabe(alturaTabla);
+  // Ambos recuadros deben quedar en la MISMA página: si no caben los dos
+  // completos donde estamos, se pasa de página antes de empezar.
+  saltoSiNoCabe(alturaTabla * 2 + 3);
   tabla(grupos1, 26, 34, false);
-  saltoSiNoCabe(alturaTabla);
   tabla(grupos2, 24, 28, true);
 
   // Tiempo de trabajo (dato de la pantalla que la matriz oficial no incluye).
