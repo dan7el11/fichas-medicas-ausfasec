@@ -19,6 +19,8 @@ import { TIPOS_PERMISO } from '../../types/permiso';
 import type { PermisoMedico } from '../../types/permiso';
 import type { OrdenExamen } from '../../types/examenPlan';
 import SeguimientoSignos from './SeguimientoSignos';
+import SeguimientoEspecialistas from './SeguimientoEspecialistas';
+import FisioterapiaPanel from './FisioterapiaPanel';
 
 const BRAND = '#9a3036';          // color institucional atenuado (vino/ladrillo)
 const BRAND_SOFT = '#f4e8e9';
@@ -84,7 +86,7 @@ export interface FichaLayoutProps {
   ergonomia?: ReactNode;
 }
 
-type Tab = 'resumen' | 'evaluaciones' | 'signos' | 'consultas' | 'examenes' | 'permisos';
+type Tab = 'resumen' | 'evaluaciones' | 'signos' | 'consultas' | 'examenes' | 'permisos' | 'especialistas' | 'fisioterapia';
 
 export default function FichaLayout(props: FichaLayoutProps) {
   const { trabajador: t, nombreCompleto, evaluaciones, permisos, atenciones, ordenes } = props;
@@ -108,6 +110,8 @@ export default function FichaLayout(props: FichaLayoutProps) {
     { key: 'consultas', label: 'Consultas', n: atenciones.length },
     { key: 'examenes', label: 'Exámenes', n: ordenes.length },
     { key: 'permisos', label: 'Permisos', n: permisos.length },
+    { key: 'especialistas', label: 'Especialistas' },
+    { key: 'fisioterapia', label: 'Fisioterapia' },
   ];
 
   return (
@@ -202,13 +206,15 @@ export default function FichaLayout(props: FichaLayoutProps) {
         {tab === 'consultas' && <Consultas atenciones={atenciones} />}
         {tab === 'examenes' && <Examenes {...props} />}
         {tab === 'permisos' && <Permisos {...props} />}
+        {tab === 'especialistas' && <SeguimientoEspecialistas trabajadorId={t.id} />}
+        {tab === 'fisioterapia' && <FisioterapiaPanel trabajador={t} onVerPdf={props.onVerPdf} />}
       </div>
     </div>
   );
 }
 
 // ── SecCard ──────────────────────────────────────────────────────────────────
-function SecCard({ icon, color, title, n, action, children, pad = true }: { icon: ReactNode; color: string; title: string; n?: number; action?: ReactNode; children: ReactNode; pad?: boolean }) {
+export function SecCard({ icon, color, title, n, action, children, pad = true }: { icon: ReactNode; color: string; title: string; n?: number; action?: ReactNode; children: ReactNode; pad?: boolean }) {
   return (
     <div className="bg-white border rounded-[13px] overflow-hidden" style={{ borderColor: '#e4e6ea', boxShadow: '0 1px 2px rgba(28,29,34,.03)' }}>
       <div className="flex items-center gap-2.5 px-[18px] py-[15px] border-b" style={{ borderColor: '#e4e6ea' }}>
@@ -237,7 +243,7 @@ function Resumen(p: FichaLayoutProps & { ultEval: any; apt: any; futuros: number
   return (
     <div className="flex flex-col gap-4">
       <SecCard icon={<HeartPulse size={17} />} color={C_SIGNOS} title="Seguimiento de signos" action={<Link onClick={() => p.setTab('signos')}>Ver detalle</Link>}>
-        <SignosGrid evaluaciones={p.evaluaciones} />
+        <SignosGrid evaluaciones={p.evaluaciones} trabajador={p.trabajador} />
       </SecCard>
       <AntecedentesCard evaluaciones={p.evaluaciones} onVerEval={p.onOpenEval} />
       <div className="grid grid-cols-2 gap-4">
@@ -308,9 +314,39 @@ function Evaluaciones(p: FichaLayoutProps) {
 
 // ── Tab Consultas ────────────────────────────────────────────────────────────
 function Consultas({ atenciones }: { atenciones: any[] }) {
-  return <SecCard icon={<Stethoscope size={17} />} color={C_CONSULTA} title="Atenciones médicas" n={atenciones.length} pad={false}>
-    {atenciones.length === 0 ? <div className="p-4"><Empty>Sin consultas registradas.</Empty></div> : atenciones.map((a, i) => <AtRow key={a.id} a={a} border={i > 0} full />)}
-  </SecCard>;
+  // Diagnósticos frecuentes (conteo por código CIE-10 en todas las atenciones)
+  const frecuentes = (() => {
+    const mapa = new Map<string, { cie: string; desc: string; n: number }>();
+    atenciones.forEach((a) => {
+      const dx = cieDeAtencion(a);
+      if (!dx?.cie) return;
+      const e = mapa.get(dx.cie) ?? { cie: dx.cie, desc: dx.desc, n: 0 };
+      e.n++; if (!e.desc && dx.desc) e.desc = dx.desc;
+      mapa.set(dx.cie, e);
+    });
+    return [...mapa.values()].sort((a, b) => b.n - a.n).slice(0, 6);
+  })();
+
+  return (
+    <div className="flex flex-col gap-4">
+      {frecuentes.length > 0 && (
+        <SecCard icon={<Stethoscope size={17} />} color={C_CONSULTA} title="Diagnósticos frecuentes">
+          <div className="flex flex-col gap-1.5">
+            {frecuentes.map((f) => (
+              <div key={f.cie} className="flex items-center gap-2.5 text-[12.5px]">
+                <span className="text-[11px] font-bold px-2 py-0.5 rounded min-w-[52px] text-center" style={{ fontFamily: MONO, background: '#e3f0f2', color: '#0e6b7c' }}>{f.cie}</span>
+                <span className="flex-1 min-w-0 truncate" style={{ color: '#3a4250' }}>{f.desc || '—'}</span>
+                <span className="text-[11.5px] font-bold whitespace-nowrap" style={{ fontFamily: MONO, color: '#646b75' }}>{f.n} consulta{f.n !== 1 ? 's' : ''}</span>
+              </div>
+            ))}
+          </div>
+        </SecCard>
+      )}
+      <SecCard icon={<Stethoscope size={17} />} color={C_CONSULTA} title="Atenciones médicas" n={atenciones.length} pad={false}>
+        {atenciones.length === 0 ? <div className="p-4"><Empty>Sin consultas registradas.</Empty></div> : atenciones.map((a, i) => <AtRow key={a.id} a={a} border={i > 0} full />)}
+      </SecCard>
+    </div>
+  );
 }
 
 // ── Tab Exámenes ─────────────────────────────────────────────────────────────
@@ -471,25 +507,52 @@ function AntecedentesCard({ evaluaciones, onVerEval }: { evaluaciones: any[]; on
 // ── Piezas ───────────────────────────────────────────────────────────────────
 function num(v: any): number | null { const n = parseFloat(String(v ?? '').replace(',', '.')); return isNaN(n) ? null : n; }
 
-function SignosGrid({ evaluaciones }: { evaluaciones: any[] }) {
+/** Edad en años a partir de la fecha de nacimiento del trabajador. */
+function edadDe(fechaNacimiento: any): number | null {
+  if (!fechaNacimiento) return null;
+  const d = new Date(String(fechaNacimiento) + (String(fechaNacimiento).length === 10 ? 'T12:00:00' : ''));
+  if (isNaN(d.getTime())) return null;
+  const hoy = new Date();
+  let edad = hoy.getFullYear() - d.getFullYear();
+  const m = hoy.getMonth() - d.getMonth();
+  if (m < 0 || (m === 0 && hoy.getDate() < d.getDate())) edad--;
+  return edad >= 0 && edad < 130 ? edad : null;
+}
+
+function SignosGrid({ evaluaciones, trabajador }: { evaluaciones: any[]; trabajador?: any }) {
+  // Serie cronológica (más antigua → más reciente); el último valor es el vigente.
   const serie = [...evaluaciones].reverse().map((e) => e.signosVitales || {});
-  const cards = [
-    { label: 'Peso', unidad: 'kg', color: '#1f7a4d', get: (s: any) => num(s.peso) },
-    { label: 'P. arterial', unidad: '', color: BRAND, get: (s: any) => num(s.presionSistolica), pa: true },
-    { label: 'IMC', unidad: '', color: '#6b4ba3', get: (s: any) => num(s.imc) },
-    { label: 'P. abdominal', unidad: 'cm', color: '#9a5b12', get: (s: any) => num(s.perimetroAbdominal) },
+
+  // PA: última medición + promedio de las últimas mediciones registradas.
+  const pas = serie.map((s) => ({ sis: num(s.presionSistolica), dia: num(s.presionDiastolica) }))
+    .filter((p): p is { sis: number; dia: number } => p.sis != null && p.dia != null);
+  const ultimasPA = pas.slice(-5);
+  const promPA = ultimasPA.length > 0
+    ? `${Math.round(ultimasPA.reduce((s, p) => s + p.sis, 0) / ultimasPA.length)}/${Math.round(ultimasPA.reduce((s, p) => s + p.dia, 0) / ultimasPA.length)}`
+    : null;
+  const ultimaPA = pas.length > 0 ? `${pas[pas.length - 1].sis}/${pas[pas.length - 1].dia}` : '—';
+
+  const edad = edadDe(trabajador?.fechaNacimiento);
+
+  const cards: { label: string; unidad: string; color: string; get?: (s: any) => number | null; display?: string; sub?: string; sinSpark?: boolean }[] = [
+    { label: 'P. arterial', unidad: '', color: BRAND, get: (s: any) => num(s.presionSistolica), display: ultimaPA, sub: promPA ? `Prom. últ. ${ultimasPA.length}: ${promPA}` : undefined },
+    { label: 'Peso', unidad: 'kg', color: '#1f7a4d', get: (s: any) => num(s.peso), sub: 'Último medido' },
+    { label: 'IMC', unidad: '', color: '#6b4ba3', get: (s: any) => num(s.imc), sub: 'Más reciente' },
+    { label: 'P. abdominal', unidad: 'cm', color: '#9a5b12', get: (s: any) => num(s.perimetroAbdominal), sub: 'Último medido' },
+    { label: 'Edad', unidad: 'años', color: '#0e6b7c', display: edad != null ? String(edad) : '—', sub: trabajador?.fechaNacimiento ? `Nac. ${new Date(String(trabajador.fechaNacimiento) + 'T12:00:00').toLocaleDateString('es-EC')}` : 'Sin fecha de nacimiento', sinSpark: true },
   ];
+
   return (
-    <div className="grid grid-cols-4 gap-3">
+    <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
       {cards.map((c) => {
-        const vals = serie.map(c.get).filter((v): v is number => v != null);
-        const last = serie[serie.length - 1] || {};
-        const display = c.pa ? `${last.presionSistolica ?? '—'}/${last.presionDiastolica ?? '—'}` : (vals[vals.length - 1] ?? '—');
+        const vals = c.get ? serie.map(c.get).filter((v): v is number => v != null) : [];
+        const display = c.display ?? (vals.length > 0 ? String(vals[vals.length - 1]) : '—');
         return (
           <div key={c.label} className="border rounded-xl p-[13px_15px]" style={{ background: '#f6f7f9', borderColor: '#e4e6ea' }}>
             <div className="text-[10.5px] font-bold uppercase tracking-wide mb-1.5" style={{ color: '#98a0ab' }}>{c.label}</div>
             <div className="flex items-baseline gap-1"><span className="text-[23px] font-bold" style={{ fontFamily: MONO }}>{display}</span><span className="text-[11px]" style={{ color: '#98a0ab' }}>{c.unidad}</span></div>
-            <div className="mt-1.5"><Spark serie={vals} color={c.color} /></div>
+            {c.sub && <div className="text-[10.5px] mt-0.5" style={{ color: '#98a0ab' }}>{c.sub}</div>}
+            {!c.sinSpark && <div className="mt-1.5"><Spark serie={vals} color={c.color} /></div>}
           </div>
         );
       })}
@@ -497,14 +560,25 @@ function SignosGrid({ evaluaciones }: { evaluaciones: any[] }) {
   );
 }
 
-function AtRow({ a, border, full }: { a: any; border?: boolean; full?: boolean }) {
+/** CIE-10 de una atención de consulta diaria (cieCodigo) o de una evaluación (diagnosticos[]). */
+function cieDeAtencion(a: any): { cie: string; desc: string } | null {
+  if (a.cieCodigo) return { cie: a.cieCodigo, desc: a.cieDescripcion || '' };
   const dx = Array.isArray(a.diagnosticos) && a.diagnosticos[0] ? a.diagnosticos[0] : null;
+  if (dx) return { cie: dx.cie || '', desc: dx.descripcion || '' };
+  return null;
+}
+
+function AtRow({ a, border, full }: { a: any; border?: boolean; full?: boolean }) {
+  const dx = cieDeAtencion(a);
   return (
     <div className="flex items-start gap-3 p-[11px_18px]" style={{ borderTop: border ? '1px solid #eef0f3' : 'none' }}>
       <div className="text-[12px] min-w-[64px] pt-0.5" style={{ fontFamily: MONO, color: '#98a0ab' }}>{fmtF(a.fecha)}</div>
       <div className="flex-1 min-w-0">
-        <div className="text-[13px] font-semibold">{a.motivoConsulta || 'Consulta'}</div>
-        <div className="text-[12px]" style={{ color: '#98a0ab' }}>{dx ? `${dx.cie ? dx.cie + ' · ' : ''}${dx.descripcion ?? ''}` : ''}{a.medicoNombre ? ` · Dr. ${a.medicoNombre}` : ''}</div>
+        <div className="text-[13px] font-semibold flex items-center gap-1.5 flex-wrap">
+          {a.motivoConsulta || a.motivo || 'Consulta'}
+          {dx?.cie && <span className="text-[10.5px] font-bold px-1.5 py-px rounded" style={{ fontFamily: MONO, background: '#e3f0f2', color: '#0e6b7c' }}>{dx.cie}</span>}
+        </div>
+        <div className="text-[12px]" style={{ color: '#98a0ab' }}>{dx ? (dx.desc || '') : ''}{a.medicoNombre ? `${dx?.desc ? ' · ' : ''}Dr. ${a.medicoNombre}` : ''}</div>
       </div>
     </div>
   );
