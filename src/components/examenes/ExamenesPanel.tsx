@@ -69,14 +69,17 @@ export default function ExamenesPanel({ trabajadorId, trabajadorNombre, evaluaci
     if (!trabajadorId) return;
     setCargando(true);
     try {
+      // Sin orderBy en la consulta: where + orderBy exige un índice compuesto
+      // de Firestore y, si no existe, falla en silencio dejando la lista vacía
+      // (parecía que la subida "no funcionaba"). El orden se hace en cliente.
       const q = query(
         collection(db, 'examenes'),
         where('trabajadorId', '==', trabajadorId),
-        orderBy('fecha', 'desc')
       );
       const snap = await getDocs(q);
       const docs: ExamenComplementarioDoc[] = [];
       snap.forEach(d => docs.push({ id: d.id, ...d.data() } as ExamenComplementarioDoc));
+      docs.sort((a, b) => ((b.fecha?.seconds ?? new Date(b.fecha).getTime() / 1000) - (a.fecha?.seconds ?? new Date(a.fecha).getTime() / 1000)));
       setExamenes(docs);
     } catch (err) {
       console.error('Error cargando exámenes:', err);
@@ -216,9 +219,19 @@ export default function ExamenesPanel({ trabajadorId, trabajadorNombre, evaluaci
       setMostrarUpload(false);
       await cargarExamenes();
       toast.success('Exámenes cargados exitosamente');
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error subiendo exámenes:', err);
-      toast.error('Error al subir los exámenes. Verifique su conexión.');
+      // Mensajes específicos para poder corregir la causa real.
+      const code = String(err?.code ?? '');
+      if (code.includes('storage/unauthorized')) {
+        toast.error('Storage rechazó el archivo: verifica que las reglas de Storage estén publicadas (ruta examenes/) y que el archivo sea PDF/imagen de menos de 15 MB.');
+      } else if (code.includes('permission-denied')) {
+        toast.error('Firestore rechazó el registro: verifica que las reglas de Firestore estén publicadas.');
+      } else if (code.includes('storage/retry-limit-exceeded') || code.includes('unavailable')) {
+        toast.error('Sin conexión estable: el archivo no se pudo subir. Inténtalo de nuevo con red.');
+      } else {
+        toast.error(`Error al subir los exámenes${err?.message ? `: ${err.message}` : '. Verifique su conexión.'}`);
+      }
     } finally {
       setSubiendo(false);
     }

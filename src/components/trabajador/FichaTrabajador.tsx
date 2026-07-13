@@ -23,8 +23,9 @@ import { TIPOS_PERMISO } from '../../types/permiso';
 import type { TipoPermiso } from '../../types/permiso';
 import type { OrdenExamen } from '../../types/examenPlan';
 import type { PermisoMedico } from '../../types/permiso';
+import { Activity, ArrowRight } from 'lucide-react';
 import SeguimientoSignos from './SeguimientoSignos';
-import FichaLayout from './FichaLayout';
+import FichaLayout, { SecCard } from './FichaLayout';
 import CertificadoAptitudModal from './CertificadoAptitud';
 import { dibujarFactoresRiesgoPdf } from './factoresRiesgoPdf';
 
@@ -1335,30 +1336,32 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
         onDeleteOrden={eliminarOrdenExamen}
         onVerPdf={(url, nombre) => setPdfVisor({ url, nombre })}
         ergonomia={
-          <div className="max-w-[1100px] mx-auto px-6 pb-6">
-            <div className="bg-white border border-slate-200 rounded-xl p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-[13px] font-bold text-slate-800">Evaluaciones ergonómicas</span>
-                <span className="text-[11px] text-slate-400">{evalsErgo.length}</span>
-                <button
-                  onClick={() => navigate('/ergonomia')}
-                  className="ml-auto text-[12px] font-semibold bg-transparent border-none cursor-pointer p-0"
-                  style={{ color: '#0d9488' }}
-                >
-                  Abrir módulo de Ergonomía →
+          <div className="mt-4">
+            <SecCard
+              icon={<Activity size={17} />}
+              color="#0d9488"
+              title="Evaluaciones ergonómicas"
+              n={evalsErgo.length}
+              action={
+                <button onClick={() => navigate('/ergonomia')} className="inline-flex items-center gap-1 bg-transparent border-none cursor-pointer text-[12.5px] font-bold p-0" style={{ color: '#0d9488' }}>
+                  Abrir módulo <ArrowRight size={13} />
                 </button>
-              </div>
+              }
+              pad={evalsErgo.length === 0}
+            >
               {evalsErgo.length === 0 ? (
-                <p className="m-0 text-[12px] text-slate-400">Sin evaluaciones ergonómicas registradas para este trabajador.</p>
+                <div className="p-4 text-center text-[12.5px] rounded-[10px]" style={{ color: '#98a0ab', background: '#f6f7f9' }}>
+                  Sin evaluaciones ergonómicas registradas para este trabajador.
+                </div>
               ) : (
-                <div className="flex flex-col gap-1">
-                  {evalsErgo.slice(0, 5).map((ev) => {
+                <div>
+                  {evalsErgo.slice(0, 5).map((ev, i) => {
                     const tone = ev.resultado.tone === 'danger' ? { fg: '#a01f2a', bg: '#fce8eb' }
                       : ev.resultado.tone === 'warning' ? { fg: '#8a4a0a', bg: '#fff4e3' } : { fg: '#0a6b3b', bg: '#e6f6ee' };
                     return (
-                      <div key={ev.id} className="flex items-center gap-2.5 py-1.5 border-b border-slate-50 last:border-0 text-[12.5px]">
-                        <span className="font-bold" style={{ color: '#0d9488' }}>{ev.metodo}</span>
-                        <span className="text-slate-500">{fmtF(ev.fecha)}</span>
+                      <div key={ev.id} className="flex items-center gap-2.5 px-[18px] py-2.5 text-[12.5px]" style={{ borderTop: i > 0 ? '1px solid #eef0f3' : 'none' }}>
+                        <span className="text-[11px] font-bold px-2 py-0.5 rounded-full" style={{ color: '#0d9488', background: '#d8f3ee' }}>{ev.metodo}</span>
+                        <span className="text-slate-500" style={{ fontFamily: 'ui-monospace, monospace', fontSize: 11.5 }}>{fmtF(ev.fecha)}</span>
                         <span className="text-slate-400 truncate flex-1">{ev.tarea || '—'}</span>
                         <span className="px-2 py-0.5 rounded-full text-[10.5px] font-bold whitespace-nowrap" style={{ color: tone.fg, background: tone.bg }}>
                           {ev.resultado.puntajeFinal} · {ev.resultado.nivel}
@@ -1368,7 +1371,7 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
                   })}
                 </div>
               )}
-            </div>
+            </SecCard>
           </div>
         }
       />

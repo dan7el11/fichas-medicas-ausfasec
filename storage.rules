@@ -45,6 +45,12 @@ service firebase.storage {
       allow write: if isSignedIn() && subidaValida();
     }
 
+    // Certificados / órdenes médicas de fisioterapia.
+    match /fisioterapia/{trabajadorId}/{fileName=**} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn() && subidaValida();
+    }
+
     // Logo / imagen institucional. Lectura pública (se muestra en el login,
     // antes de iniciar sesión); subida solo para usuarios autenticados, y solo
     // imágenes de hasta 5 MB.
