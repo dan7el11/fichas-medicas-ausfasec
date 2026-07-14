@@ -13,6 +13,7 @@ import {
   crearPermiso, estadoPermiso, duracionPermiso, fmtFecha,
   asuntoCorreo, cuerpoCorreo, buildMailto,
 } from '../../services/permisos';
+import { horasEntre, rangoHorarioTexto } from '../../utils/permisosHorario';
 import { TipoBadge, EstadoChip } from './PermisoCard';
 import type { Trabajador } from '../../types';
 import { useToast } from '../Toast';
@@ -32,23 +33,34 @@ export function NuevoPermisoModal({ trabajadores, medicoId, medicoNombre, onClos
   const [qW, setQW] = useState('');
   const [desde, setDesde] = useState(new Date().toISOString().slice(0, 10));
   const [dias, setDias] = useState(2);
-  const [horas, setHoras] = useState(3);
+  // Unidad efectiva: la cita siempre es por horas; un reposo puede ser por
+  // días u horas (el usuario elige).
+  const [unidadReposo, setUnidadReposo] = useState<'dias' | 'horas'>('dias');
+  const [horaDesde, setHoraDesde] = useState('08:00');
+  const [horaHasta, setHoraHasta] = useState('10:00');
   const [origen, setOrigen] = useState('IESS');
   const [motivo, setMotivo] = useState('');
   const [guardando, setGuardando] = useState(false);
   const meta = TIPOS_PERMISO[tipo];
+  // La cita es siempre por horas; el reposo, según lo que elija el usuario.
+  const porHoras = tipo === 'cita' || unidadReposo === 'horas';
+  const horasCalc = horasEntre(horaDesde, horaHasta);
 
   const matches = qW
     ? trabajadores.filter((w) => `${w.primerApellido} ${w.segundoApellido} ${w.primerNombre} ${w.cedula}`.toLowerCase().includes(qW.toLowerCase())).slice(0, 6)
     : [];
-  const canSave = !!worker && motivo.trim() && !guardando;
+  // Por horas, el rango horario debe ser válido (hasta > desde).
+  const horarioValido = !porHoras || horasCalc > 0;
+  const canSave = !!worker && !!motivo.trim() && horarioValido && !guardando;
 
   const guardar = async () => {
     if (!worker || !canSave) return;
     setGuardando(true);
+    // Por horas, el permiso es de un solo día (la fecha elegida). Por días, se
+    // extiende `dias` días naturales desde la fecha de inicio.
     const dDesde = new Date(desde + 'T08:00:00');
     const dHasta = new Date(dDesde);
-    if (tipo !== 'cita' && dias > 1) dHasta.setDate(dHasta.getDate() + dias - 1);
+    if (!porHoras && dias > 1) dHasta.setDate(dHasta.getDate() + dias - 1);
     const data: Omit<PermisoMedico, 'id' | 'createdAt'> = {
       trabajadorId: worker.id ?? '',
       apellidos: `${worker.primerApellido ?? ''} ${worker.segundoApellido ?? ''}`.trim(),
@@ -59,8 +71,10 @@ export function NuevoPermisoModal({ trabajadores, medicoId, medicoNombre, onClos
       tipo,
       desde: Timestamp.fromDate(dDesde),
       hasta: Timestamp.fromDate(dHasta),
-      dias: tipo === 'cita' ? 0 : dias,
-      horas: tipo === 'cita' ? horas : 0,
+      unidad: porHoras ? 'horas' : 'dias',
+      dias: porHoras ? 0 : dias,
+      horas: porHoras ? horasCalc : 0,
+      ...(porHoras ? { horaDesde, horaHasta } : {}),
       motivo: motivo.trim(),
       origen: tipo === 'cita' ? origen : (tipo === 'reposo_iess' ? 'IESS' : 'Interno'),
       certAdjunto: !meta.requiereCert,
@@ -123,21 +137,54 @@ export function NuevoPermisoModal({ trabajadores, medicoId, medicoNombre, onClos
             </div>
           )}
 
-          {/* Fechas / duración */}
-          <div className="grid grid-cols-2 gap-3 mb-4">
-            <div>
-              <Label>{tipo === 'cita' ? 'Fecha' : 'Desde'}</Label>
-              <input type="date" value={desde} onChange={(e) => setDesde(e.target.value)} className={inpCls} />
-            </div>
-            <div>
-              <Label>{meta.unidad === 'horas' ? 'Horas' : 'Días de reposo'}</Label>
-              <div className="flex items-center border border-slate-300 rounded-[9px] overflow-hidden">
-                <button onClick={() => meta.unidad === 'horas' ? setHoras((h) => Math.max(1, h - 1)) : setDias((d) => Math.max(1, d - 1))} className="w-8 h-[38px] border-none bg-slate-100 cursor-pointer"><Minus size={14} className="mx-auto text-slate-600" /></button>
-                <span className="flex-1 text-center text-[14px] font-bold font-mono">{meta.unidad === 'horas' ? `${horas} h` : `${dias} d`}</span>
-                <button onClick={() => meta.unidad === 'horas' ? setHoras((h) => h + 1) : setDias((d) => d + 1)} className="w-8 h-[38px] border-none bg-slate-100 cursor-pointer"><Plus size={14} className="mx-auto text-slate-600" /></button>
+          {/* Unidad del reposo: días u horas (la cita siempre es por horas) */}
+          {tipo !== 'cita' && (
+            <div className="mb-4">
+              <Label>Modalidad del reposo</Label>
+              <div className="flex gap-1.5">
+                {([['dias', 'Por días'], ['horas', 'Por horas']] as const).map(([u, l]) => (
+                  <button key={u} onClick={() => setUnidadReposo(u)} className="flex-1 py-2.5 rounded-lg cursor-pointer text-[13px] font-semibold border"
+                    style={{ borderColor: unidadReposo === u ? ACCENT : '#dde4ec', background: unidadReposo === u ? '#f0ebff' : '#fff', color: unidadReposo === u ? ACCENT : '#5a6a7a' }}>{l}</button>
+                ))}
               </div>
             </div>
+          )}
+
+          {/* Fecha + duración */}
+          <div className="grid grid-cols-2 gap-3 mb-4">
+            <div>
+              <Label>{porHoras ? 'Fecha' : 'Desde'}</Label>
+              <input type="date" value={desde} onChange={(e) => setDesde(e.target.value)} className={inpCls} />
+            </div>
+            {porHoras ? (
+              <div>
+                <Label>Horario (desde – hasta)</Label>
+                <div className="flex items-center gap-1.5">
+                  <input type="time" value={horaDesde} onChange={(e) => setHoraDesde(e.target.value)} className={inpCls} />
+                  <span className="text-slate-400 font-bold">–</span>
+                  <input type="time" value={horaHasta} onChange={(e) => setHoraHasta(e.target.value)} className={inpCls} />
+                </div>
+              </div>
+            ) : (
+              <div>
+                <Label>Días de reposo</Label>
+                <div className="flex items-center border border-slate-300 rounded-[9px] overflow-hidden">
+                  <button onClick={() => setDias((d) => Math.max(1, d - 1))} className="w-8 h-[38px] border-none bg-slate-100 cursor-pointer"><Minus size={14} className="mx-auto text-slate-600" /></button>
+                  <span className="flex-1 text-center text-[14px] font-bold font-mono">{dias} d</span>
+                  <button onClick={() => setDias((d) => d + 1)} className="w-8 h-[38px] border-none bg-slate-100 cursor-pointer"><Plus size={14} className="mx-auto text-slate-600" /></button>
+                </div>
+              </div>
+            )}
           </div>
+
+          {/* Resumen del horario elegido */}
+          {porHoras && (
+            <div className="-mt-1 mb-4 text-[12px]" style={{ color: horarioValido ? '#5a6a7a' : '#c0303f' }}>
+              {horarioValido
+                ? <>Permiso {rangoHorarioTexto(horaDesde, horaHasta)} · <strong>{horasCalc} h</strong></>
+                : 'La hora de fin debe ser posterior a la de inicio.'}
+            </div>
+          )}
 
           {tipo === 'cita' && (
             <div className="mb-4">
@@ -204,8 +251,15 @@ export function PermisoDetalleModal({ permiso: p, onClose }: { permiso: PermisoM
           </div>
 
           <div className="grid grid-cols-2 gap-3 mb-4">
-            <KV label={p.tipo === 'cita' ? 'Fecha' : 'Desde'} value={fmtFecha(p.desde)} />
-            {p.tipo !== 'cita' && <KV label="Hasta" value={fmtFecha(p.hasta)} />}
+            {(() => {
+              const porHoras = TIPOS_PERMISO[p.tipo].unidad === 'horas' || p.unidad === 'horas';
+              return <>
+                <KV label={porHoras ? 'Fecha' : 'Desde'} value={fmtFecha(p.desde)} />
+                {porHoras
+                  ? (p.horaDesde && p.horaHasta && <KV label="Horario" value={rangoHorarioTexto(p.horaDesde, p.horaHasta)} />)
+                  : <KV label="Hasta" value={fmtFecha(p.hasta)} />}
+              </>;
+            })()}
             <KV label="Motivo" value={p.motivo} />
             {p.origen && <KV label="Origen" value={p.origen} />}
           </div>

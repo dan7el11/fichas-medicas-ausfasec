@@ -9,6 +9,7 @@ import { registrarAuditoria } from './auditoria';
 import {
   TIPOS_PERMISO, type PermisoMedico, type EstadoPermiso,
 } from '../types/permiso';
+import { fmtHora12 } from '../utils/permisosHorario';
 
 const COL = 'permisos';
 
@@ -92,7 +93,14 @@ export function estadoPermiso(p: PermisoMedico): EstadoPermiso {
 }
 export function duracionPermiso(p: PermisoMedico): string {
   const meta = TIPOS_PERMISO[p.tipo];
-  return meta.unidad === 'horas' ? `${p.horas} h` : `${p.dias} día${p.dias !== 1 ? 's' : ''}`;
+  // Un permiso es por horas si su tipo lo es (cita) o si un reposo se registró
+  // por horas (unidad === 'horas'). En ese caso se muestra el horario.
+  const porHoras = meta.unidad === 'horas' || p.unidad === 'horas';
+  if (porHoras) {
+    if (p.horaDesde && p.horaHasta) return `${fmtHora12(p.horaDesde)}–${fmtHora12(p.horaHasta)}`;
+    return `${p.horas} h`;
+  }
+  return `${p.dias} día${p.dias !== 1 ? 's' : ''}`;
 }
 
 // ── Indicadores de ausentismo (Resolución C.D. 513 IESS · K = 200.000) ───────
