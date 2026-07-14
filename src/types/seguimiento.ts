@@ -37,6 +37,23 @@ export const ZONAS_FISIOTERAPIA = [
   'Muñeca / mano', 'Cadera', 'Rodilla', 'Tobillo / pie',
 ];
 
+/** Un intervalo de fechas del tratamiento (los fines de semana se excluyen). */
+export interface IntervaloFisio {
+  desde: string;   // aaaa-mm-dd
+  hasta: string;   // aaaa-mm-dd
+}
+
+/** Una sesión (un día laborable) del tratamiento, con su permiso y certificado. */
+export interface SesionFisio {
+  fecha: string;         // aaaa-mm-dd
+  asistio?: boolean;     // marcada como realizada
+  permisoId?: string;    // permiso interno generado para este día
+  // Comprobante físico de ese día (Firebase Storage)
+  certUrl?: string;
+  certPath?: string;
+  certNombre?: string;
+}
+
 export interface RegistroFisioterapia {
   id?: string;
   trabajadorId: string;
@@ -44,23 +61,31 @@ export interface RegistroFisioterapia {
   zona: string;              // zona trabajada (rodilla, espalda…)
   indicacion: string;        // indicación médica / diagnóstico que la motiva
   centro: string;            // centro donde recibe la terapia (opcional)
-  dias: string[];            // días indicados (Lunes, Miércoles…)
-  horario: string;           // ej. "08:00 – 09:00"
-  desde: string;             // aaaa-mm-dd — inicio del tratamiento
-  sesionesTotales: string;   // nº de sesiones indicadas ('' si no se sabe)
-  sesionesCumplidas: string; // nº de sesiones ya realizadas
+
+  /** Intervalos de fechas indicados (1 o 2). Los fines de semana no cuentan. */
+  intervalos: IntervaloFisio[];
+  horaDesde: string;         // horario de cada sesión (para el permiso)
+  horaHasta: string;
+  /** Sesiones (una por día laborable de los intervalos), con permiso/certificado. */
+  sesiones: SesionFisio[];
+
   notas: string;
   estado: 'activo' | 'finalizado';
 
-  // Certificado / orden médica adjunta (Firebase Storage)
+  // Orden médica general del tratamiento (opcional, además de los comprobantes por día)
   certUrl?: string;
   certPath?: string;
   certNombre?: string;
 
-  /** IDs de permisos internos generados para asistir a las sesiones. */
-  permisosGenerados?: string[];
-
   medicoId: string;
   medicoNombre: string;
   createdAt: any;
+
+  // ── Compatibilidad con registros antiguos (solo lectura) ──
+  dias?: string[];
+  horario?: string;
+  desde?: string;
+  sesionesTotales?: string;
+  sesionesCumplidas?: string;
+  permisosGenerados?: string[];
 }

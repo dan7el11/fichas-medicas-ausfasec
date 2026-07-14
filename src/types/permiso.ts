@@ -35,8 +35,13 @@ export interface PermisoMedico {
   tipo: TipoPermiso;
   desde: any;            // Firestore Timestamp (fecha de inicio)
   hasta: any;            // Firestore Timestamp (igual a desde si es cita)
-  dias: number;          // para reposos
-  horas: number;         // para citas
+  /** Unidad efectiva del permiso: 'dias' u 'horas' (un reposo puede ser por horas). */
+  unidad?: 'dias' | 'horas';
+  dias: number;          // para reposos por días
+  horas: number;         // para permisos por horas (calculado del horario)
+  /** Horario del permiso por horas, formato 'HH:MM' (24 h). */
+  horaDesde?: string;
+  horaHasta?: string;
   motivo: string;
   cieCodigo?: string;
   origen?: string;       // 'IESS' | 'Particular' | 'Interno'

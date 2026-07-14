@@ -19,6 +19,7 @@ import { LOGO_EMPRESA } from '../../assets/logoEmpresa';
 import { cargarLogoParaPdf } from '../../utils/logoPdf';
 import { getOrdenes, eliminarOrden } from '../../services/examenesPlan';
 import { estadoPermiso, duracionPermiso, fmtFecha as fmtPF, toDate, actualizarPermiso, eliminarPermiso } from '../../services/permisos';
+import { horasEntre } from '../../utils/permisosHorario';
 import { TIPOS_PERMISO } from '../../types/permiso';
 import type { TipoPermiso } from '../../types/permiso';
 import type { OrdenExamen } from '../../types/examenPlan';
@@ -179,7 +180,7 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
 
   // Editar / eliminar permiso
   const [editPermiso, setEditPermiso] = useState<PermisoMedico | null>(null);
-  const [editPatch, setEditPatch] = useState<{ desde: string; dias: number; horas: number; motivo: string; tipo: TipoPermiso }>({ desde: '', dias: 1, horas: 3, motivo: '', tipo: 'reposo_interno' });
+  const [editPatch, setEditPatch] = useState<{ desde: string; dias: number; unidad: 'dias' | 'horas'; horaDesde: string; horaHasta: string; motivo: string; tipo: TipoPermiso }>({ desde: '', dias: 1, unidad: 'dias', horaDesde: '08:00', horaHasta: '10:00', motivo: '', tipo: 'reposo_interno' });
   const [guardandoPermiso, setGuardandoPermiso] = useState(false);
   const [pdfVisor, setPdfVisor] = useState<{ url: string; nombre: string } | null>(null);
 
@@ -343,7 +344,9 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
       tipo: p.tipo,
       desde: toDate(p.desde).toISOString().slice(0, 10),
       dias: p.dias || 1,
-      horas: p.horas || 3,
+      unidad: p.tipo === 'cita' || p.unidad === 'horas' ? 'horas' : 'dias',
+      horaDesde: p.horaDesde || '08:00',
+      horaHasta: p.horaHasta || '10:00',
       motivo: p.motivo || '',
     });
     setEditPermiso(p);
@@ -351,19 +354,25 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
 
   const guardarEditPermiso = async () => {
     if (!editPermiso?.id) return;
+    const porHoras = editPatch.tipo === 'cita' || editPatch.unidad === 'horas';
+    const horasCalc = horasEntre(editPatch.horaDesde, editPatch.horaHasta);
+    if (porHoras && horasCalc <= 0) { toast.warning('La hora de fin debe ser posterior a la de inicio.'); return; }
     setGuardandoPermiso(true);
     try {
       const meta = TIPOS_PERMISO[editPatch.tipo];
       const dDesde = new Date(editPatch.desde + 'T08:00:00');
       const dHasta = new Date(dDesde);
-      if (editPatch.tipo !== 'cita' && editPatch.dias > 1) dHasta.setDate(dHasta.getDate() + editPatch.dias - 1);
+      if (!porHoras && editPatch.dias > 1) dHasta.setDate(dHasta.getDate() + editPatch.dias - 1);
       const { Timestamp } = await import('firebase/firestore');
       const patch: Partial<PermisoMedico> = {
         tipo: editPatch.tipo,
         desde: Timestamp.fromDate(dDesde),
         hasta: Timestamp.fromDate(dHasta),
-        dias: editPatch.tipo === 'cita' ? 0 : editPatch.dias,
-        horas: editPatch.tipo === 'cita' ? editPatch.horas : 0,
+        unidad: porHoras ? 'horas' : 'dias',
+        dias: porHoras ? 0 : editPatch.dias,
+        horas: porHoras ? horasCalc : 0,
+        horaDesde: porHoras ? editPatch.horaDesde : '',
+        horaHasta: porHoras ? editPatch.horaHasta : '',
         motivo: editPatch.motivo,
         certAdjunto: !meta.requiereCert ? true : editPermiso.certAdjunto,
       };
@@ -1441,15 +1450,25 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
-              {editPatch.tipo === 'cita' ? (
+              {editPatch.tipo !== 'cita' && (
                 <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1">Duración (horas)</label>
-                  <input
-                    type="number" min={1} max={8}
-                    value={editPatch.horas}
-                    onChange={e => setEditPatch(prev => ({ ...prev, horas: Number(e.target.value) }))}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500"
-                  />
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">Modalidad</label>
+                  <div className="flex gap-1.5">
+                    {([['dias', 'Por días'], ['horas', 'Por horas']] as const).map(([u, l]) => (
+                      <button key={u} type="button" onClick={() => setEditPatch(prev => ({ ...prev, unidad: u }))}
+                        className={`flex-1 py-2 rounded-lg text-xs font-bold border-2 transition-colors ${editPatch.unidad === u ? 'border-violet-500 bg-violet-50 text-violet-800' : 'border-slate-200 bg-slate-50 text-slate-500'}`}>{l}</button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {(editPatch.tipo === 'cita' || editPatch.unidad === 'horas') ? (
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">Horario (desde – hasta)</label>
+                  <div className="flex items-center gap-1.5">
+                    <input type="time" value={editPatch.horaDesde} onChange={e => setEditPatch(prev => ({ ...prev, horaDesde: e.target.value }))} className="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500" />
+                    <span className="text-slate-400 font-bold">–</span>
+                    <input type="time" value={editPatch.horaHasta} onChange={e => setEditPatch(prev => ({ ...prev, horaHasta: e.target.value }))} className="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500" />
+                  </div>
                 </div>
               ) : (
                 <div>

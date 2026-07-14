@@ -12,7 +12,8 @@ interface TopBarProps {
   /** @deprecated */
   userName?: string;
   userRol?: string;
-  onNewWorker: () => void;
+  /** @deprecated el botón "Nuevo trabajador" se quitó del TopBar */
+  onNewWorker?: () => void;
 }
 
 const TABS = [
@@ -26,7 +27,7 @@ const TABS = [
   { key: '/reportes',        label: 'Reportes y Estadísticas' },
 ];
 
-export default function TopBar({ userRol, onNewWorker }: TopBarProps) {
+export default function TopBar({ userRol }: TopBarProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const { displayName, initials, isAdmin, logout, perfil } = useAuth();
@@ -99,14 +100,6 @@ export default function TopBar({ userRol, onNewWorker }: TopBarProps) {
       </nav>
 
       <div className="ml-auto flex items-center gap-2.5">
-        <button
-          onClick={onNewWorker}
-          className="px-3 py-1.5 text-white border-none rounded-[8px] text-xs font-bold cursor-pointer flex items-center gap-1.5 whitespace-nowrap"
-          style={{ background: COLORS.brand }}
-        >
-          <Plus size={14} strokeWidth={2.5} /> <span className="hidden sm:inline">Nuevo trabajador</span>
-        </button>
-        <div className="w-px h-[22px] bg-white/10" />
 
         {/* Menú de usuario */}
         <div ref={menuRef} className="relative">

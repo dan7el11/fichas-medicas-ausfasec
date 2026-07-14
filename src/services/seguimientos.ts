@@ -62,14 +62,16 @@ export async function actualizarFisioterapia(id: string, patch: Partial<Registro
 
 export async function eliminarFisioterapia(reg: RegistroFisioterapia): Promise<void> {
   if (!reg.id) return;
-  if (reg.certPath) {
-    try { await deleteObject(storageRef(storage, reg.certPath)); } catch { /* ya no existe */ }
+  // Borra la orden general y los comprobantes por sesión que haya en Storage.
+  const paths = [reg.certPath, ...(reg.sesiones ?? []).map((s) => s.certPath)].filter(Boolean) as string[];
+  for (const p of paths) {
+    try { await deleteObject(storageRef(storage, p)); } catch { /* ya no existe */ }
   }
   await deleteDoc(doc(db, COL_FISIO, reg.id));
   await registrarAuditoria('eliminar', 'fisioterapia', reg.id, 'Eliminó un registro de fisioterapia');
 }
 
-/** Sube el certificado/orden médica y lo asocia al registro de fisioterapia. */
+/** Sube la orden médica general y la asocia al registro de fisioterapia. */
 export async function subirCertificadoFisioterapia(reg: RegistroFisioterapia, file: File): Promise<Partial<RegistroFisioterapia>> {
   if (!reg.id) throw new Error('Registro sin id');
   const path = `fisioterapia/${reg.trabajadorId}/${Date.now()}_${file.name.replace(/\s+/g, '_')}`;
@@ -78,4 +80,20 @@ export async function subirCertificadoFisioterapia(reg: RegistroFisioterapia, fi
   const patch = { certUrl: url, certPath: path, certNombre: file.name };
   await updateDoc(doc(db, COL_FISIO, reg.id), patch);
   return patch;
+}
+
+/**
+ * Sube el comprobante físico de UN día (sesión) y lo asocia a esa sesión.
+ * Devuelve la lista de sesiones actualizada para refrescar el estado local.
+ */
+export async function subirComprobanteSesion(reg: RegistroFisioterapia, fecha: string, file: File): Promise<RegistroFisioterapia['sesiones']> {
+  if (!reg.id) throw new Error('Registro sin id');
+  const path = `fisioterapia/${reg.trabajadorId}/${Date.now()}_${fecha}_${file.name.replace(/\s+/g, '_')}`;
+  const snap = await uploadBytes(storageRef(storage, path), file);
+  const url = await getDownloadURL(snap.ref);
+  const sesiones = (reg.sesiones ?? []).map((s) =>
+    s.fecha === fecha ? { ...s, certUrl: url, certPath: path, certNombre: file.name } : s,
+  );
+  await updateDoc(doc(db, COL_FISIO, reg.id), { sesiones });
+  return sesiones;
 }
