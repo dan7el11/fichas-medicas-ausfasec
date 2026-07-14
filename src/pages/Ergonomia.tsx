@@ -38,7 +38,7 @@ const TONE_STYLE: Record<string, { fg: string; bg: string }> = {
 
 export default function Ergonomia() {
   const navigate = useNavigate();
-  const { user, displayName } = useAuth();
+  const { user, nombreProfesional } = useAuth();
   const { empresa } = useEmpresa();
   const toast = useToast();
   const confirm = useConfirm();
@@ -250,7 +250,7 @@ export default function Ergonomia() {
             onCancel={() => setVista('lista')}
             onSaved={() => { setVista('lista'); cargar(); refrescarPendientes(); sincronizar(true); }}
             medicoId={user?.uid ?? ''}
-            medicoNombre={displayName}
+            medicoNombre={nombreProfesional}
           />
         )}
       </div>

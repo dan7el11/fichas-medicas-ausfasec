@@ -11,6 +11,7 @@ import { registrarAuditoria } from '../services/auditoria';
 import { useAuth } from '../contexts/AuthContext';
 import SignosVitalesForm from '../components/SignosVitalesForm';
 import BuscadorCIE10 from '../components/BuscadorCIE10';
+import { nombreProfesionalDe, codigoProfesionalDe } from '../utils/medicalHelpers';
 import { useEmpresa } from '../hooks/useEmpresa';
 import { SeccionE, SeccionG, SeccionI } from '../components/evaluacion/SeccionesEvaluacion';
 import {
@@ -425,8 +426,8 @@ export default function NuevaPreocupacional() {
         tipoEvaluacion: 'preocupacional',
         datosPersonales,
         medicoId: user.uid,
-        medicoNombre: medicoData?.nombreCompleto || '',
-        medicoCedula: medicoData?.cedula || '',
+        medicoNombre: nombreProfesionalDe(medicoData) || '',
+        medicoCedula: codigoProfesionalDe(medicoData),
         motivoConsulta,
         antecedentesClinicosQ,
         antecedentesClinicosLista,
@@ -1181,8 +1182,8 @@ export default function NuevaPreocupacional() {
           <div className="grid grid-cols-2 gap-6 text-sm">
             <div className="bg-slate-50 p-4 rounded-lg">
               <h4 className="text-xs font-bold text-slate-700 mb-2">P. DATOS DEL PROFESIONAL</h4>
-              <p><span className="font-semibold">Nombre:</span> {medicoData?.nombreCompleto || 'Cargando...'}</p>
-              <p><span className="font-semibold">Código:</span> {medicoData?.cedula || 'Cargando...'}</p>
+              <p><span className="font-semibold">Nombre:</span> {nombreProfesionalDe(medicoData) || 'Cargando...'}</p>
+              <p><span className="font-semibold">Código:</span> {codigoProfesionalDe(medicoData) || 'Cargando...'}</p>
               <p><span className="font-semibold">Fecha:</span> {new Date().toLocaleDateString('es-EC')}</p>
             </div>
             <div className="bg-slate-50 p-4 rounded-lg">

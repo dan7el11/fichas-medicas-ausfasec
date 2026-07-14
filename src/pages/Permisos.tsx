@@ -32,7 +32,7 @@ const GRUPOS: { key: EstadoPermiso; label: string; color: string; desc: string }
 ];
 
 export default function Permisos() {
-  const { user } = useAuth();
+  const { user, nombreProfesional } = useAuth();
   const navigate = useNavigate();
   const [trabajadores, setTrabajadores] = useState<Trabajador[]>([]);
   const [permisos, setPermisos] = useState<PermisoMedico[]>([]);
@@ -188,7 +188,7 @@ export default function Permisos() {
       </main>
 
       {nuevo && (
-        <NuevoPermisoModal trabajadores={trabajadores} medicoId={user?.uid ?? ''} medicoNombre={user?.email ?? 'Médico'}
+        <NuevoPermisoModal trabajadores={trabajadores} medicoId={user?.uid ?? ''} medicoNombre={nombreProfesional}
           onClose={() => setNuevo(false)} onSaved={() => { setNuevo(false); cargar(); }} />
       )}
       {detalle && <PermisoDetalleModal permiso={detalle} onClose={() => setDetalle(null)} />}

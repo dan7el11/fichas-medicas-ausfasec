@@ -43,7 +43,7 @@ const formVacio = (): FormularioFisio => ({
 export default function FisioterapiaPanel({ trabajador, onVerPdf }: Props) {
   const toast = useToast();
   const confirm = useConfirm();
-  const { user, displayName } = useAuth();
+  const { user, nombreProfesional } = useAuth();
   const trabajadorId: string = trabajador?.id ?? '';
 
   const [registros, setRegistros] = useState<RegistroFisioterapia[]>([]);
@@ -103,7 +103,7 @@ export default function FisioterapiaPanel({ trabajador, onVerPdf }: Props) {
         notas: form.notas.trim(),
         estado: form.estado,
         medicoId: user?.uid ?? '',
-        medicoNombre: displayName,
+        medicoNombre: nombreProfesional,
       };
       if (editando?.id) await actualizarFisioterapia(editando.id, data);
       else await crearFisioterapia(data);
@@ -158,7 +158,7 @@ export default function FisioterapiaPanel({ trabajador, onVerPdf }: Props) {
         certAdjunto: !!permisoPara.certUrl,
         ...(permisoPara.certUrl ? { certUrl: permisoPara.certUrl, certNombreArchivo: permisoPara.certNombre ?? 'certificado' } : {}),
         medicoId: user?.uid ?? '',
-        medicoNombre: displayName,
+        medicoNombre: nombreProfesional,
       } as any);
       if (permisoPara.id) {
         await actualizarFisioterapia(permisoPara.id, {

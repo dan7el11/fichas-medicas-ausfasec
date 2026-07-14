@@ -40,7 +40,7 @@ const fmtFISO = (fecha: any): string => {
 };
 
 export default function ExamenesPanel({ trabajadorId, trabajadorNombre, evaluaciones }: ExamenesPanelProps) {
-  const { user, displayName } = useAuth();
+  const { user, nombreProfesional } = useAuth();
   const toast = useToast();
   const [examenes, setExamenes] = useState<ExamenComplementarioDoc[]>([]);
   const [cargando, setCargando] = useState(true);
@@ -203,7 +203,7 @@ export default function ExamenesPanel({ trabajadorId, trabajadorNombre, evaluaci
           archivoTipo: item.file.type,
           archivoPath: storagePath,
           medicoId: user.uid,
-          medicoNombre: displayName,
+          medicoNombre: nombreProfesional,
           createdAt: new Date(),
         };
         const exRef = await addDoc(collection(db, 'examenes'), docData);

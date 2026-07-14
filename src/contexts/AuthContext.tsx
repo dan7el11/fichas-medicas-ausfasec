@@ -11,6 +11,10 @@ interface AuthContextType {
   perfil: Usuario | null;
   /** Nombre a mostrar: nombreCompleto del perfil → email sin dominio → 'Médico' */
   displayName: string;
+  /** Nombre con abreviatura profesional (ej. "Dra. María Pérez") para saludos y firmas. */
+  nombreProfesional: string;
+  /** Código Senescyt del perfil ('' si no está registrado). */
+  codigoSenescyt: string;
   /** Iniciales para el avatar */
   initials: string;
   /** Rol admin real (usuarios/{uid}.rol === 'admin') */
@@ -20,7 +24,8 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType>({
-  user: null, loading: true, perfil: null, displayName: 'Médico', initials: 'DR',
+  user: null, loading: true, perfil: null, displayName: 'Médico', nombreProfesional: 'Médico',
+  codigoSenescyt: '', initials: 'DR',
   isAdmin: false, logout: async () => {}, refreshPerfil: async () => {},
 });
 
@@ -96,6 +101,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     || user?.email?.split('@')[0]
     || 'Médico';
 
+  // Nombre con la abreviatura de la página de personalización (Dr., Dra., Md.).
+  // Si el nombre ya empieza con una abreviatura, no se duplica.
+  const nombreProfesional = (() => {
+    const n = perfil?.nombreCompleto?.trim();
+    if (!n) return displayName;
+    const ab = perfil?.abreviatura?.trim();
+    if (!ab || /^(dr|dra|md|lcd[oa])\.?\s/i.test(n)) return n;
+    return `${ab} ${n}`;
+  })();
+
+  const codigoSenescyt = perfil?.codigoSenescyt?.trim() ?? '';
+
   const initials = (() => {
     const n = perfil?.nombreCompleto?.trim();
     if (n) {
@@ -120,7 +137,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, perfil, displayName, initials, isAdmin, logout, refreshPerfil }}>
+    <AuthContext.Provider value={{ user, loading, perfil, displayName, nombreProfesional, codigoSenescyt, initials, isAdmin, logout, refreshPerfil }}>
       {children}
     </AuthContext.Provider>
   );

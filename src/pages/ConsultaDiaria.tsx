@@ -73,7 +73,7 @@ function tituloPeriodo(periodo: PeriodoVista, ref: Date): string {
 }
 
 export default function ConsultaDiaria() {
-  const { user } = useAuth();
+  const { user, nombreProfesional } = useAuth();
   const navigate = useNavigate();
 
   const [trabajadores, setTrabajadores] = useState<Trabajador[]>([]);
@@ -275,7 +275,7 @@ export default function ConsultaDiaria() {
         <NuevaAtencionModal
           trabajadores={trabajadores}
           medicoId={user?.uid ?? ''}
-          medicoNombre={user?.email ?? 'Médico'}
+          medicoNombre={nombreProfesional}
           onClose={() => setModal(false)}
           onSaved={() => { setModal(false); setFechaRef(new Date()); cargarAtenciones(); }}
         />

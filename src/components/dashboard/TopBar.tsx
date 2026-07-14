@@ -29,12 +29,14 @@ const TABS = [
 export default function TopBar({ userRol, onNewWorker }: TopBarProps) {
   const navigate = useNavigate();
   const location = useLocation();
-  const { displayName, initials, isAdmin, logout } = useAuth();
+  const { displayName, initials, isAdmin, logout, perfil } = useAuth();
   const { empresa } = useEmpresa();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
-  const rolLabel = userRol ?? (isAdmin ? 'Administrador' : 'Médico ocupacional');
+  // El título profesional de la página de personalización (/perfil) tiene
+  // prioridad sobre la etiqueta genérica.
+  const rolLabel = perfil?.titulo?.trim() || userRol || (isAdmin ? 'Administrador' : 'Médico ocupacional');
 
   // Cerrar el menú al hacer clic fuera
   useEffect(() => {

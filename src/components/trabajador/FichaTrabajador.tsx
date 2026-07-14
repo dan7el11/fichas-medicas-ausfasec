@@ -139,7 +139,7 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
   const navigate = useNavigate();
   const toast = useToast();
   const confirm = useConfirm();
-  const { user, displayName } = useAuth();
+  const { user, nombreProfesional } = useAuth();
   const { empresa } = useEmpresa();
   // Logo para los PDF: el configurado por la empresa, con respaldo al embebido.
   const [logoPdf, setLogoPdf] = useState<{ data: string; format: string }>({ data: LOGO_EMPRESA, format: 'PNG' });
@@ -1398,7 +1398,7 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
           orden={ordenDetalle}
           trabajadorId={trabajadorId}
           medicoId={user?.uid ?? ''}
-          medicoNombre={displayName}
+          medicoNombre={nombreProfesional}
           onClose={() => setOrdenDetalle(null)}
           onSaved={() => {
             setOrdenDetalle(null);
