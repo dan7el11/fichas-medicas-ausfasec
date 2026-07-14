@@ -36,7 +36,7 @@ const TABS_DEF: { key: Tab; label: string }[] = [
 const CENTRO_DEFAULT: CentroId = 'planta_envasado';
 
 export default function Inventario() {
-  const { user, isAdmin } = useAuth();
+  const { user, isAdmin, displayName } = useAuth();
   const navigate = useNavigate();
   const [tab, setTab] = useState<Tab>(() => (localStorage.getItem('inventario-tab') as Tab) || 'mi-inventario');
   const [estado, setEstado] = useState<EstadoInventario>({ inventario: [], consumos: [], movimientos: [], trabajadores: [], ultimaActualizacion: null });
@@ -46,7 +46,7 @@ export default function Inventario() {
 
   useEffect(() => { localStorage.setItem('inventario-tab', tab); }, [tab]);
 
-  const usuarioNombre = user?.email?.split('@')[0] ?? 'usuario';
+  const usuarioNombre = displayName;
   const userInitials = user?.email?.slice(0, 2).toUpperCase() ?? 'DR';
 
   const cargar = useCallback(async () => {

@@ -10,6 +10,20 @@ import {
 
 // ── Nombre / iniciales ─────────────────────────────────────────────────────
 
+/** Nombre del médico con su abreviatura profesional (sin duplicarla si ya la trae). */
+export function nombreProfesionalDe(u?: { nombreCompleto?: string; abreviatura?: string } | null): string {
+  const n = u?.nombreCompleto?.trim() ?? '';
+  if (!n) return '';
+  const ab = u?.abreviatura?.trim();
+  if (!ab || /^(dr|dra|md|lcd[oa])\.?\s/i.test(n)) return n;
+  return `${ab} ${n}`;
+}
+
+/** Código para la firma de documentos: Senescyt si está registrado; si no, la cédula. */
+export function codigoProfesionalDe(u?: { codigoSenescyt?: string; cedula?: string } | null): string {
+  return u?.codigoSenescyt?.trim() || u?.cedula?.trim() || '';
+}
+
 export function apellidos(t: Trabajador): string {
   return `${t.primerApellido} ${t.segundoApellido ?? ''}`.trim();
 }

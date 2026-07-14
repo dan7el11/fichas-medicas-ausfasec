@@ -26,7 +26,7 @@ interface HomeStats {
 }
 
 export default function Inicio() {
-  const { user, isAdmin } = useAuth();
+  const { user, isAdmin, nombreProfesional } = useAuth();
   const { empresa } = useEmpresa();
   const navigate = useNavigate();
   const [stats, setStats] = useState<HomeStats>({ trabajadores: 0, atencionesHoy: 0, permisosActivos: 0, examenesAtrasados: 0 });
@@ -55,7 +55,9 @@ export default function Inicio() {
   const hora = ahora.getHours();
   const saludo = hora < 12 ? 'Buenos días' : hora < 19 ? 'Buenas tardes' : 'Buenas noches';
   const fechaLarga = ahora.toLocaleDateString('es-EC', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-  const nombreMedico = user?.email?.split('@')[0] ?? 'Doctor';
+  // Nombre de la personalización del perfil (/perfil); si aún no la completó,
+  // cae al nombre del perfil o al usuario del correo.
+  const nombreMedico = nombreProfesional;
   const userInitials = user?.email?.slice(0, 2).toUpperCase() ?? 'DR';
 
   const modulos: ModuloCard[] = [
@@ -79,7 +81,7 @@ export default function Inicio() {
             <div className="text-[13px] font-semibold tracking-[0.2px]" style={{ color: BRAND }}>
               {fechaLarga.charAt(0).toUpperCase() + fechaLarga.slice(1)}
             </div>
-            <h1 className="mt-1.5 mb-0 text-[30px] font-extrabold tracking-tight capitalize">{saludo}, Dr. {nombreMedico}</h1>
+            <h1 className="mt-1.5 mb-0 text-[30px] font-extrabold tracking-tight">{saludo}, {nombreMedico}</h1>
             <p className="mt-2 mb-0 text-[15px] text-slate-500 max-w-[620px]">
               Sistema integral de salud ocupacional de {empresa.institucion}. Elige por dónde empezar.
             </p>

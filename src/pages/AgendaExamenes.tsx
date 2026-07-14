@@ -29,7 +29,7 @@ const ACCENT_BG = COLORS.cyanBg;
 type Tab = 'agenda' | 'cobertura' | 'protocolos';
 
 export default function AgendaExamenes() {
-  const { user } = useAuth();
+  const { user, nombreProfesional } = useAuth();
   const navigate = useNavigate();
   const [tab, setTab] = useState<Tab>(() => (localStorage.getItem('examenes-tab') as Tab) || 'agenda');
   const [trabajadores, setTrabajadores] = useState<Trabajador[]>([]);
@@ -124,7 +124,7 @@ export default function AgendaExamenes() {
       </main>
 
       {programar && (
-        <ProgramarExamenModal trabajadores={trabajadores} protocolos={protocolos} medicoId={user?.uid ?? ''} medicoNombre={user?.email ?? 'Médico'}
+        <ProgramarExamenModal trabajadores={trabajadores} protocolos={protocolos} medicoId={user?.uid ?? ''} medicoNombre={nombreProfesional}
           onClose={() => setProgramar(false)} onSaved={() => { setProgramar(false); cargar(); }} />
       )}
       {detalle && <OrdenDetalleModal orden={detalle} onClose={() => setDetalle(null)} onSaved={() => { setDetalle(null); cargar(); }} onDeleted={() => { setDetalle(null); cargar(); }} />}

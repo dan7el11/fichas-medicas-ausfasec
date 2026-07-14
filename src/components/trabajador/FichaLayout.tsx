@@ -300,7 +300,7 @@ function Evaluaciones(p: FichaLayoutProps) {
             </div>
             <div className="flex-1 min-w-0">
               <div className="text-[13.5px] font-semibold">{retiro ? 'Evaluación de retiro' : (ev.motivoConsulta || `Evaluación ${tb.label.toLowerCase()}`)}</div>
-              <div className="text-[12px]" style={{ color: '#98a0ab' }}>{dxCount > 0 ? `${dxCount} diagnóstico${dxCount > 1 ? 's' : ''}` : 'Sin diagnósticos'}{ev.medicoNombre ? ` · Dr. ${ev.medicoNombre}` : ''}</div>
+              <div className="text-[12px]" style={{ color: '#98a0ab' }}>{dxCount > 0 ? `${dxCount} diagnóstico${dxCount > 1 ? 's' : ''}` : 'Sin diagnósticos'}{ev.medicoNombre ? ` · ${ev.medicoNombre}` : ''}</div>
             </div>
             <span className="text-[10px] font-bold uppercase px-2.5 py-0.5 rounded" style={{ background: tb.bg, color: tb.fg, letterSpacing: '.4px' }}>{tb.label}</span>
             <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full" style={{ background: a.bg, color: a.fg }}>{a.label}</span>
@@ -578,7 +578,7 @@ function AtRow({ a, border, full }: { a: any; border?: boolean; full?: boolean }
           {a.motivoConsulta || a.motivo || 'Consulta'}
           {dx?.cie && <span className="text-[10.5px] font-bold px-1.5 py-px rounded" style={{ fontFamily: MONO, background: '#e3f0f2', color: '#0e6b7c' }}>{dx.cie}</span>}
         </div>
-        <div className="text-[12px]" style={{ color: '#98a0ab' }}>{dx ? (dx.desc || '') : ''}{a.medicoNombre ? `${dx?.desc ? ' · ' : ''}Dr. ${a.medicoNombre}` : ''}</div>
+        <div className="text-[12px]" style={{ color: '#98a0ab' }}>{dx ? (dx.desc || '') : ''}{a.medicoNombre ? `${dx?.desc ? ' · ' : ''}${a.medicoNombre}` : ''}</div>
       </div>
     </div>
   );

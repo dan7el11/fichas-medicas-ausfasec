@@ -4,6 +4,12 @@ export interface Usuario {
   nombreCompleto: string;
   cedula: string;
   rol: 'medico' | 'admin';
+  /** Abreviatura profesional para la firma y el saludo: Dr., Dra., Md., etc. */
+  abreviatura?: string;
+  /** Título profesional (ej. "Médico Ocupacional", "Especialista en SST"). */
+  titulo?: string;
+  /** Código de registro Senescyt (aparece como código en los documentos). */
+  codigoSenescyt?: string;
   /** Si es false, el usuario no puede iniciar sesión. undefined = activo. */
   activo?: boolean;
   createdAt: Date;

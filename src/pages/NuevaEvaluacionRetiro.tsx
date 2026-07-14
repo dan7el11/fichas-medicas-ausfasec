@@ -8,6 +8,7 @@ import { useToast } from '../components/Toast';
 import { useEmpresa } from '../hooks/useEmpresa';
 import SignosVitalesForm from '../components/SignosVitalesForm';
 import BuscadorCIE10 from '../components/BuscadorCIE10';
+import { nombreProfesionalDe, codigoProfesionalDe } from '../utils/medicalHelpers';
 import { SeccionI } from '../components/evaluacion/SeccionesEvaluacion';
 import { LOGO_EMPRESA } from '../assets/logoEmpresa';
 import { cargarLogoParaPdf } from '../utils/logoPdf';
@@ -294,8 +295,8 @@ export default function NuevaEvaluacionRetiro() {
         tipo: 'RETIRO',
         trabajadorId,
         medicoId: user.uid,
-        medicoNombre: medicoData?.nombreCompleto || user.email || '',
-        medicoCedula: medicoData?.cedula || '',
+        medicoNombre: nombreProfesionalDe(medicoData) || user.email || '',
+        medicoCedula: codigoProfesionalDe(medicoData),
         fecha: new Date(),
         numeroHistoriaClinica: numeroHistoriaClinica || trabajador.cedula,
         numeroArchivo,
@@ -756,7 +757,7 @@ export default function NuevaEvaluacionRetiro() {
     AT({
       startY: y, margin: { left: M, right: M }, theme: 'grid', styles: { ...base, fontSize: 6.5, halign: 'center' }, headStyles: { ...head, fontSize: 6, halign: 'center' },
       head: [['FECHA\naaaa-mm-dd', 'HORA', 'NOMBRES Y APELLIDOS', 'CÓDIGO', 'FIRMA Y SELLO', 'FIRMA DEL USUARIO']],
-      body: [[fmtF(now), fmtHora(now), (medicoData?.nombreCompleto || 'MÉDICO OCUPACIONAL').toUpperCase(), medicoData?.cedula || '-', '', '']],
+      body: [[fmtF(now), fmtHora(now), (nombreProfesionalDe(medicoData) || 'MÉDICO OCUPACIONAL').toUpperCase(), codigoProfesionalDe(medicoData) || '-', '', '']],
       bodyStyles: { minCellHeight: 20, valign: 'bottom', halign: 'center' },
     });
 

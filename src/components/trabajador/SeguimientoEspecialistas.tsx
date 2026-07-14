@@ -41,7 +41,7 @@ const formVacio = (): FormularioEsp => ({
 export default function SeguimientoEspecialistas({ trabajadorId }: { trabajadorId: string }) {
   const toast = useToast();
   const confirm = useConfirm();
-  const { user, displayName } = useAuth();
+  const { user, nombreProfesional } = useAuth();
 
   const [consultas, setConsultas] = useState<ConsultaEspecialista[]>([]);
   const [cargando, setCargando] = useState(true);
@@ -88,7 +88,7 @@ export default function SeguimientoEspecialistas({ trabajadorId }: { trabajadorI
         proximaCita: form.proximaCita,
         estado: form.estado,
         medicoId: user?.uid ?? '',
-        medicoNombre: displayName,
+        medicoNombre: nombreProfesional,
       };
       if (editando?.id) await actualizarConsultaEspecialista(editando.id, data);
       else await crearConsultaEspecialista(data);
