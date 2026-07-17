@@ -10,6 +10,8 @@ import { useToast } from '../Toast';
 import { crearAtencion } from '../../services/atenciones';
 import { cargarEstado, registrarConsumos } from '../../services/inventario';
 import { normalizarTexto } from '../../utils/inventarioHelpers';
+import { crearPermiso } from '../../services/permisos';
+import { horasEntre, rangoHorarioTexto } from '../../utils/permisosHorario';
 import {
   PROCEDIMIENTOS_CONSULTA, MEDICAMENTOS_DISPENSARIO,
 } from '../../types/atencion';
@@ -59,7 +61,10 @@ export default function NuevaAtencionModal({ trabajadores, medicoId, medicoNombr
   const [meds, setMeds] = useState<MedItem[]>([]);
   const [medQ, setMedQ] = useState('');
   const [centroMed, setCentroMed] = useState<CentroId>(centroInicial ?? CENTRO_DEFAULT);
-  const [reposo, setReposo] = useState(0);
+  const [reposo, setReposo] = useState(1);
+  const [reposoModo, setReposoModo] = useState<'no' | 'dias' | 'horas'>('no');
+  const [repHoraDesde, setRepHoraDesde] = useState('08:00');
+  const [repHoraHasta, setRepHoraHasta] = useState('12:00');
   const [obs, setObs] = useState('');
   const [guardando, setGuardando] = useState(false);
 
@@ -115,6 +120,18 @@ export default function NuevaAtencionModal({ trabajadores, medicoId, medicoNombr
 
   const elegirWorker = (w: Trabajador) => {
     setWorker(w); setQWorker(''); setSexo(w.sexo ?? '');
+    // Autocompletar la edad desde la fecha de nacimiento de la ficha (si existe)
+    const fn = (w as any).fechaNacimiento;
+    if (fn) {
+      const d = new Date(String(fn) + (String(fn).length === 10 ? 'T12:00:00' : ''));
+      if (!isNaN(d.getTime())) {
+        const hoy = new Date();
+        let e = hoy.getFullYear() - d.getFullYear();
+        const m = hoy.getMonth() - d.getMonth();
+        if (m < 0 || (m === 0 && hoy.getDate() < d.getDate())) e--;
+        if (e >= 0 && e < 130) setEdad(String(e));
+      }
+    }
   };
   const toggleProc = (p: string) => setProcs((s) => { const n = new Set(s); n.has(p) ? n.delete(p) : n.add(p); return n; });
   const addMed = (item: MedItem) => { setMeds((l) => [...l, { ...item, cantidad: 1 }]); setMedQ(''); };
@@ -157,7 +174,8 @@ export default function NuevaAtencionModal({ trabajadores, medicoId, medicoNombr
       medicacion: medicacionParaAtencion,
       // Centro de atención: para estadísticas de consumo por centro.
       centroAtencion: centroMed,
-      reposoDias: reposo,
+      reposoDias: reposoModo === 'dias' ? reposo : 0,
+      ...(reposoModo === 'horas' ? { reposoHorario: `${repHoraDesde} – ${repHoraHasta}`, reposoHoras: horasEntre(repHoraDesde, repHoraHasta) } : {}),
       observaciones: obs.trim(),
       estado: 'atendido',
       medicoId,
@@ -185,6 +203,45 @@ export default function NuevaAtencionModal({ trabajadores, medicoId, medicoNombr
         }
       }
 
+      // Reposo indicado a un trabajador → permiso interno automático en el
+      // módulo de Permisos, con los datos ya completados en la consulta.
+      // (Siempre reposo interno: lo prescribe el propio médico institucional.)
+      const horasReposo = horasEntre(repHoraDesde, repHoraHasta);
+      const generaPermiso = pacienteTipo === 'trabajador' && worker?.id
+        && (reposoModo === 'dias' ? reposo > 0 : reposoModo === 'horas' ? horasReposo > 0 : false);
+      if (generaPermiso) {
+        try {
+          const hoy8 = new Date(); hoy8.setHours(8, 0, 0, 0);
+          const hasta = new Date(hoy8);
+          if (reposoModo === 'dias' && reposo > 1) hasta.setDate(hasta.getDate() + reposo - 1);
+          await crearPermiso({
+            trabajadorId: worker!.id!,
+            apellidos: `${worker!.primerApellido ?? ''} ${worker!.segundoApellido ?? ''}`.trim(),
+            nombres: `${worker!.primerNombre ?? ''} ${worker!.segundoNombre ?? ''}`.trim(),
+            cedula: worker!.cedula ?? '',
+            puesto: worker!.puestoTrabajo ?? '',
+            area: (worker as any).departamento ?? '',
+            tipo: 'reposo_interno',
+            desde: Timestamp.fromDate(hoy8),
+            hasta: Timestamp.fromDate(hasta),
+            unidad: reposoModo === 'horas' ? 'horas' : 'dias',
+            dias: reposoModo === 'dias' ? reposo : 0,
+            horas: reposoModo === 'horas' ? horasReposo : 0,
+            ...(reposoModo === 'horas' ? { horaDesde: repHoraDesde, horaHasta: repHoraHasta } : {}),
+            motivo: cie ? `${cie.desc} (${cie.codigo})` : motivo.trim(),
+            cieCodigo: cie?.codigo,
+            origen: 'Interno',
+            certAdjunto: true,
+            medicoId,
+            medicoNombre,
+          } as any);
+          toast.success('Permiso interno de reposo registrado automáticamente.');
+        } catch (permErr) {
+          console.warn('Atención guardada pero no se pudo crear el permiso interno:', permErr);
+          toast.warning('La atención se guardó, pero el permiso interno no pudo registrarse. Créalo desde Permisos.');
+        }
+      }
+
       onSaved();
     } catch (err) {
       console.error('Error al guardar la atención:', err);
@@ -194,7 +251,8 @@ export default function NuevaAtencionModal({ trabajadores, medicoId, medicoNombr
   };
 
   return (
-    <div onClick={onClose} className="fixed inset-0 z-[100] grid place-items-center p-6" style={{ background: 'rgba(13,27,42,0.5)' }}>
+    // Sin onClick de cierre en el fondo: un clic fuera NO descarta la consulta a medio llenar
+    <div className="fixed inset-0 z-[100] grid place-items-center p-6" style={{ background: 'rgba(13,27,42,0.5)' }}>
       <div onClick={(e) => e.stopPropagation()} className="w-[580px] max-w-full max-h-[92vh] overflow-y-auto bg-white rounded-[18px] shadow-2xl">
         {/* Header */}
         <div className="flex items-center gap-[11px] p-[18px_22px] border-b border-slate-100">
@@ -401,14 +459,40 @@ export default function NuevaAtencionModal({ trabajadores, medicoId, medicoNombr
                 );
               })}
 
-              {/* Reposo */}
-              <div className="flex items-center gap-3 my-4">
-                <Label>Reposo</Label>
-                <div className="flex items-center border border-slate-300 rounded-lg overflow-hidden">
-                  <button onClick={() => setReposo((r) => Math.max(0, r - 1))} className="w-7 h-[30px] border-none bg-slate-100 cursor-pointer text-slate-600"><Minus size={13} className="mx-auto" /></button>
-                  <span className="min-w-[54px] text-center text-[13px] font-bold">{reposo} día{reposo !== 1 ? 's' : ''}</span>
-                  <button onClick={() => setReposo((r) => r + 1)} className="w-7 h-[30px] border-none bg-slate-100 cursor-pointer text-slate-600"><Plus size={13} className="mx-auto" /></button>
+              {/* Reposo: sin reposo / por días / por horas (con horario). Si el
+                  paciente es un trabajador, el permiso interno se registra solo. */}
+              <div className="my-4">
+                <div className="flex items-center gap-3 flex-wrap">
+                  <Label>Reposo</Label>
+                  <div className="flex gap-1.5">
+                    {([['no', 'Sin reposo'], ['dias', 'Por días'], ['horas', 'Por horas']] as const).map(([m, l]) => (
+                      <button key={m} onClick={() => setReposoModo(m)}
+                        className={`px-3 py-1.5 rounded-full text-[12px] font-semibold border cursor-pointer transition-colors ${reposoModo === m ? 'text-white border-transparent' : 'bg-white text-slate-600 border-slate-300'}`}
+                        style={reposoModo === m ? { background: ACCENT } : {}}>{l}</button>
+                    ))}
+                  </div>
+                  {reposoModo === 'dias' && (
+                    <div className="flex items-center border border-slate-300 rounded-lg overflow-hidden">
+                      <button onClick={() => setReposo((r) => Math.max(1, r - 1))} className="w-7 h-[30px] border-none bg-slate-100 cursor-pointer text-slate-600"><Minus size={13} className="mx-auto" /></button>
+                      <span className="min-w-[54px] text-center text-[13px] font-bold">{reposo} día{reposo !== 1 ? 's' : ''}</span>
+                      <button onClick={() => setReposo((r) => r + 1)} className="w-7 h-[30px] border-none bg-slate-100 cursor-pointer text-slate-600"><Plus size={13} className="mx-auto" /></button>
+                    </div>
+                  )}
+                  {reposoModo === 'horas' && (
+                    <div className="flex items-center gap-1.5">
+                      <input type="time" value={repHoraDesde} onChange={(e) => setRepHoraDesde(e.target.value)} className="px-2 py-1.5 border border-slate-300 rounded-lg text-[13px]" />
+                      <span className="text-slate-400 font-bold">–</span>
+                      <input type="time" value={repHoraHasta} onChange={(e) => setRepHoraHasta(e.target.value)} className="px-2 py-1.5 border border-slate-300 rounded-lg text-[13px]" />
+                    </div>
+                  )}
                 </div>
+                {reposoModo !== 'no' && (
+                  <p className="mt-1.5 mb-0 text-[11.5px]" style={{ color: pacienteTipo === 'trabajador' ? '#0a6b3b' : '#8a4a0a' }}>
+                    {pacienteTipo === 'trabajador'
+                      ? `Al guardar se registrará automáticamente el permiso interno en el módulo de Permisos${reposoModo === 'horas' ? ` (${rangoHorarioTexto(repHoraDesde, repHoraHasta) || 'horario incompleto'})` : ''}.`
+                      : 'El permiso automático solo aplica a trabajadores registrados.'}
+                  </p>
+                )}
               </div>
 
               {/* Observaciones */}

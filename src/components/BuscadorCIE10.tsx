@@ -35,17 +35,14 @@ export default function BuscadorCIE10({ valorActual, onSeleccionar, placeholder 
     
     if (texto.length > 2) { // Solo busca si hay más de 2 letras
 
-  // 1. Limpiamos lo que el usuario teclea (le quitamos los puntos y lo hacemos minúscula)
-      const textoLimpio = texto.toLowerCase().replace(/\./g, '');
-      
-      const resultados = catalogoCIE10.filter(item => {
-        // 2. Limpiamos el código del catálogo para que compita en igualdad de condiciones
-        const codigoLimpio = item.codigo.toLowerCase().replace(/\./g, '');
-        const descLimpia = item.descripcion.toLowerCase();
-       // 3. ¿Coincide la descripción normal? ¿O coincide el código limpio con el texto limpio?
-        return descLimpia.includes(texto.toLowerCase()) || codigoLimpio.includes(textoLimpio);
-      });
-      setSugerencias(resultados.slice(0, 10)); // Máximo 15 resultados para no trabar la PC
+      // Normaliza quitando tildes y puntos, para que «Pérez» = «Perez» y «J06.9» = «J069»
+      const limpiar = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\./g, '');
+      const textoLimpio = limpiar(texto);
+
+      const resultados = catalogoCIE10.filter(item =>
+        limpiar(item.descripcion).includes(textoLimpio) || limpiar(item.codigo).includes(textoLimpio),
+      );
+      setSugerencias(resultados.slice(0, 20)); // Hasta 20 resultados visibles (lista con scroll)
       setMostrarMenu(true);
     } else {
       setMostrarMenu(false);
@@ -71,7 +68,7 @@ export default function BuscadorCIE10({ valorActual, onSeleccionar, placeholder 
       />
       
       {mostrarMenu && sugerencias.length > 0 && (
-        <ul className="absolute z-10 w-full mt-1 bg-white border border-slate-300 rounded shadow-lg max-h-48 overflow-y-auto">
+        <ul className="absolute z-10 w-full mt-1 bg-white border border-slate-300 rounded shadow-lg max-h-72 overflow-y-auto">
           {sugerencias.map((item) => (
             <li 
               key={item.codigo}

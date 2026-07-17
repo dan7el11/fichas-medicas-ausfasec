@@ -40,6 +40,9 @@ export interface AtencionMedica {
   /** Centro desde el que se atendió (origen del stock de la medicación). */
   centroAtencion?: string;
   reposoDias: number;
+  /** Reposo por horas: horario 'HH:MM – HH:MM' y horas calculadas. */
+  reposoHorario?: string;
+  reposoHoras?: number;
   observaciones: string;
   estado: 'atendido' | 'espera';
 
