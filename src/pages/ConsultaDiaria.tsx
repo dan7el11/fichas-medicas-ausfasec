@@ -25,6 +25,8 @@ import AtencionCard from '../components/consulta/AtencionCard';
 import RegistroAtenciones from '../components/consulta/RegistroAtenciones';
 import ConsultaResumen from '../components/consulta/ConsultaResumen';
 import NuevaAtencionModal from '../components/consulta/NuevaAtencionModal';
+import { CENTROS, type CentroId } from '../types/inventario';
+import { getCentroAtencion, setCentroAtencion } from '../utils/centroAtencion';
 
 const ACCENT = COLORS.blue;
 
@@ -86,6 +88,9 @@ export default function ConsultaDiaria() {
     () => (localStorage.getItem('consulta-periodo') as PeriodoVista) || 'dia',
   );
   const [fechaRef, setFechaRef] = useState<Date>(() => new Date());
+  // Centro desde el que se atiende: el consumo de medicamentos sale de su stock.
+  const [centroAtencion, setCentro] = useState<CentroId>(() => getCentroAtencion());
+  const cambiarCentro = (c: CentroId) => { setCentro(c); setCentroAtencion(c); };
   const [modal, setModal] = useState(false);
 
   useEffect(() => { localStorage.setItem('consulta-vista', vista); }, [vista]);
@@ -179,7 +184,16 @@ export default function ConsultaDiaria() {
               </div>
               <h1 className="mt-1.5 mb-0 text-[28px] font-bold tracking-tight" style={{ fontFamily: FONTS.serif }}>{titulo}</h1>
             </div>
-            <div className="ml-auto flex items-center gap-3">
+            <div className="ml-auto flex items-center gap-3 flex-wrap">
+              {/* Centro de atención: origen del stock de la medicación dispensada */}
+              <label className="flex items-center gap-1.5 text-[12px] font-semibold" style={{ color: COLORS.muted }}>
+                Atendiendo desde
+                <select value={centroAtencion} onChange={(e) => cambiarCentro(e.target.value as CentroId)}
+                  className="px-2.5 py-[9px] rounded-[9px] border text-[12.5px] font-semibold cursor-pointer outline-none bg-white"
+                  style={{ borderColor: COLORS.line, color: COLORS.ink }}>
+                  {(Object.keys(CENTROS) as CentroId[]).map((k) => <option key={k} value={k}>{CENTROS[k]}</option>)}
+                </select>
+              </label>
               <div className="flex gap-[3px] p-[3px] rounded-[9px]" style={{ background: '#e2e5ea' }}>
                 <ToggleBtn active={vista === 'feed'} onClick={() => setVista('feed')} icon={<Activity size={14} />}>Feed</ToggleBtn>
                 <ToggleBtn active={vista === 'tabla'} onClick={() => setVista('tabla')} icon={<List size={14} />}>Registro</ToggleBtn>
@@ -276,6 +290,7 @@ export default function ConsultaDiaria() {
           trabajadores={trabajadores}
           medicoId={user?.uid ?? ''}
           medicoNombre={nombreProfesional}
+          centroInicial={centroAtencion}
           onClose={() => setModal(false)}
           onSaved={() => { setModal(false); setFechaRef(new Date()); cargarAtenciones(); }}
         />

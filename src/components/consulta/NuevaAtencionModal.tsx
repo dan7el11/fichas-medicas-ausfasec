@@ -9,6 +9,7 @@ import BuscadorCIE10 from '../BuscadorCIE10';
 import { useToast } from '../Toast';
 import { crearAtencion } from '../../services/atenciones';
 import { cargarEstado, registrarConsumos } from '../../services/inventario';
+import { normalizarTexto } from '../../utils/inventarioHelpers';
 import {
   PROCEDIMIENTOS_CONSULTA, MEDICAMENTOS_DISPENSARIO,
 } from '../../types/atencion';
@@ -30,11 +31,13 @@ interface Props {
   trabajadores: Trabajador[];
   medicoId: string;
   medicoNombre: string;
+  /** Centro desde el que se atiende (el consumo de medicación sale de su stock). */
+  centroInicial?: CentroId;
   onClose: () => void;
   onSaved: () => void;
 }
 
-export default function NuevaAtencionModal({ trabajadores, medicoId, medicoNombre, onClose, onSaved }: Props) {
+export default function NuevaAtencionModal({ trabajadores, medicoId, medicoNombre, centroInicial, onClose, onSaved }: Props) {
   const toast = useToast();
   const [pacienteTipo, setPacienteTipo] = useState<'trabajador' | 'externo'>('trabajador');
   const [worker, setWorker] = useState<Trabajador | null>(null);
@@ -55,7 +58,7 @@ export default function NuevaAtencionModal({ trabajadores, medicoId, medicoNombr
   const [procs, setProcs] = useState<Set<string>>(new Set());
   const [meds, setMeds] = useState<MedItem[]>([]);
   const [medQ, setMedQ] = useState('');
-  const [centroMed, setCentroMed] = useState<CentroId>(CENTRO_DEFAULT);
+  const [centroMed, setCentroMed] = useState<CentroId>(centroInicial ?? CENTRO_DEFAULT);
   const [reposo, setReposo] = useState(0);
   const [obs, setObs] = useState('');
   const [guardando, setGuardando] = useState(false);
@@ -83,10 +86,10 @@ export default function NuevaAtencionModal({ trabajadores, medicoId, medicoNombr
           if (seleccionados.has(m.codigo)) return false;
           const stock = m.stocks[centroMed] ?? 0;
           if (stock <= 0) return false;
-          const term = q.toLowerCase();
+          const term = normalizarTexto(q);
           return (
-            m.nombre.toLowerCase().includes(term) ||
-            (m.sobrenombre && m.sobrenombre.toLowerCase().includes(term))
+            normalizarTexto(m.nombre).includes(term) ||
+            (m.sobrenombre && normalizarTexto(m.sobrenombre).includes(term))
           );
         })
         .slice(0, 6)
@@ -95,17 +98,18 @@ export default function NuevaAtencionModal({ trabajadores, medicoId, medicoNombr
     // Fallback: lista estática
     const seleccionados = new Set(meds.map((m) => m.nombre));
     return MEDICAMENTOS_DISPENSARIO
-      .filter((m) => m.toLowerCase().includes(q.toLowerCase()) && !seleccionados.has(m))
+      .filter((m) => normalizarTexto(m).includes(normalizarTexto(q)) && !seleccionados.has(m))
       .slice(0, 6)
       .map((m) => ({ nombre: m, cantidad: 1 }));
   };
 
   const medMatches = medQ ? buildMedSearch(medQ) : [];
 
+  // Búsqueda sin tildes: «Pérez» y «Perez» son intercambiables.
   const matches = qWorker
     ? trabajadores.filter((w) =>
-        `${w.primerApellido} ${w.segundoApellido} ${w.primerNombre} ${w.segundoNombre} ${w.cedula}`
-          .toLowerCase().includes(qWorker.toLowerCase()),
+        normalizarTexto(`${w.primerApellido} ${w.segundoApellido} ${w.primerNombre} ${w.segundoNombre} ${w.cedula}`)
+          .includes(normalizarTexto(qWorker)),
       ).slice(0, 6)
     : [];
 
@@ -151,6 +155,8 @@ export default function NuevaAtencionModal({ trabajadores, medicoId, medicoNombr
       signosVitales: { pa, fc, temp, spo2 },
       procedimientos: [...procs],
       medicacion: medicacionParaAtencion,
+      // Centro de atención: para estadísticas de consumo por centro.
+      centroAtencion: centroMed,
       reposoDias: reposo,
       observaciones: obs.trim(),
       estado: 'atendido',

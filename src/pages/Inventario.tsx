@@ -148,10 +148,10 @@ export default function Inventario() {
           )}
 
           {tab === 'mi-inventario' && (
-            <TabInventario inventario={estado.inventario} centroDefault={CENTRO_DEFAULT} vista="mi-centro" />
+            <TabInventario inventario={estado.inventario} consumos={estado.consumos} centroDefault={CENTRO_DEFAULT} vista="mi-centro" />
           )}
           {tab === 'general' && (
-            <TabInventario inventario={estado.inventario} centroDefault={CENTRO_DEFAULT} vista="general" />
+            <TabInventario inventario={estado.inventario} consumos={estado.consumos} centroDefault={CENTRO_DEFAULT} vista="general" />
           )}
           {tab === 'movimientos' && (
             <TabMovimientos
