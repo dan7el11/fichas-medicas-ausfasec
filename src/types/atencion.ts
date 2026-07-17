@@ -37,6 +37,8 @@ export interface AtencionMedica {
   signosVitales: SignosVitalesConsulta;
   procedimientos: string[];
   medicacion: MedicacionAdministrada[];
+  /** Centro desde el que se atendió (origen del stock de la medicación). */
+  centroAtencion?: string;
   reposoDias: number;
   observaciones: string;
   estado: 'atendido' | 'espera';

@@ -14,6 +14,7 @@ import {
   asuntoCorreo, cuerpoCorreo, buildMailto,
 } from '../../services/permisos';
 import { horasEntre, rangoHorarioTexto } from '../../utils/permisosHorario';
+import { normalizarTexto } from '../../utils/inventarioHelpers';
 import { TipoBadge, EstadoChip } from './PermisoCard';
 import type { Trabajador } from '../../types';
 import { useToast } from '../Toast';
@@ -46,8 +47,9 @@ export function NuevoPermisoModal({ trabajadores, medicoId, medicoNombre, onClos
   const porHoras = tipo === 'cita' || unidadReposo === 'horas';
   const horasCalc = horasEntre(horaDesde, horaHasta);
 
+  // Búsqueda sin tildes: «Pérez» y «Perez» son intercambiables.
   const matches = qW
-    ? trabajadores.filter((w) => `${w.primerApellido} ${w.segundoApellido} ${w.primerNombre} ${w.cedula}`.toLowerCase().includes(qW.toLowerCase())).slice(0, 6)
+    ? trabajadores.filter((w) => normalizarTexto(`${w.primerApellido} ${w.segundoApellido} ${w.primerNombre} ${w.cedula}`).includes(normalizarTexto(qW))).slice(0, 6)
     : [];
   // Por horas, el rango horario debe ser válido (hasta > desde).
   const horarioValido = !porHoras || horasCalc > 0;

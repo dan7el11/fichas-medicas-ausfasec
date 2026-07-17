@@ -1,19 +1,21 @@
 import { useState } from 'react';
 import { AlertTriangle, Search } from 'lucide-react';
-import type { Medicamento, CentroId } from '../../types/inventario';
+import type { Medicamento, Consumo, CentroId } from '../../types/inventario';
 import { CENTROS } from '../../types/inventario';
 import { checkExpiracion, diasParaExpirar, fmtFecha, normalizarTexto } from '../../utils/inventarioHelpers';
+import GraficoStock from './GraficoStock';
 import { COLORS, FONTS } from '../../theme';
 
 const CENTROS_LIST = Object.keys(CENTROS) as CentroId[];
 
 interface Props {
   inventario: Medicamento[];
+  consumos: Consumo[];
   centroDefault: CentroId;
   vista: 'mi-centro' | 'general';
 }
 
-export default function TabInventario({ inventario, centroDefault, vista }: Props) {
+export default function TabInventario({ inventario, consumos, centroDefault, vista }: Props) {
   const [centro, setCentro] = useState<CentroId>(centroDefault);
   const [q, setQ] = useState('');
   const [soloAlertas, setSoloAlertas] = useState(false);
@@ -44,6 +46,9 @@ export default function TabInventario({ inventario, centroDefault, vista }: Prop
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {/* Gráfico de stock vs. consumo del ámbito visible */}
+      <GraficoStock inventario={inventario} consumos={consumos} centro={vista === 'mi-centro' ? centro : 'general'} />
+
       {/* Filtros */}
       <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1, minWidth: 200, border: `1px solid ${COLORS.line}`, borderRadius: 8, padding: '6px 10px', background: COLORS.panel }}>
