@@ -1,35 +1,25 @@
-// Gráfico de stock vs. consumo por medicamento (Inventario).
-// Barras horizontales en una sola escala (unidades): la barra principal es el
-// STOCK actual coloreada por estado (agotado/crítico/bajo/ok, siempre con
-// etiqueta de texto, nunca solo color) y debajo una barra gris neutra con el
-// CONSUMO de los últimos 30 días. Ordenado por riesgo de agotarse, para ver de
-// un vistazo qué medicamentos están cerca de acabarse. Sirve tanto para el
-// inventario general (suma de centros) como para el stock de un centro.
+// Gráfico de % de stock restante por medicamento (Inventario).
+// Línea sobre el perfil de medicamentos (ordenados del más crítico al más
+// holgado) donde cada punto es el PORCENTAJE de stock restante del ámbito
+// (centro o suma general) respecto de lo disponible histórico en ese ámbito
+// (stock actual + unidades consumidas). Una línea transversal roja al 20 %
+// marca el umbral de reposición: todo punto por debajo hay que reponerlo.
+// Incluye el nombre genérico y el comercial de cada medicamento.
 import { useMemo, useState } from 'react';
 import { BarChart3 } from 'lucide-react';
 import type { Medicamento, Consumo, CentroId } from '../../types/inventario';
 import { COLORS, FONTS } from '../../theme';
 
-const NEUTRO = '#98a0ab';       // consumo: gris neutro (identidad por leyenda/posición)
-const DIAS_VENTANA = 30;
-const TOP_INICIAL = 12;
+const UMBRAL_REPONER = 20;    // % — advertencia transversal de reposición
+const NEUTRO = '#98a0ab';
 
-interface Fila {
+interface Punto {
   codigo: string;
-  nombre: string;
+  etiqueta: string;    // nombre genérico (y comercial si existe)
   stock: number;
-  consumo30: number;
-  /** Días estimados hasta agotarse al ritmo de consumo actual (null si no hay consumo). */
-  cobertura: number | null;
-  estado: 'agotado' | 'critico' | 'bajo' | 'ok';
+  consumido: number;   // unidades consumidas históricas del ámbito
+  pct: number;         // % de stock restante (0–100)
 }
-
-const ESTADO_META: Record<Fila['estado'], { label: string; fg: string; bg: string }> = {
-  agotado: { label: 'Agotado', fg: COLORS.bad, bg: COLORS.badBg },
-  critico: { label: 'Crítico', fg: COLORS.bad, bg: COLORS.badBg },
-  bajo:    { label: 'Bajo',    fg: COLORS.warn, bg: COLORS.warnBg },
-  ok:      { label: 'OK',      fg: COLORS.ok, bg: COLORS.okBg },
-};
 
 interface Props {
   inventario: Medicamento[];
@@ -39,103 +29,130 @@ interface Props {
 }
 
 export default function GraficoStock({ inventario, consumos, centro }: Props) {
-  const [verTodos, setVerTodos] = useState(false);
+  const [expandido, setExpandido] = useState(false);
 
-  const filas = useMemo<Fila[]>(() => {
-    const desde = new Date();
-    desde.setDate(desde.getDate() - DIAS_VENTANA);
-    const desdeISO = desde.toISOString().slice(0, 10);
-
-    // Consumo (unidades) de los últimos 30 días por medicamento, del ámbito elegido.
-    const consumoPorMed = new Map<string, number>();
+  const { puntos, omitidos } = useMemo(() => {
+    // Unidades consumidas por medicamento en el ámbito (histórico completo:
+    // junto al stock actual reconstruye lo que hubo disponible).
+    const consumidoPorMed = new Map<string, number>();
     consumos.forEach((c) => {
-      if (c.fecha < desdeISO) return;
       if (centro !== 'general' && c.centro !== centro) return;
-      consumoPorMed.set(c.medicamentoCodigo, (consumoPorMed.get(c.medicamentoCodigo) ?? 0) + c.cantidad);
+      consumidoPorMed.set(c.medicamentoCodigo, (consumidoPorMed.get(c.medicamentoCodigo) ?? 0) + c.cantidad);
     });
 
-    return inventario.map((m) => {
+    const lista: Punto[] = [];
+    let fuera = 0;
+    inventario.forEach((m) => {
       const stock = centro === 'general'
         ? Object.values(m.stocks).reduce((s, v) => s + (v ?? 0), 0)
         : (m.stocks[centro] ?? 0);
-      const consumo30 = consumoPorMed.get(m.codigo) ?? 0;
-      const cobertura = consumo30 > 0 ? Math.round(stock / (consumo30 / DIAS_VENTANA)) : null;
-      const estado: Fila['estado'] = stock === 0 ? 'agotado'
-        : (cobertura !== null && cobertura <= 7) ? 'critico'
-        : (stock <= 5 || (cobertura !== null && cobertura <= 15)) ? 'bajo'
-        : 'ok';
-      return { codigo: m.codigo, nombre: m.sobrenombre || m.nombre, stock, consumo30, cobertura, estado };
-    })
-      // Orden por riesgo: agotados primero, luego menor cobertura, luego menor stock.
-      .sort((a, b) => {
-        const rank = (f: Fila) => f.estado === 'agotado' ? 0 : f.estado === 'critico' ? 1 : f.estado === 'bajo' ? 2 : 3;
-        if (rank(a) !== rank(b)) return rank(a) - rank(b);
-        const ca = a.cobertura ?? Infinity, cb = b.cobertura ?? Infinity;
-        if (ca !== cb) return ca - cb;
-        return a.stock - b.stock;
+      const consumido = consumidoPorMed.get(m.codigo) ?? 0;
+      const base = stock + consumido;
+      if (base <= 0) { fuera++; return; } // nunca hubo stock ni consumo en este ámbito
+      lista.push({
+        codigo: m.codigo,
+        etiqueta: m.sobrenombre && m.sobrenombre !== m.nombre ? `${m.nombre} (${m.sobrenombre})` : m.nombre,
+        stock,
+        consumido,
+        pct: Math.round((stock / base) * 100),
       });
+    });
+    // Del más crítico (menor %) al más holgado: la zona de peligro queda a la izquierda.
+    lista.sort((a, b) => a.pct - b.pct || a.stock - b.stock);
+    return { puntos: lista, omitidos: fuera };
   }, [inventario, consumos, centro]);
 
-  const visibles = verTodos ? filas : filas.slice(0, TOP_INICIAL);
-  const maxValor = Math.max(1, ...visibles.map((f) => Math.max(f.stock, f.consumo30)));
-  const ancho = (v: number) => v <= 0 ? 0 : Math.max(2, (v / maxValor) * 100);
+  if (puntos.length === 0) return null;
 
-  if (inventario.length === 0) return null;
+  const bajoUmbral = puntos.filter((p) => p.pct <= UMBRAL_REPONER).length;
+
+  // ── Geometría del SVG ──────────────────────────────────────────────────────
+  const PASO = 56;                 // px por medicamento en el eje X
+  const ML = 44, MR = 16, MT = 24, MB = 84;   // márgenes (arriba: % sobre los puntos; abajo: rótulos rotados)
+  const H_PLOT = 150;
+  const W = ML + MR + Math.max(1, puntos.length - 1) * PASO + 24;
+  const H = MT + H_PLOT + MB;
+  const x = (i: number) => ML + 12 + i * PASO;
+  const y = (pct: number) => MT + H_PLOT - (pct / 100) * H_PLOT;
+  const path = puntos.map((p, i) => `${i === 0 ? 'M' : 'L'} ${x(i)} ${y(p.pct)}`).join(' ');
+
+  const colorPunto = (pct: number) => pct <= UMBRAL_REPONER ? COLORS.bad : pct <= 40 ? COLORS.warn : COLORS.ok;
+  const truncar = (s: string, n = 16) => (s.length > n ? s.slice(0, n - 1) + '…' : s);
+
+  const alto = expandido || puntos.length <= 14;
 
   return (
     <div style={{ background: COLORS.panel, border: `1px solid ${COLORS.line}`, borderRadius: 14, padding: '16px 18px' }}>
       {/* Título + leyenda */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 4 }}>
         <span style={{ display: 'grid', placeItems: 'center', width: 28, height: 28, borderRadius: 8, background: '#f8eddc', color: '#9a5b12' }}><BarChart3 size={15} /></span>
-        <div style={{ fontSize: 13.5, fontWeight: 700, color: COLORS.ink }}>Stock vs. consumo (últimos {DIAS_VENTANA} días)</div>
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: 14, fontSize: 11, color: COLORS.muted, alignItems: 'center' }}>
+        <div style={{ fontSize: 13.5, fontWeight: 700, color: COLORS.ink }}>Stock restante por medicamento (%)</div>
+        {bajoUmbral > 0 && (
+          <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 99, background: COLORS.badBg, color: COLORS.bad }}>
+            {bajoUmbral} por reponer (≤{UMBRAL_REPONER} %)
+          </span>
+        )}
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: 14, fontSize: 11, color: COLORS.muted, alignItems: 'center', flexWrap: 'wrap' }}>
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-            <span style={{ width: 14, height: 8, borderRadius: 3, background: COLORS.ok, display: 'inline-block' }} /> Stock actual
+            <span style={{ width: 9, height: 9, borderRadius: 99, background: COLORS.ok, display: 'inline-block' }} /> &gt;40 %
           </span>
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-            <span style={{ width: 14, height: 5, borderRadius: 3, background: NEUTRO, display: 'inline-block' }} /> Consumo {DIAS_VENTANA} d
+            <span style={{ width: 9, height: 9, borderRadius: 99, background: COLORS.warn, display: 'inline-block' }} /> 21–40 %
+          </span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+            <span style={{ width: 9, height: 9, borderRadius: 99, background: COLORS.bad, display: 'inline-block' }} /> ≤{UMBRAL_REPONER} % — reponer
           </span>
         </div>
       </div>
-      <p style={{ margin: '0 0 12px', fontSize: 11, color: COLORS.faint }}>
-        Ordenado por riesgo de agotarse{centro === 'general' ? ' · stock sumado de todos los centros' : ''}. El color de la barra de stock indica el estado.
+      <p style={{ margin: '0 0 10px', fontSize: 11, color: COLORS.faint }}>
+        % restante = stock actual sobre lo disponible del ámbito (stock + consumido{centro === 'general' ? ', todos los centros' : ''}).
+        Ordenado del más crítico al más holgado{omitidos > 0 ? ` · ${omitidos} medicamento${omitidos !== 1 ? 's' : ''} sin stock ni consumo en este ámbito no se grafican` : ''}.
       </p>
 
-      {/* Filas */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
-        {visibles.map((f) => {
-          const meta = ESTADO_META[f.estado];
-          const detalle = `${f.nombre} — Stock: ${f.stock} u. · Consumo ${DIAS_VENTANA} d: ${f.consumo30} u.${f.cobertura !== null ? ` · Cobertura estimada: ${f.cobertura} día${f.cobertura !== 1 ? 's' : ''}` : ' · Sin consumo reciente'}`;
-          return (
-            <div key={f.codigo} title={detalle} style={{ display: 'grid', gridTemplateColumns: 'minmax(120px, 200px) 1fr', gap: 10, alignItems: 'center' }}>
-              {/* Nombre + estado (texto, no solo color) */}
-              <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: 12, fontWeight: 600, color: COLORS.ink, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.nombre}</div>
-                <span style={{ fontSize: 9.5, fontWeight: 700, padding: '1px 6px', borderRadius: 99, background: meta.bg, color: meta.fg }}>
-                  {meta.label}{f.cobertura !== null && f.estado !== 'agotado' ? ` · ≈${f.cobertura} d` : ''}
-                </span>
-              </div>
-              {/* Barras (misma escala en unidades) */}
-              <div style={{ borderLeft: `2px solid ${COLORS.line}`, paddingLeft: 2 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-                  <div style={{ width: `${ancho(f.stock)}%`, height: 12, borderRadius: '0 4px 4px 0', background: meta.fg, transition: 'width .2s' }} />
-                  <span style={{ fontSize: 11, fontWeight: 700, fontFamily: FONTS.mono, color: COLORS.ink, whiteSpace: 'nowrap' }}>{f.stock} u.</span>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <div style={{ width: `${ancho(f.consumo30)}%`, height: 7, borderRadius: '0 3px 3px 0', background: NEUTRO, opacity: 0.75 }} />
-                  <span style={{ fontSize: 10, fontFamily: FONTS.mono, color: COLORS.faint, whiteSpace: 'nowrap' }}>{f.consumo30} u.</span>
-                </div>
-              </div>
-            </div>
-          );
-        })}
+      {/* Gráfico de líneas (scroll horizontal si hay muchos medicamentos) */}
+      <div style={{ overflowX: 'auto' }}>
+        <svg width={W} height={H} style={{ display: 'block', minWidth: '100%' }} role="img" aria-label="Porcentaje de stock restante por medicamento">
+          {/* Rejilla y eje Y */}
+          {[0, 20, 40, 60, 80, 100].map((g) => (
+            <g key={g}>
+              <line x1={ML} x2={W - MR} y1={y(g)} y2={y(g)} stroke={g === UMBRAL_REPONER ? 'transparent' : COLORS.line} strokeWidth={1} />
+              <text x={ML - 6} y={y(g) + 3.5} textAnchor="end" fontSize={10} fill={COLORS.faint} fontFamily={FONTS.mono}>{g}%</text>
+            </g>
+          ))}
+
+          {/* Advertencia transversal de reposición al 20 % */}
+          <line x1={ML} x2={W - MR} y1={y(UMBRAL_REPONER)} y2={y(UMBRAL_REPONER)} stroke={COLORS.bad} strokeWidth={1.6} strokeDasharray="7 4" />
+          <text x={W - MR} y={y(UMBRAL_REPONER) - 5} textAnchor="end" fontSize={10.5} fontWeight={700} fill={COLORS.bad}>
+            Reponer (≤{UMBRAL_REPONER} %)
+          </text>
+
+          {/* Línea del perfil de stock */}
+          <path d={path} fill="none" stroke={NEUTRO} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
+
+          {/* Puntos + rótulos */}
+          {puntos.map((p, i) => (
+            <g key={p.codigo}>
+              {/* Punto con anillo blanco para separarse de la línea */}
+              <circle cx={x(i)} cy={y(p.pct)} r={6.5} fill="#fff" />
+              <circle cx={x(i)} cy={y(p.pct)} r={4.5} fill={colorPunto(p.pct)}>
+                <title>{`${p.etiqueta}\nStock restante: ${p.pct} % (${p.stock} u.)\nConsumido en este ámbito: ${p.consumido} u.${p.pct <= UMBRAL_REPONER ? '\n⚠ Por debajo del umbral de reposición' : ''}`}</title>
+              </circle>
+              {/* % directo sobre el punto */}
+              <text x={x(i)} y={y(p.pct) - 10} textAnchor="middle" fontSize={10} fontWeight={700} fill={COLORS.ink} fontFamily={FONTS.mono}>{p.pct}%</text>
+              {/* Nombre (genérico + comercial) rotado bajo el eje */}
+              <text transform={`translate(${x(i)}, ${MT + H_PLOT + 12}) rotate(45)`} fontSize={9.5} fill={p.pct <= UMBRAL_REPONER ? COLORS.bad : COLORS.muted} fontWeight={p.pct <= UMBRAL_REPONER ? 700 : 500}>
+                {truncar(p.etiqueta, alto ? 24 : 16)}
+                <title>{p.etiqueta}</title>
+              </text>
+            </g>
+          ))}
+        </svg>
       </div>
 
-      {/* Sin recortes silenciosos: se indica cuántos hay ocultos */}
-      {filas.length > TOP_INICIAL && (
-        <button onClick={() => setVerTodos((v) => !v)}
-          style={{ marginTop: 12, padding: '7px 12px', borderRadius: 8, border: `1px solid ${COLORS.line}`, background: COLORS.bg, color: COLORS.muted, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
-          {verTodos ? `Mostrar solo los ${TOP_INICIAL} con más riesgo` : `Ver todos los medicamentos (${filas.length})`}
+      {puntos.length > 14 && (
+        <button onClick={() => setExpandido((v) => !v)}
+          style={{ marginTop: 8, padding: '6px 12px', borderRadius: 8, border: `1px solid ${COLORS.line}`, background: COLORS.bg, color: COLORS.muted, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+          {expandido ? 'Abreviar nombres' : 'Nombres completos'}
         </button>
       )}
     </div>
