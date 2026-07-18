@@ -902,6 +902,162 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
   };
 
   // ----------------------------------------------------------------
+  // PDF SO-RE-39 (REINTEGRO) — hoja oficial de 1 página
+  // ----------------------------------------------------------------
+  const generarPDFReintegro = (evParam?: any) => {
+    const ev: any = evParam || evDrawer;
+    if (!ev || !trabajador) return;
+
+    const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    const W = pdf.internal.pageSize.getWidth();
+    const M = 7;
+    const CW = W - M * 2;
+    let y = 7;
+
+    const colorPrimario = '#ccccff';
+    const colorSecundario = '#ccffcc';
+    const colorTerciario = '#ccffff';
+    const negro: [number, number, number] = [0, 0, 0];
+    const base = { lineColor: negro, lineWidth: 0.25, fontSize: 6.5, cellPadding: 1.2, textColor: negro };
+    const head = { fillColor: colorSecundario, textColor: negro, fontStyle: 'bold' as const, fontSize: 6.5, lineColor: negro, lineWidth: 0.25, cellPadding: 1.2 };
+    const AT = (opts: any) => { autoTable(pdf, opts); y = (pdf as any).lastAutoTable.finalY; };
+
+    const secHeaderRe = (texto: string, bgColor = colorPrimario) => {
+      pdf.setFillColor(bgColor); pdf.setDrawColor(0);
+      pdf.rect(M, y, CW, 5, 'FD');
+      pdf.setFontSize(7); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(0);
+      pdf.text(texto, M + 1.5, y + 3.5);
+      y += 5;
+    };
+    const textoLibreRe = (texto: string, minH = 6) => {
+      pdf.setDrawColor(0); pdf.setFontSize(7); pdf.setFont('helvetica', 'normal'); pdf.setTextColor(0);
+      const lines = pdf.splitTextToSize(texto || '-', CW - 3);
+      const h = Math.max(minH, lines.length * 3 + 2);
+      pdf.rect(M, y, CW, h, 'S');
+      pdf.text(lines, M + 1.5, y + 3);
+      y += h;
+    };
+
+    // Encabezado con logo
+    const tStartY = y;
+    AT({ startY: y, margin: { left: M, right: M }, theme: 'grid', styles: { ...base, halign: 'center', fontSize: 8 }, columnStyles: { 0: { cellWidth: 42 }, 2: { cellWidth: 33 } }, body: [
+      [{ content: '', rowSpan: 3, styles: { fontSize: 11, valign: 'middle' } }, { content: 'HISTORIA CLÍNICA OCUPACIONAL:\nEVALUACIÓN DE REINTEGRO', rowSpan: 2, styles: { fontStyle: 'bold', fontSize: 9, valign: 'middle' } }, { content: 'Código:   SO-RE-39', styles: { fontSize: 7, halign: 'left' } }],
+      [{ content: 'Revisión:  1', styles: { fontSize: 7, halign: 'left' } }],
+      [{ content: 'MACROPROCESO:  PLANIFICACIÓN, SEGURIDAD Y AMBIENTE', styles: { fontSize: 6, fontStyle: 'bold' } }, { content: 'Página:    1 de 1', styles: { fontSize: 7, halign: 'left' } }],
+    ] });
+    pdf.addImage(logoPdf.data, logoPdf.format, M + 1, tStartY + 1, 40, 12);
+    y += 2;
+
+    // A. Datos
+    const edadTrab = (() => {
+      const fn = (trabajador as any).fechaNacimiento;
+      if (!fn) return '-';
+      const d = new Date(String(fn) + 'T12:00:00');
+      if (isNaN(d.getTime())) return '-';
+      const hoyD = new Date();
+      let e = hoyD.getFullYear() - d.getFullYear();
+      const m = hoyD.getMonth() - d.getMonth();
+      if (m < 0 || (m === 0 && hoyD.getDate() < d.getDate())) e--;
+      return e >= 0 && e < 130 ? String(e) : '-';
+    })();
+    secHeaderRe('A. DATOS DEL ESTABLECIMIENTO - EMPRESA Y USUARIO');
+    AT({ startY: y, margin: { left: M, right: M }, theme: 'grid', styles: base, headStyles: head, head: [['INSTITUCIÓN DEL SISTEMA O NOMBRE DE LA EMPRESA', 'RUC', 'CIIU', 'ESTABLECIMIENTO DE SALUD', 'N° HISTORIA CLÍNICA', 'N° ARCHIVO']], body: [[empresa.institucion, empresa.ruc, empresa.ciu, empresa.establecimiento, ev.numeroHistoriaClinica || trabajador.cedula, ev.numeroArchivo || '-']] });
+    AT({ startY: y, margin: { left: M, right: M }, theme: 'grid', styles: base, headStyles: head, head: [['PRIMER APELLIDO', 'SEGUNDO APELLIDO', 'PRIMER NOMBRE', 'SEGUNDO NOMBRE', 'SEXO', 'EDAD (AÑOS)', 'PUESTO DE TRABAJO (CIUO)']], body: [[trabajador.primerApellido, (trabajador as any).segundoApellido || '-', trabajador.primerNombre, (trabajador as any).segundoNombre || '-', trabajador.sexo, edadTrab, trabajador.puestoTrabajo]] });
+    AT({ startY: y, margin: { left: M, right: M }, theme: 'grid', styles: { ...base, halign: 'center' }, headStyles: { ...head, halign: 'center' }, head: [['FECHA DEL ÚLTIMO DÍA LABORAL', 'FECHA DE REINGRESO', 'TOTAL (DÍAS)', 'CAUSA DE SALIDA']], body: [[ev.fechaUltimoDiaLaboral || '-', ev.fechaReingreso || '-', ev.totalDiasAusencia || '-', { content: ev.causaSalida || '-', styles: { halign: 'left' } }]] });
+    y += 2;
+
+    // B / C
+    secHeaderRe('B. MOTIVO DE CONSULTA / CONDICIÓN DE REINTEGRO');
+    textoLibreRe((ev.motivoConsulta || 'EVALUACIÓN MÉDICA DE REINTEGRO LABORAL').toUpperCase(), 7);
+    y += 1;
+    secHeaderRe('C. ENFERMEDAD ACTUAL');
+    textoLibreRe(ev.enfermedadActual || 'PACIENTE ASINTOMÁTICO AL MOMENTO DE LA VALORACIÓN.', 7);
+    y += 1;
+
+    // D. Constantes vitales
+    secHeaderRe('D. CONSTANTES VITALES Y ANTROPOMETRÍA');
+    const svr = ev.signosVitales || {};
+    AT({ startY: y, margin: { left: M, right: M }, theme: 'grid', styles: base, headStyles: head, head: [['PRESIÓN ARTERIAL\n(mmHg)', 'TEMPERATURA\n(°C)', 'FRECUENCIA CARDIACA\n(Lat/min)', 'SATURACIÓN DE\nOXÍGENO (O2%)', 'FRECUENCIA\nRESPIRATORIA (fr/min)', 'PESO\n(Kg)', 'TALLA\n(cm)', 'ÍNDICE DE MASA\nCORPORAL (kg/m²)', 'PERÍMETRO\nABDOMINAL (cm)']], body: [[`${svr.presionSistolica || '-'}/${svr.presionDiastolica || '-'}`, svr.temperatura || '-', svr.frecuenciaCardiaca || '-', svr.saturacion || '-', svr.frecuenciaRespiratoria || '-', svr.peso || '-', svr.talla || '-', svr.imc ? Number(svr.imc).toFixed(1) : '-', svr.perimetroAbdominal || '-']], bodyStyles: { halign: 'center' } });
+    y += 2;
+
+    // E. Examen físico regional
+    secHeaderRe('E. EXAMEN FÍSICO REGIONAL');
+    const filasFisicoRe = FISICO_ROWS.map(row => row.map((cell: any) => {
+      if (cell.type === 'reg') return { content: '', textToRotate: cell.txt, rowSpan: cell.rs, styles: { fillColor: colorTerciario, halign: 'center', valign: 'middle' } };
+      if (cell.type === 'sub') return { content: cell.txt, styles: { fillColor: '#ffffff' } };
+      if (cell.type === 'chk') return { content: hasFisico(ev, cell.code) ? 'X' : '', styles: { halign: 'center', fontStyle: 'bold', fillColor: '#ffffff' } };
+      if (cell.type === 'empty') return { content: '', rowSpan: cell.rs || 1, colSpan: cell.cs || 1, styles: { fillColor: '#ffffff', lineWidth: 0 } };
+      if (cell.type === 'instr') return { content: 'CP = CON EVIDENCIA DE PATOLOGÍA: MARCAR "X" Y DESCRIBIR EN OBSERVACIONES', colSpan: cell.cs, styles: { fillColor: '#f8f8f8', textColor: negro, halign: 'center', valign: 'middle', fontStyle: 'bold', fontSize: 5.5 } };
+      return { content: '' };
+    }));
+    AT({
+      startY: y, margin: { left: M, right: M }, theme: 'grid', styles: { ...base, fontSize: 5.5, cellPadding: 0.8 }, bodyStyles: { minCellHeight: 6.5 },
+      headStyles: { fillColor: colorTerciario, textColor: negro, fontSize: 6 },
+      columnStyles: { 0: { cellWidth: 9 }, 1: { cellWidth: 23 }, 2: { cellWidth: 4, halign: 'center' }, 3: { cellWidth: 9 }, 4: { cellWidth: 23 }, 5: { cellWidth: 4, halign: 'center' }, 6: { cellWidth: 9 }, 7: { cellWidth: 23 }, 8: { cellWidth: 4, halign: 'center' }, 9: { cellWidth: 9 }, 10: { cellWidth: 23 }, 11: { cellWidth: 4, halign: 'center' }, 12: { cellWidth: 9 }, 13: { cellWidth: 23 }, 14: { cellWidth: 4, halign: 'center' } },
+      head: [[{ content: 'REGIONES', colSpan: 15, styles: { halign: 'left', fillColor: colorTerciario } }]],
+      body: filasFisicoRe as any,
+      didDrawCell: (data: any) => {
+        const raw = data.cell.raw as any;
+        if (data.section === 'body' && raw?.textToRotate) {
+          pdf.setTextColor(0); pdf.setFontSize(5.5); pdf.setFont('helvetica', 'bold');
+          const str = String(raw.textToRotate);
+          const realHeight = 6.5 * (raw.rowSpan || 1);
+          const textWidth = pdf.getTextWidth(str);
+          const cx = data.cell.x + data.cell.width / 2;
+          const cy = data.cell.y + realHeight / 2;
+          if (textWidth > realHeight - 2) {
+            const lineas = pdf.splitTextToSize(str, realHeight - 2);
+            pdf.text(lineas[0], cx + 1.5, cy + pdf.getTextWidth(lineas[0]) / 2, { angle: 90 });
+            if (lineas[1]) pdf.text(lineas[1], cx - 0.5, cy + pdf.getTextWidth(lineas[1]) / 2, { angle: 90 });
+          } else { pdf.text(str, cx + 0.8, cy + textWidth / 2, { angle: 90 }); }
+        }
+      },
+    });
+    const hallazgosRe = ev.examenFisicoHallazgos || [];
+    if (hallazgosRe.length > 0) textoLibreRe('Observaciones:\n' + hallazgosRe.map((h: any) => `${h.codigo}. ${h.region || ''}, ${h.subregion || ''}: ${h.descripcion || '-'}`).join('\n'), 6);
+    else textoLibreRe('Observaciones: Sin hallazgos patológicos al examen físico regional.', 5);
+    y += 1;
+
+    // F. Exámenes
+    secHeaderRe('F. RESULTADOS DE EXÁMENES (IMAGEN, LABORATORIO Y OTROS)');
+    const exsRe = (ev.examenesComplementarios || []).filter((e: any) => e.nombre?.trim());
+    if (exsRe.length > 0) {
+      AT({ startY: y, margin: { left: M, right: M }, theme: 'grid', styles: { ...base, fontSize: 6.5 }, headStyles: { ...head, fontSize: 6 }, head: [['EXAMEN', 'FECHA\naaaa / mm / dd', 'RESULTADO']], body: exsRe.map((e: any) => [e.nombre, e.fecha || '-', e.resultado || '-']) });
+    } else textoLibreRe('Sin exámenes complementarios registrados.', 6);
+    y += 1;
+
+    // G. Diagnóstico
+    secHeaderRe('G. DIAGNÓSTICO                    PRE= PRESUNTIVO          DEF= DEFINITIVO');
+    const dxRe = (ev.diagnosticos || []).filter((d: any) => d.descripcion?.trim());
+    if (dxRe.length > 0) {
+      AT({ startY: y, margin: { left: M, right: M }, theme: 'grid', styles: { ...base, fontSize: 6.5, halign: 'center' }, headStyles: { ...head, fontSize: 6, halign: 'center' }, head: [['N°', 'DESCRIPCIÓN', 'CIE', 'PRE', 'DEF']], body: dxRe.map((dx: any, i: number) => [`${i + 1}`, { content: dx.descripcion, styles: { halign: 'left' } }, dx.cie || '-', dx.tipo === 'presuntivo' ? 'X' : '', dx.tipo === 'definitivo' ? 'X' : '']), columnStyles: { 0: { cellWidth: 8 }, 3: { cellWidth: 10 }, 4: { cellWidth: 10 } } });
+    } else textoLibreRe('PACIENTE SANO.', 5);
+    y += 1;
+
+    // H. Aptitud (con reubicación)
+    secHeaderRe('H. APTITUD MÉDICA PARA EL TRABAJO');
+    AT({ startY: y, margin: { left: M, right: M }, theme: 'grid', styles: { ...base, halign: 'center', fontSize: 7 }, headStyles: { ...head, halign: 'center', fontSize: 6.5 }, head: [['APTO', 'APTO EN OBSERVACIÓN', 'APTO CON LIMITACIONES', 'NO APTO']], body: [[(!ev.aptitudMedica || ev.aptitudMedica === 'apto') ? 'X' : '', ev.aptitudMedica === 'aptoObservacion' ? 'X' : '', ev.aptitudMedica === 'aptoLimitaciones' ? 'X' : '', ev.aptitudMedica === 'noApto' ? 'X' : '']] });
+    AT({ startY: y, margin: { left: M, right: M }, theme: 'grid', styles: { ...base, fontSize: 6.5, halign: 'left' }, body: [[`Observación:   ${ev.aptitudObservacion || '-'}`], [`Limitación:    ${ev.aptitudLimitaciones || '-'}`], [`Reubicación:  ${ev.aptitudReubicacion || '-'}`]] });
+    y += 1;
+
+    // I. Recomendaciones + cert + firmas
+    secHeaderRe('I. RECOMENDACIONES Y/O TRATAMIENTO');
+    textoLibreRe((Array.isArray(ev.recomendaciones) ? ev.recomendaciones.join('; ') + (ev.recomendacionesOtras ? `; ${ev.recomendacionesOtras}` : '') : ev.recomendaciones || 'Ninguna particular al momento.'), 7);
+    y += 2;
+
+    pdf.setFillColor(248, 248, 248); pdf.setDrawColor(0);
+    const certTxt = 'CERTIFICO QUE LO ANTERIORMENTE EXPRESADO EN RELACIÓN A MI ESTADO DE SALUD ES VERDAD. SE ME HA INFORMADO LAS MEDIDAS PREVENTIVAS A TOMAR PARA DISMINUIR O MITIGAR LOS RIESGOS RELACIONADOS CON MI ACTIVIDAD LABORAL.';
+    const certLns = pdf.splitTextToSize(certTxt, CW - 3);
+    const certHRe = certLns.length * 3 + 3;
+    pdf.rect(M, y, CW, certHRe, 'FD'); pdf.setFontSize(6.5); pdf.setFont('helvetica', 'bold'); pdf.text(certLns, M + 1.5, y + 3); y += certHRe + 3;
+
+    secHeaderRe('J. DATOS DEL PROFESIONAL                                                                             K. FIRMA DEL USUARIO');
+    AT({ startY: y, margin: { left: M, right: M }, theme: 'grid', styles: { ...base, fontSize: 6.5, halign: 'center' }, headStyles: { ...head, fontSize: 6, halign: 'center' }, head: [['FECHA\naaaa-mm-dd', 'HORA', 'NOMBRES Y APELLIDOS', 'CÓDIGO', 'FIRMA Y SELLO', 'FIRMA DEL USUARIO']], body: [[fmtF(ev.fecha), fmtHora(ev.fecha), (ev.medicoNombre || 'MÉDICO OCUPACIONAL').toUpperCase(), ev.medicoCedula || '-', '', '']], bodyStyles: { minCellHeight: 16, valign: 'bottom', halign: 'center' } });
+
+    pdf.save(`SO-RE-39_REINTEGRO_${trabajador.primerApellido}_${trabajador.primerNombre}_${fmtF(ev.fecha)}.pdf`);
+  };
+
+  // ----------------------------------------------------------------
   // PDF SO-RE-41 (PREOCUPACIONAL) — sigue la hoja oficial de 3 páginas
   // ----------------------------------------------------------------
   const generarPDFPreocupacional = (evParam?: any) => {
@@ -1336,6 +1492,7 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
         onNuevaPeriodica={() => navigate(`/evaluar/${trabajadorId}`)}
         onNuevaRetiro={() => navigate(`/evaluar-retiro/${trabajadorId}`)}
         onNuevaPreocupacional={() => navigate(`/evaluar-preocupacional/${trabajadorId}`)}
+        onNuevaReintegro={() => navigate(`/evaluar-reintegro/${trabajadorId}`)}
         onNuevoPermiso={() => navigate('/permisos')}
         onEditPermiso={abrirEditPermiso}
         onDeletePermiso={handleEliminarPermiso}
@@ -1511,6 +1668,7 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
                 <p className="text-xs text-slate-500 uppercase tracking-wide">
                   {(evDrawer as any).tipo === 'RETIRO' ? 'Evaluación de Retiro SO-RE-40'
                     : String((evDrawer as any).tipoEvaluacion || '').includes('preocupacional') ? 'Evaluación Preocupacional SO-RE-41'
+                    : String((evDrawer as any).tipoEvaluacion || '').includes('reintegro') ? 'Evaluación de Reintegro SO-RE-39'
                     : 'Historia Clínica SO-RE-38'}
                 </p>
                 <p className="text-base font-bold text-slate-800">{fmtFH((evDrawer as any).fecha)}</p>
@@ -1521,6 +1679,7 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
                     const ev: any = evDrawer;
                     if (ev.tipo === 'RETIRO') navigate(`/evaluar-retiro/${trabajadorId}?editId=${ev.id}`);
                     else if (String(ev.tipoEvaluacion || '').includes('preocupacional')) navigate(`/evaluar-preocupacional/${trabajadorId}?editId=${ev.id}`);
+                    else if (String(ev.tipoEvaluacion || '').includes('reintegro')) navigate(`/evaluar-reintegro/${trabajadorId}?editId=${ev.id}`);
                     else navigate(`/evaluar/${trabajadorId}?editId=${ev.id}`);
                   }}
                   className="px-3 py-1.5 bg-amber-500 text-white text-xs font-semibold rounded-lg hover:bg-amber-600"
@@ -1530,6 +1689,7 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
                     const ev: any = evDrawer;
                     if (ev.tipo === 'RETIRO') generarPDFRetiro(ev);
                     else if (String(ev.tipoEvaluacion || '').includes('preocupacional')) generarPDFPreocupacional(ev);
+                    else if (String(ev.tipoEvaluacion || '').includes('reintegro')) generarPDFReintegro(ev);
                     else generarPDF(ev);
                   }}
                   className="px-3 py-1.5 bg-red-600 text-white text-xs font-semibold rounded-lg hover:bg-red-700"

@@ -1,10 +1,11 @@
 // Registro de morbilidad estilo matriz ocupacional (formato Excel):
 // N°, fecha, nombre, edad, sexo H/M, externo, diagnóstico, CIE-10,
 // primera/subsecuente, común/ocupacional, procedimientos marcados con "1".
-import { Download } from 'lucide-react';
+import { Download, BedDouble } from 'lucide-react';
 import type { AtencionMedica } from '../../types/atencion';
 import { PROCEDIMIENTOS_CONSULTA } from '../../types/atencion';
-import { toDate } from '../../services/atenciones';
+import { toDate, tieneReposo, reposoTexto } from '../../services/atenciones';
+import { Link } from 'react-router-dom';
 
 const ACCENT = '#1d4fad';
 const HEAD_BG = '#eef2f8';
@@ -33,7 +34,7 @@ export default function RegistroAtenciones({ atenciones, tituloPeriodo }: Props)
       'N°', 'FECHA', 'HORA', 'NOMBRE Y APELLIDOS', 'EDAD', 'SEXO H', 'SEXO M',
       'PERSONAL EXTERNO', 'DIAGNÓSTICO', 'CÓDIGO CIE-10', 'PRIMERA', 'SUBSECUENTE',
       'ENFERMEDAD COMÚN', 'OCUPACIONAL', ...PROCEDIMIENTOS_CONSULTA.map((p) => p.toUpperCase()),
-      'REPOSO (DÍAS)', 'MEDICACIÓN',
+      'REPOSO (DÍAS / HORARIO)', 'MEDICACIÓN',
     ];
     const rows = atenciones.map((a, i) => {
       const d = toDate(a.fecha);
@@ -53,7 +54,7 @@ export default function RegistroAtenciones({ atenciones, tituloPeriodo }: Props)
         a.relacion === 'Común' ? '1' : '',
         a.relacion === 'Ocupacional' ? '1' : '',
         ...PROCEDIMIENTOS_CONSULTA.map((p) => (tieneProc(a, p) ? '1' : '')),
-        a.reposoDias > 0 ? String(a.reposoDias) : '',
+        tieneReposo(a) ? reposoTexto(a) : '',
         a.medicacion.map((m) => `${m.nombre}${m.cantidad > 1 ? ` x${m.cantidad}` : ''}`).join(', '),
       ];
     });
@@ -85,7 +86,7 @@ export default function RegistroAtenciones({ atenciones, tituloPeriodo }: Props)
               <ThH colSpan={2}>Tipo</ThH>
               <ThH colSpan={2}>Relación</ThH>
               <ThH colSpan={PROCEDIMIENTOS_CONSULTA.length}>Procedimientos</ThH>
-              <ThV rowSpan={2} vertical>Reposo (días)</ThV>
+              <ThV rowSpan={2} vertical>Reposo (días / horario)</ThV>
             </tr>
             {/* Fila 2: subcolumnas verticales */}
             <tr style={{ background: HEAD_BG }}>
@@ -123,7 +124,19 @@ export default function RegistroAtenciones({ atenciones, tituloPeriodo }: Props)
                 <Mark on={a.relacion === 'Común'} />
                 <Mark on={a.relacion === 'Ocupacional'} />
                 {PROCEDIMIENTOS_CONSULTA.map((p) => <Mark key={p} on={tieneProc(a, p)} />)}
-                <Td className="text-center font-mono">{a.reposoDias > 0 ? a.reposoDias : ''}</Td>
+                <Td className="text-center font-mono whitespace-nowrap">
+                  {tieneReposo(a) && (
+                    a.permisoId ? (
+                      <Link to={`/permisos?permiso=${a.permisoId}`} title="Abrir el permiso interno" className="inline-flex items-center gap-1 font-bold no-underline" style={{ color: '#a01f2a' }}>
+                        <BedDouble size={12} /> {reposoTexto(a)}
+                      </Link>
+                    ) : (
+                      <span className="inline-flex items-center gap-1" title="Reposo indicado (sin permiso enlazado)">
+                        <BedDouble size={12} /> {reposoTexto(a)}
+                      </span>
+                    )
+                  )}
+                </Td>
               </tr>
             ))}
             {atenciones.length === 0 && (

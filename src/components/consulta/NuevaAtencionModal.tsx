@@ -4,7 +4,8 @@ import { useState, useEffect } from 'react';
 import {
   Stethoscope, X, Search, ChevronDown, Pill, Plus, Minus, Check, AlertTriangle,
 } from 'lucide-react';
-import { Timestamp } from 'firebase/firestore';
+import { Timestamp, doc, updateDoc } from 'firebase/firestore';
+import { db } from '../../services/firebase';
 import BuscadorCIE10 from '../BuscadorCIE10';
 import { useToast } from '../Toast';
 import { crearAtencion } from '../../services/atenciones';
@@ -183,7 +184,7 @@ export default function NuevaAtencionModal({ trabajadores, medicoId, medicoNombr
     };
 
     try {
-      await crearAtencion(data);
+      const atencionId = await crearAtencion(data);
 
       // Descontar del inventario los medicamentos con código
       const itemsInventario = meds.filter((m) => m.codigo);
@@ -214,7 +215,7 @@ export default function NuevaAtencionModal({ trabajadores, medicoId, medicoNombr
           const hoy8 = new Date(); hoy8.setHours(8, 0, 0, 0);
           const hasta = new Date(hoy8);
           if (reposoModo === 'dias' && reposo > 1) hasta.setDate(hasta.getDate() + reposo - 1);
-          await crearPermiso({
+          const permisoId = await crearPermiso({
             trabajadorId: worker!.id!,
             apellidos: `${worker!.primerApellido ?? ''} ${worker!.segundoApellido ?? ''}`.trim(),
             nombres: `${worker!.primerNombre ?? ''} ${worker!.segundoNombre ?? ''}`.trim(),
@@ -235,6 +236,8 @@ export default function NuevaAtencionModal({ trabajadores, medicoId, medicoNombr
             medicoId,
             medicoNombre,
           } as any);
+          // Enlaza la atención con su permiso (símbolo de reposo → permiso).
+          await updateDoc(doc(db, 'atenciones', atencionId), { permisoId });
           toast.success('Permiso interno de reposo registrado automáticamente.');
         } catch (permErr) {
           console.warn('Atención guardada pero no se pudo crear el permiso interno:', permErr);

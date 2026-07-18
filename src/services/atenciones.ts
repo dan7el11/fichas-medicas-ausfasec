@@ -137,8 +137,21 @@ export function calcularStats(atenciones: AtencionMedica[]): ConsultaStats {
       0,
     ),
     procedimientos: atenciones.reduce((s, a) => s + a.procedimientos.length, 0),
-    reposos: atenciones.filter((a) => a.reposoDias > 0).length,
+    // Ausentismo emitido: cuenta reposos por días Y permisos por horas.
+    reposos: atenciones.filter((a) => tieneReposo(a)).length,
   };
+}
+
+/** ¿La atención emitió reposo/permiso (por días o por horas)? */
+export function tieneReposo(a: AtencionMedica): boolean {
+  return (a.reposoDias ?? 0) > 0 || (a.reposoHoras ?? 0) > 0;
+}
+
+/** Texto corto del reposo emitido: '2 d' o el horario ('08:00 – 12:00'). */
+export function reposoTexto(a: AtencionMedica): string {
+  if ((a.reposoDias ?? 0) > 0) return `${a.reposoDias} d`;
+  if ((a.reposoHoras ?? 0) > 0) return a.reposoHorario || `${a.reposoHoras} h`;
+  return '';
 }
 
 // ── Resumen CIE-10 del día (morbilidad por capítulo) ─────────────────────────
@@ -190,6 +203,6 @@ export function calcularResumenCie(atenciones: AtencionMedica[]): ResumenCie {
 export function tratamientoTexto(a: AtencionMedica): string {
   const meds = a.medicacion.map((m) => `${m.nombre}${m.cantidad > 1 ? ` ×${m.cantidad}` : ''}`);
   const partes = [...meds, ...a.procedimientos];
-  if (a.reposoDias > 0) partes.push(`Reposo ${a.reposoDias}d`);
+  if (tieneReposo(a)) partes.push(`Reposo ${reposoTexto(a)}`);
   return partes.length ? partes.join(' · ') : '—';
 }

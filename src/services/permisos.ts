@@ -140,14 +140,52 @@ export function controlJustificativos(permisos: PermisoMedico[]): ControlJustif 
 export function asuntoCorreo(p: PermisoMedico): string {
   return `Notificación de reposo médico interno — ${p.apellidos} ${p.nombres} (CI ${p.cedula})`;
 }
+/**
+ * Días de un permiso contados de forma inclusiva: misma fecha de inicio y de
+ * fin cuenta como 1 día. Usa el campo `dias` si está registrado; si no, lo
+ * calcula del rango desde–hasta.
+ */
+export function diasDePermiso(p: PermisoMedico): number {
+  if (p.dias > 0) return p.dias;
+  // Clonar antes de normalizar la hora: toDate puede devolver el mismo objeto
+  // Date del permiso y setHours lo mutaría.
+  const d0 = new Date(toDate(p.desde)), d1 = new Date(toDate(p.hasta));
+  if (isNaN(d0.getTime()) || isNaN(d1.getTime())) return 1;
+  const dias = Math.round((d1.setHours(12, 0, 0, 0) - d0.setHours(12, 0, 0, 0)) / 86400000) + 1;
+  return Math.max(1, dias);
+}
+
 export function cuerpoCorreo(p: PermisoMedico, institucion = ''): string {
-  const reincorp = new Date(toDate(p.hasta)); reincorp.setDate(reincorp.getDate() + 1);
   const emp = institucion.trim();
+  const porHoras = p.unidad === 'horas' || TIPOS_PERMISO[p.tipo].unidad === 'horas';
+
+  let detalle: string;
+  if (porHoras) {
+    // Por horas: conteo de horas + horario de inicio y fin del permiso.
+    const horario = p.horaDesde && p.horaHasta
+      ? `\n• Hora de inicio:  ${fmtHora12(p.horaDesde)}\n• Hora de finalización:  ${fmtHora12(p.horaHasta)}`
+      : '';
+    detalle = `DETALLE DEL PERMISO
+• Modalidad:  Por horas
+• Fecha:  ${fmtFecha(p.desde)}
+• Horas otorgadas:  ${p.horas}${horario}
+• Reincorporación prevista:  el mismo día, al finalizar el permiso`;
+  } else {
+    // Por días: conteo inclusivo (misma fecha de inicio y fin = 1 día).
+    const dias = diasDePermiso(p);
+    const reincorp = new Date(toDate(p.hasta)); reincorp.setDate(reincorp.getDate() + 1);
+    detalle = `DETALLE DEL REPOSO
+• Días de reposo otorgados:  ${dias}
+• Fecha de inicio:  ${fmtFecha(p.desde)}
+• Fecha de finalización:  ${fmtFecha(p.hasta)}
+• Reincorporación prevista:  ${reincorp.toLocaleDateString('es-EC', { day: '2-digit', month: 'short', year: 'numeric' })}`;
+  }
+
   return `Estimados señores:
 
 Reciban un cordial saludo del Servicio Médico Ocupacional${emp ? ` de ${emp}` : ''}.
 
-Por medio de la presente, y en cumplimiento de las disposiciones vigentes en materia de seguridad y salud en el trabajo, notifico que el trabajador detallado a continuación fue valorado en el dispensario médico de la empresa y se le ha prescrito reposo médico interno:
+Por medio de la presente, y en cumplimiento de las disposiciones vigentes en materia de seguridad y salud en el trabajo, notifico que el trabajador detallado a continuación fue valorado en el dispensario médico de la empresa y se le ha prescrito ${porHoras ? 'un permiso médico interno por horas' : 'reposo médico interno'}:
 
 DATOS DEL TRABAJADOR
 • Nombre completo:  ${p.apellidos} ${p.nombres}
@@ -155,11 +193,7 @@ DATOS DEL TRABAJADOR
 • Cargo / Puesto:  ${p.puesto}
 • Área:  ${p.area}
 
-DETALLE DEL REPOSO
-• Días de reposo otorgados:  ${p.dias}
-• Fecha de inicio:  ${fmtFecha(p.desde)}
-• Fecha de finalización:  ${fmtFecha(p.hasta)}
-• Reincorporación prevista:  ${reincorp.toLocaleDateString('es-EC', { day: '2-digit', month: 'short', year: 'numeric' })}
+${detalle}
 
 El Servicio Médico realizará el seguimiento correspondiente del caso y notificará oportunamente cualquier novedad o eventual necesidad de prórroga.
 

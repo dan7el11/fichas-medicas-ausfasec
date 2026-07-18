@@ -1,8 +1,9 @@
 // Tarjeta de atención (vista Feed) y utilidades visuales compartidas.
 // Archivo NUEVO.
-import { Pill, Syringe, BedDouble } from 'lucide-react';
+import { Pill, Syringe, BedDouble, ExternalLink } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import type { AtencionMedica } from '../../types/atencion';
-import { toDate } from '../../services/atenciones';
+import { toDate, tieneReposo, reposoTexto } from '../../services/atenciones';
 
 const ACCENT = '#1d4fad';
 
@@ -109,13 +110,24 @@ export default function AtencionCard({ atencion: a, onOpen }: CardProps) {
             <Syringe size={13} /> {a.procedimientos.length}
           </span>
         )}
-        {a.reposoDias > 0 && (
-          <span
-            title="Reposo indicado"
-            className="inline-flex items-center gap-1 text-[12px] text-red-800 bg-red-50 px-2 py-[3px] rounded-md font-semibold"
-          >
-            <BedDouble size={13} /> {a.reposoDias}d
-          </span>
+        {tieneReposo(a) && (
+          a.permisoId ? (
+            // Con permiso interno generado: enlaza directo al permiso.
+            <Link
+              to={`/permisos?permiso=${a.permisoId}`}
+              title="Reposo emitido — abrir el permiso interno"
+              className="inline-flex items-center gap-1 text-[12px] text-red-800 bg-red-50 px-2 py-[3px] rounded-md font-semibold no-underline hover:bg-red-100"
+            >
+              <BedDouble size={13} /> {reposoTexto(a)} <ExternalLink size={11} />
+            </Link>
+          ) : (
+            <span
+              title="Reposo indicado"
+              className="inline-flex items-center gap-1 text-[12px] text-red-800 bg-red-50 px-2 py-[3px] rounded-md font-semibold"
+            >
+              <BedDouble size={13} /> {reposoTexto(a)}
+            </span>
+          )
         )}
       </div>
 

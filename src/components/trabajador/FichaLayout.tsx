@@ -44,6 +44,7 @@ function aptInfo(a: string) { return APT[a] ?? { label: a || 'Pendiente', fg: '#
 const TIPO_BADGE: Record<string, { bg: string; fg: string }> = {
   'Retiro': { bg: '#f8eddc', fg: '#9a4a07' },
   'Pre-ocupacional': { bg: '#d8f3ee', fg: '#0d6b5f' },
+  'Reintegro': { bg: '#f0ebff', fg: '#5b3fbd' },
   'Periódica': { bg: '#eaf0f9', fg: '#2a4d8f' },
 };
 function tipoBadge(ev: any) {
@@ -74,6 +75,7 @@ export interface FichaLayoutProps {
   onNuevaPeriodica: () => void;
   onNuevaRetiro: () => void;
   onNuevaPreocupacional?: () => void;
+  onNuevaReintegro?: () => void;
   onNuevoPermiso: () => void;
   onEditPermiso: (p: PermisoMedico) => void;
   onDeletePermiso: (id: string) => void;
@@ -155,6 +157,11 @@ export default function FichaLayout(props: FichaLayoutProps) {
                       <button onClick={() => { setMenuEval(false); props.onNuevaPeriodica(); }} className="flex items-center gap-2 w-full text-left px-3.5 py-3 text-[13px] font-semibold hover:bg-blue-50 border-t border-slate-100 border-x-0 border-b-0 bg-white cursor-pointer">
                         <span className="text-[10px] font-bold bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">PERIÓDICA</span> SO-RE-38
                       </button>
+                      {props.onNuevaReintegro && (
+                        <button onClick={() => { setMenuEval(false); props.onNuevaReintegro!(); }} className="flex items-center gap-2 w-full text-left px-3.5 py-3 text-[13px] font-semibold hover:bg-violet-50 border-t border-slate-100 border-x-0 border-b-0 bg-white cursor-pointer">
+                          <span className="text-[10px] font-bold bg-violet-100 text-violet-700 px-1.5 py-0.5 rounded">REINTEGRO</span> SO-RE-39
+                        </button>
+                      )}
                       <button onClick={() => { setMenuEval(false); props.onNuevaRetiro(); }} className="flex items-center gap-2 w-full text-left px-3.5 py-3 text-[13px] font-semibold hover:bg-orange-50 border-t border-slate-100 border-x-0 border-b-0 bg-white cursor-pointer">
                         <span className="text-[10px] font-bold bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded">RETIRO</span> SO-RE-40
                       </button>
