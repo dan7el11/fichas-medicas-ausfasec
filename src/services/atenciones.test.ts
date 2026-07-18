@@ -68,7 +68,7 @@ describe('tratamientoTexto', () => {
     const t = tratamientoTexto(a);
     expect(t).toContain('Ibuprofeno');
     expect(t).toContain('Curación simple');
-    expect(t).toContain('Reposo 2d');
+    expect(t).toContain('Reposo 2 d');
   });
   it('devuelve guion cuando no hay nada', () => {
     expect(tratamientoTexto({ medicacion: [], procedimientos: [], reposoDias: 0 } as unknown as AtencionMedica)).toBe('—');

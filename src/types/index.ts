@@ -405,5 +405,17 @@ export interface EvaluacionMedica {
   /** Certificado de aptitud médico laboral (SO-RE-20) anexo a esta evaluación. */
   certificadoAptitud?: CertificadoAptitud;
 
+  // ── Campos específicos del SO-RE-39 (reintegro) ──
+  /** Fecha del último día laboral antes de la ausencia (aaaa-mm-dd). */
+  fechaUltimoDiaLaboral?: string;
+  /** Fecha de reingreso al trabajo (aaaa-mm-dd). */
+  fechaReingreso?: string;
+  /** Total de días de ausencia. */
+  totalDiasAusencia?: string;
+  /** Causa de la salida (enfermedad general, accidente de trabajo, etc.). */
+  causaSalida?: string;
+  /** Reubicación indicada en la aptitud (Sección H del SO-RE-39). */
+  aptitudReubicacion?: string;
+
   createdAt: any;
 }

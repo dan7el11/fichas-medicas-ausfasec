@@ -43,6 +43,8 @@ export interface AtencionMedica {
   /** Reposo por horas: horario 'HH:MM – HH:MM' y horas calculadas. */
   reposoHorario?: string;
   reposoHoras?: number;
+  /** Permiso interno generado automáticamente por el reposo de esta consulta. */
+  permisoId?: string;
   observaciones: string;
   estado: 'atendido' | 'espera';
 

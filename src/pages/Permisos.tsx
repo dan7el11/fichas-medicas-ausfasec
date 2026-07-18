@@ -3,7 +3,7 @@
 // Acento del módulo: violeta. NINGÚN cambio funcional.
 import type { ReactNode } from 'react';
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { collection, getDocs, query as fbQuery, orderBy } from 'firebase/firestore';
 import {
   Calendar, Plus, Search, BedDouble, AlertTriangle, X, BarChart3, Shield,
@@ -34,6 +34,7 @@ const GRUPOS: { key: EstadoPermiso; label: string; color: string; desc: string }
 export default function Permisos() {
   const { user, nombreProfesional } = useAuth();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [trabajadores, setTrabajadores] = useState<Trabajador[]>([]);
   const [permisos, setPermisos] = useState<PermisoMedico[]>([]);
   const [cargando, setCargando] = useState(true);
@@ -55,6 +56,18 @@ export default function Permisos() {
     finally { setCargando(false); }
   };
   useEffect(() => { cargar(); }, []);
+
+  // Deep-link desde la consulta diaria: /permisos?permiso=<id> abre el detalle.
+  useEffect(() => {
+    const id = searchParams.get('permiso');
+    if (!id || permisos.length === 0) return;
+    const p = permisos.find((x) => x.id === id);
+    if (p) setDetalle(p);
+    const next = new URLSearchParams(searchParams);
+    next.delete('permiso');
+    setSearchParams(next, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [permisos]);
 
   const filtrados = useMemo(() => {
     let l = permisos;

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { estadoPermiso, duracionPermiso, calcularAusentismo, controlJustificativos } from './permisos';
+import { estadoPermiso, duracionPermiso, calcularAusentismo, controlJustificativos, cuerpoCorreo, diasDePermiso } from './permisos';
 import type { PermisoMedico } from '../types/permiso';
 
 const dias = (n: number) => { const d = new Date(); d.setDate(d.getDate() + n); return d; };
@@ -51,5 +51,40 @@ describe('controlJustificativos', () => {
     ]);
     expect(r.total).toBe(2);
     expect(r.conCert).toBe(1);
+  });
+});
+
+describe('diasDePermiso', () => {
+  it('misma fecha de inicio y fin cuenta como 1 día', () => {
+    const f = new Date('2026-03-10T08:00:00');
+    expect(diasDePermiso(permiso({ dias: 0, desde: f, hasta: f }))).toBe(1);
+  });
+  it('rango de 3 días naturales cuenta 3 (inclusivo)', () => {
+    expect(diasDePermiso(permiso({ dias: 0, desde: new Date('2026-03-10T08:00:00'), hasta: new Date('2026-03-12T08:00:00') }))).toBe(3);
+  });
+  it('respeta el campo dias cuando está registrado', () => {
+    expect(diasDePermiso(permiso({ dias: 5 }))).toBe(5);
+  });
+});
+
+describe('cuerpoCorreo', () => {
+  it('por horas: incluye el conteo de horas y el inicio y fin del permiso', () => {
+    const txt = cuerpoCorreo(permiso({
+      tipo: 'reposo_interno', unidad: 'horas', dias: 0, horas: 2,
+      horaDesde: '12:30', horaHasta: '14:30',
+      desde: new Date('2026-03-10T08:00:00'), hasta: new Date('2026-03-10T08:00:00'),
+    } as any));
+    expect(txt).toContain('Horas otorgadas:  2');
+    expect(txt).toContain('Hora de inicio:  12:30 pm');
+    expect(txt).toContain('Hora de finalización:  2:30 pm');
+    expect(txt).toContain('el mismo día');
+    expect(txt).not.toContain('Días de reposo');
+  });
+  it('por días: cuenta inclusiva y sin bloque de horas', () => {
+    const txt = cuerpoCorreo(permiso({
+      dias: 0, desde: new Date('2026-03-10T08:00:00'), hasta: new Date('2026-03-10T08:00:00'),
+    }));
+    expect(txt).toContain('Días de reposo otorgados:  1');
+    expect(txt).not.toContain('Horas otorgadas');
   });
 });
