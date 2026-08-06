@@ -203,6 +203,54 @@ export const RIESGOS_PSICOSOCIALES = [
 /** Categorías de riesgo de empleos anteriores (Sección D del SO-RE-41). */
 export const CATEGORIAS_RIESGO_EMPLEO = ['FÍSICO', 'MECÁNICO', 'QUÍMICO', 'BIOLÓGICO', 'ERGONÓMICO', 'PSICOSOCIAL'];
 
+// ── Catálogos del FORMATO UNIFICADO (Evaluación Médica Ocupacional, HCU-form.123/2025) ──
+// La categoría "DE SEGURIDAD" agrupa locativos + mecánicos + eléctricos; se
+// guarda en el arreglo `mecanicos` del modelo FactorRiesgoPuesto.
+export const RIESGOS_SEGURIDAD = [
+  'Falta de señalización, aseo, desorden',
+  'Atrapamiento entre máquinas y/o superficies',
+  'Atrapamiento entre objetos',
+  'Caída de objetos',
+  'Caídas al mismo nivel',
+  'Caídas a diferente nivel',
+  'Pinchazos',
+  'Cortes',
+  'Choques / colisión vehicular',
+  'Atropellamientos por vehículos',
+  'Proyección de fluidos',
+  'Proyección de partículas – fragmentos',
+  'Contacto con superficies de trabajos',
+  'Contacto eléctrico',
+];
+
+export const RIESGOS_QUIMICOS_U = [
+  'Polvos', 'Sólidos', 'Humos', 'Líquidos', 'Vapores', 'Aerosoles', 'Neblinas', 'Gaseosos',
+];
+
+export const RIESGOS_ERGONOMICOS_U = [
+  'Manejo manual de cargas', 'Movimientos repetitivos', 'Posturas forzadas',
+  'Trabajos con PVD', 'Diseño inadecuado del puesto',
+];
+
+export const RIESGOS_PSICOSOCIALES_U = [
+  'Monotonía del trabajo', 'Sobrecarga laboral', 'Minuciosidad de la tarea', 'Alta responsabilidad',
+  'Autonomía en la toma de decisiones', 'Supervisión y estilos de dirección deficiente',
+  'Conflicto de rol', 'Falta de claridad en las funciones', 'Incorrecta distribución del trabajo',
+  'Turnos rotativos', 'Relaciones interpersonales', 'Inestabilidad laboral', 'Amenaza delincuencial',
+];
+
+/** Grupo de atención prioritaria (Sección A del formato unificado). */
+export const GRUPOS_PRIORITARIOS = ['Embarazada', 'Persona con discapacidad', 'Enfermedad catastrófica', 'Adulto mayor'];
+
+/** Tipos de evaluación (etiqueta para catalogar y buscar). */
+export const TIPOS_EVALUACION_OCUP = [
+  { valor: 'preocupacional', label: 'Ingreso / Preocupacional' },
+  { valor: 'periodica', label: 'Periódico' },
+  { valor: 'reintegro', label: 'Reintegro' },
+  { valor: 'retiro', label: 'Retiro' },
+] as const;
+export type TipoEvaluacionOcup = typeof TIPOS_EVALUACION_OCUP[number]['valor'];
+
 // ── Fábricas de objetos vacíos ───────────────────────────────────────────────
 
 export const emptyAntecedenteClinico = (): AntecedenteClinico => ({
@@ -223,6 +271,8 @@ export const emptyAlergia = (): Alergia => ({
 
 export const emptyAntecedenteEmpleo = (): AntecedenteEmpleo => ({
   empresa: '', puesto: '', actividades: '', tiempoMeses: '', riesgos: [], observaciones: '',
+  esActual: false, incidente: false, accidente: false, enfermedadProfesional: false,
+  calificadoIess: null, fechaCalificacion: '', especificar: '',
 });
 
 export const emptyExamenTamizaje = (): ExamenTamizaje => ({

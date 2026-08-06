@@ -21,6 +21,7 @@ import type { OrdenExamen } from '../../types/examenPlan';
 import SeguimientoSignos from './SeguimientoSignos';
 import SeguimientoEspecialistas from './SeguimientoEspecialistas';
 import FisioterapiaPanel from './FisioterapiaPanel';
+import AntecedentesPanel from './AntecedentesPanel';
 
 const BRAND = '#9a3036';          // color institucional atenuado (vino/ladrillo)
 const BRAND_SOFT = '#f4e8e9';
@@ -76,6 +77,8 @@ export interface FichaLayoutProps {
   onNuevaRetiro: () => void;
   onNuevaPreocupacional?: () => void;
   onNuevaReintegro?: () => void;
+  /** Formato unificado. tipo = etiqueta preseleccionada (opcional). */
+  onNuevaOcupacional?: (tipo?: string) => void;
   onNuevoPermiso: () => void;
   onEditPermiso: (p: PermisoMedico) => void;
   onDeletePermiso: (id: string) => void;
@@ -88,7 +91,7 @@ export interface FichaLayoutProps {
   ergonomia?: ReactNode;
 }
 
-type Tab = 'resumen' | 'evaluaciones' | 'signos' | 'consultas' | 'examenes' | 'permisos' | 'especialistas' | 'fisioterapia';
+type Tab = 'resumen' | 'evaluaciones' | 'antecedentes' | 'signos' | 'consultas' | 'examenes' | 'permisos' | 'especialistas' | 'fisioterapia';
 
 export default function FichaLayout(props: FichaLayoutProps) {
   const { trabajador: t, nombreCompleto, evaluaciones, permisos, atenciones, ordenes } = props;
@@ -108,6 +111,7 @@ export default function FichaLayout(props: FichaLayoutProps) {
   const tabs: { key: Tab; label: string; n?: number }[] = [
     { key: 'resumen', label: 'Resumen' },
     { key: 'evaluaciones', label: 'Evaluaciones', n: evaluaciones.length },
+    { key: 'antecedentes', label: 'Antecedentes' },
     { key: 'signos', label: 'Signos' },
     { key: 'consultas', label: 'Consultas', n: atenciones.length },
     { key: 'examenes', label: 'Exámenes', n: ordenes.length },
@@ -143,28 +147,24 @@ export default function FichaLayout(props: FichaLayoutProps) {
             <div className="flex items-center gap-2 flex-wrap flex-shrink-0">
               {apt && <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-[12px] font-bold" style={{ background: apt.bg, color: apt.fg }}><span className="w-1.5 h-1.5 rounded-full" style={{ background: apt.bar }} />{apt.label}</span>}
               <button onClick={props.onEditarDatos} className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white border rounded-[9px] text-[13px] font-semibold cursor-pointer whitespace-nowrap" style={{ color: '#46423d', borderColor: '#d8d2c9' }}><Pencil size={14} /> Editar datos</button>
+              {/* Formato unificado: una sola opción. El menú permite elegir la
+                  etiqueta (ingreso/periódico/reintegro/retiro) como atajo, pero
+                  todos abren el mismo formulario de Evaluación Médica Ocupacional. */}
               <div className="relative">
-                <button onClick={() => setMenuEval((o) => !o)} className="inline-flex items-center gap-1.5 px-3.5 py-2 text-white border-none rounded-[9px] text-[13px] font-bold cursor-pointer whitespace-nowrap" style={{ background: BRAND }}><Plus size={15} /> Nueva evaluación <ChevronDown size={14} /></button>
+                <div className="inline-flex rounded-[9px] overflow-hidden">
+                  <button onClick={() => props.onNuevaOcupacional?.()} className="inline-flex items-center gap-1.5 px-3.5 py-2 text-white border-none text-[13px] font-bold cursor-pointer whitespace-nowrap" style={{ background: BRAND }}><Plus size={15} /> Nueva evaluación</button>
+                  <button onClick={() => setMenuEval((o) => !o)} title="Elegir tipo" className="px-2 py-2 text-white border-none cursor-pointer" style={{ background: BRAND, borderLeft: '1px solid rgba(255,255,255,0.25)' }}><ChevronDown size={14} /></button>
+                </div>
                 {menuEval && (
                   <>
                     <div onClick={() => setMenuEval(false)} className="fixed inset-0 z-30" />
                     <div className="absolute right-0 mt-1.5 z-40 bg-white rounded-xl shadow-xl border border-slate-200 overflow-hidden min-w-[240px]">
-                      {props.onNuevaPreocupacional && (
-                        <button onClick={() => { setMenuEval(false); props.onNuevaPreocupacional!(); }} className="flex items-center gap-2 w-full text-left px-3.5 py-3 text-[13px] font-semibold hover:bg-teal-50 border-none bg-white cursor-pointer">
-                          <span className="text-[10px] font-bold bg-teal-100 text-teal-700 px-1.5 py-0.5 rounded">PREOCUPACIONAL</span> SO-RE-41
+                      <div className="px-3.5 py-2 text-[10.5px] font-bold uppercase text-slate-400 border-b border-slate-100">Evaluación médica ocupacional</div>
+                      {([['preocupacional', 'INGRESO / PREOCUPACIONAL', 'bg-teal-100 text-teal-700'], ['periodica', 'PERIÓDICO', 'bg-blue-100 text-blue-700'], ['reintegro', 'REINTEGRO', 'bg-violet-100 text-violet-700'], ['retiro', 'RETIRO', 'bg-orange-100 text-orange-700']] as const).map(([tipo, label, chip]) => (
+                        <button key={tipo} onClick={() => { setMenuEval(false); props.onNuevaOcupacional?.(tipo); }} className="flex items-center gap-2 w-full text-left px-3.5 py-3 text-[13px] font-semibold hover:bg-slate-50 border-t border-slate-100 border-x-0 border-b-0 bg-white cursor-pointer">
+                          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${chip}`}>{label}</span>
                         </button>
-                      )}
-                      <button onClick={() => { setMenuEval(false); props.onNuevaPeriodica(); }} className="flex items-center gap-2 w-full text-left px-3.5 py-3 text-[13px] font-semibold hover:bg-blue-50 border-t border-slate-100 border-x-0 border-b-0 bg-white cursor-pointer">
-                        <span className="text-[10px] font-bold bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">PERIÓDICA</span> SO-RE-38
-                      </button>
-                      {props.onNuevaReintegro && (
-                        <button onClick={() => { setMenuEval(false); props.onNuevaReintegro!(); }} className="flex items-center gap-2 w-full text-left px-3.5 py-3 text-[13px] font-semibold hover:bg-violet-50 border-t border-slate-100 border-x-0 border-b-0 bg-white cursor-pointer">
-                          <span className="text-[10px] font-bold bg-violet-100 text-violet-700 px-1.5 py-0.5 rounded">REINTEGRO</span> SO-RE-39
-                        </button>
-                      )}
-                      <button onClick={() => { setMenuEval(false); props.onNuevaRetiro(); }} className="flex items-center gap-2 w-full text-left px-3.5 py-3 text-[13px] font-semibold hover:bg-orange-50 border-t border-slate-100 border-x-0 border-b-0 bg-white cursor-pointer">
-                        <span className="text-[10px] font-bold bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded">RETIRO</span> SO-RE-40
-                      </button>
+                      ))}
                     </div>
                   </>
                 )}
@@ -203,6 +203,7 @@ export default function FichaLayout(props: FichaLayoutProps) {
           </>
         )}
         {tab === 'evaluaciones' && <Evaluaciones {...props} />}
+        {tab === 'antecedentes' && <AntecedentesPanel trabajadorId={t.id} sexo={t.sexo} />}
         {tab === 'signos' && (
           <SeguimientoSignos
             trabajadorId={t.id}
