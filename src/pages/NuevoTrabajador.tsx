@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { db } from '../services/firebase';
 import { registrarAuditoria } from '../services/auditoria';
 import { validarCedula } from '../utils/calculations';
+import { CARGOS_CATALOGO, perfilDeCargo } from '../constants/funcionesCargo';
 import { useAuth } from '../contexts/AuthContext';
 
 export default function NuevoTrabajador() {
@@ -197,15 +198,26 @@ export default function NuevoTrabajador() {
               <label className="block text-sm font-medium text-slate-700 mb-1">
                 Puesto de Trabajo <span className="text-red-500">*</span>
               </label>
+              {/* Cargos del catálogo institucional: al coincidir, sus funciones
+                  se autocompletan como actividades en la evaluación médica. */}
               <input
                 type="text"
                 name="puestoTrabajo"
+                list="cargos-catalogo"
                 required
                 value={datos.puestoTrabajo}
                 onChange={handleChange}
                 className={inputCls(false)}
-                placeholder="Ej: Operario de planta, Administrativo..."
+                placeholder="Ej: OPERADOR/A DE PLANTA (elige del catálogo)"
               />
+              <datalist id="cargos-catalogo">
+                {CARGOS_CATALOGO.map((c) => <option key={c} value={c} />)}
+              </datalist>
+              {datos.puestoTrabajo.trim() !== '' && (
+                perfilDeCargo(datos.puestoTrabajo)
+                  ? <p className="text-[11px] text-green-700 mt-1">✓ Cargo del catálogo: sus funciones se autocompletarán en la evaluación.</p>
+                  : <p className="text-[11px] text-amber-600 mt-1">Cargo fuera del catálogo: las actividades se escribirán a mano en la evaluación.</p>
+              )}
             </div>
 
             <div>

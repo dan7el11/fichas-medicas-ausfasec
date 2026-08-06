@@ -1,4 +1,4 @@
 // Versión visible de la aplicación. Súbela en cada entrega importante para
 // poder verificar qué versión está desplegada (se muestra en el login y en el
 // menú de usuario).
-export const APP_VERSION = 'v4.0 · formulario unificado + antecedentes secuenciales';
+export const APP_VERSION = 'v4.1 · matriz de riesgos fiel + funciones por cargo';

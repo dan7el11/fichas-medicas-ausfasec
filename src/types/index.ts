@@ -307,6 +307,14 @@ export interface FactorRiesgoPuesto {
   ergonomicos: string[];
   psicosociales: string[];
   medidasPreventivas: string;
+  // ── Formato unificado: matriz de riesgo × actividad (Sección G) ──
+  /** Actividades importantes de la jornada, numeradas 1..7 (columnas de la matriz). */
+  actividadesJornada?: string[];
+  /**
+   * Riesgo → índices (0-based) de las actividades en las que está presente.
+   * Es la base del profesiograma por cargo y actividad.
+   */
+  riesgoActividades?: Record<string, number[]>;
 }
 
 // ====================================================================

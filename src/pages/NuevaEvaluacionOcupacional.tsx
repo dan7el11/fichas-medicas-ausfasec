@@ -4,7 +4,8 @@
 // reintegro/retiro) para catalogar y buscar. Los antecedentes se toman del
 // expediente secuencial del trabajador (se autocompletan y se actualizan).
 // Reutiliza SignosVitalesForm, SeccionI (examen físico), BuscadorCIE10 y catálogos.
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, Fragment } from 'react';
+import { X } from 'lucide-react';
 import { useToast } from '../components/Toast';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { doc, getDoc, collection, addDoc, updateDoc, arrayUnion, Timestamp } from 'firebase/firestore';
@@ -18,11 +19,11 @@ import { SeccionI } from '../components/evaluacion/SeccionesEvaluacion';
 import { getExpedienteAntecedentes, fusionarYGuardarAntecedentes } from '../services/antecedentes';
 import { nombreProfesionalDe, codigoProfesionalDe } from '../utils/medicalHelpers';
 import {
-  OPCIONES_RECOMENDACIONES, REGIONES_EXAMEN_FISICO,
-  RIESGOS_FISICOS, RIESGOS_SEGURIDAD, RIESGOS_QUIMICOS_U, RIESGOS_BIOLOGICOS, RIESGOS_ERGONOMICOS_U, RIESGOS_PSICOSOCIALES_U,
+  OPCIONES_RECOMENDACIONES, REGIONES_EXAMEN_FISICO, MATRIZ_RIESGOS,
   GRUPOS_PRIORITARIOS, GRUPOS_SANGUINEOS, LATERALIDADES, TIPOS_EVALUACION_OCUP,
   emptyAntecedenteEmpleo, emptyAntecedentesGineco, emptyAntecedentesReproductivos, emptyDatosPersonales,
 } from '../utils/catalogosEvaluacion';
+import { funcionesDeCargo, perfilDeCargo, MAX_ACTIVIDADES, FUNCIONES_AUTOCOMPLETAR } from '../constants/funcionesCargo';
 import type {
   Trabajador, SignosVitales, HabitoToxico, EstiloVida, ExamenFisicoHallazgo, ExamenComplementario,
   Diagnostico, Usuario, FactorRiesgoPuesto, DatosPersonalesSO41, CondicionEspecial,
@@ -44,18 +45,56 @@ const SiNo = ({ value, onChange }: { value: boolean | null; onChange: (v: boolea
   </div>
 );
 
-// Grupo de casillas de un factor de riesgo (Sección G)
-function GrupoRiesgo({ titulo, color, items, sel, onToggle }: { titulo: string; color: string; items: string[]; sel: string[]; onToggle: (v: string) => void }) {
+/**
+ * Matriz de la Sección G (igual que la página 2 del formato): una fila por
+ * factor de riesgo y una columna por actividad de la jornada (1..7). Se marca
+ * en qué actividades está presente cada riesgo.
+ */
+function MatrizRiesgos({ actividades, marcadas, onToggle }: {
+  actividades: string[];
+  marcadas: Record<string, number[]>;
+  onToggle: (riesgo: string, actIdx: number) => void;
+}) {
+  const nCols = Math.max(1, actividades.length);
   return (
-    <div className="border border-slate-200 rounded-lg overflow-hidden">
-      <div className={`${color} px-3 py-1.5 text-xs font-bold text-white`}>{titulo}</div>
-      <div className="p-3 grid grid-cols-1 sm:grid-cols-2 gap-1">
-        {items.map(op => (
-          <label key={op} className={`flex items-center gap-2 text-xs cursor-pointer p-1.5 rounded ${sel.includes(op) ? 'bg-blue-50 font-semibold text-blue-800' : 'hover:bg-slate-50'}`}>
-            <input type="checkbox" checked={sel.includes(op)} onChange={() => onToggle(op)} /> {op}
-          </label>
-        ))}
-      </div>
+    <div className="border border-slate-200 rounded-lg overflow-x-auto">
+      <table className="w-full text-xs" style={{ borderCollapse: 'collapse', minWidth: 560 }}>
+        <thead>
+          <tr className="bg-slate-100">
+            <th className="text-left px-2 py-1.5 font-bold text-slate-600 sticky left-0 bg-slate-100" style={{ minWidth: 210 }}>FACTOR DE RIESGO</th>
+            {Array.from({ length: nCols }, (_, i) => (
+              <th key={i} className="px-1 py-1.5 font-bold text-slate-600 text-center" style={{ width: 34 }}
+                title={actividades[i] || `Actividad ${i + 1}`}>{i + 1}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {MATRIZ_RIESGOS.map(cat => (
+            <Fragment key={cat.clave}>
+              <tr><td colSpan={nCols + 1} className={`${cat.color} text-white font-bold px-2 py-1 text-[11px]`}>{cat.categoria}</td></tr>
+              {cat.subgrupos.map(g => (
+                <Fragment key={(g.subcategoria ?? '') + cat.clave}>
+                  {g.subcategoria && <tr><td colSpan={nCols + 1} className="bg-slate-50 px-2 py-0.5 text-[10.5px] font-bold text-slate-500">{g.subcategoria}</td></tr>}
+                  {g.items.map(item => {
+                    const sel = marcadas[item] ?? [];
+                    return (
+                      <tr key={item} className={sel.length ? 'bg-blue-50/60' : 'hover:bg-slate-50'}>
+                        <td className={`px-2 py-1 border-t border-slate-100 sticky left-0 ${sel.length ? 'bg-blue-50/60 font-semibold text-blue-900' : 'bg-white'}`}>{item}</td>
+                        {Array.from({ length: nCols }, (_, i) => (
+                          <td key={i} className="text-center border-t border-l border-slate-100 py-1">
+                            <input type="checkbox" checked={sel.includes(i)} onChange={() => onToggle(item, i)}
+                              title={actividades[i] ? `${item} — ${actividades[i]}` : `Actividad ${i + 1}`} />
+                          </td>
+                        ))}
+                      </tr>
+                    );
+                  })}
+                </Fragment>
+              ))}
+            </Fragment>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
@@ -106,8 +145,12 @@ export default function NuevaEvaluacionOcupacional() {
   // F
   const [efSel, setEfSel] = useState<Set<string>>(new Set());
   const [efHallazgos, setEfHallazgos] = useState<ExamenFisicoHallazgo[]>([]);
-  // G
+  // G — factores de riesgo + actividades de la jornada (matriz riesgo × actividad)
   const [factores, setFactores] = useState<FactorRiesgoPuesto>({ puestoArea: '', actividades: '', tiempoTrabajoMeses: '', fisicos: [], mecanicos: [], quimicos: [], biologicos: [], ergonomicos: [], psicosociales: [], medidasPreventivas: '' });
+  const [actividades, setActividades] = useState<string[]>([]);
+  const [riesgoActs, setRiesgoActs] = useState<Record<string, number[]>>({});
+  /** Funciones del cargo disponibles para añadir manualmente (más allá de las 6). */
+  const [funcionesCargo, setFuncionesCargo] = useState<string[]>([]);
   // H
   const [empleos, setEmpleos] = useState<AntecedenteEmpleo[]>([]);
   // I
@@ -151,7 +194,15 @@ export default function NuevaEvaluacionOcupacional() {
       if (!trabajadorId || !user) return;
       const trabDoc = await getDoc(doc(db, 'trabajadores', trabajadorId));
       let trab: Trabajador | null = null;
-      if (trabDoc.exists()) { trab = { id: trabDoc.id, ...trabDoc.data() } as Trabajador; setTrabajador(trab); setFactores(prev => ({ ...prev, puestoArea: trab!.puestoTrabajo })); }
+      if (trabDoc.exists()) {
+        trab = { id: trabDoc.id, ...trabDoc.data() } as Trabajador;
+        setTrabajador(trab);
+        setFactores(prev => ({ ...prev, puestoArea: trab!.puestoTrabajo }));
+        // Funciones del cargo: se proponen las primeras como actividades de la
+        // jornada (columnas 1..n de la matriz). El médico puede ajustarlas.
+        const perfil = perfilDeCargo(trab.puestoTrabajo || '');
+        if (perfil) setFuncionesCargo(perfil.funciones);
+      }
       const medicoDoc = await getDoc(doc(db, 'usuarios', user.uid));
       if (medicoDoc.exists()) setMedicoData(medicoDoc.data() as Usuario);
       // Precargar fecha de nacimiento del trabajador en datos personales
@@ -184,7 +235,11 @@ export default function NuevaEvaluacionOcupacional() {
               ev.examenFisicoHallazgos.forEach((h: any) => { const n = h.codigo.match(/^\d+/)?.[0]; const c = h.codigo.replace(/^\d+/, ''); if (n && c) s.add(`${n}-${c}`); });
               setEfSel(s);
             }
-            if (ev.factoresRiesgo) setFactores(ev.factoresRiesgo);
+            if (ev.factoresRiesgo) {
+              setFactores(ev.factoresRiesgo);
+              setActividades(ev.factoresRiesgo.actividadesJornada ?? []);
+              setRiesgoActs(ev.factoresRiesgo.riesgoActividades ?? {});
+            }
             if (ev.antecedentesEmpleos) setEmpleos(ev.antecedentesEmpleos);
             setActividadesExtra(ev.actividadesExtraLaborales || '');
             if (ev.examenesComplementarios) setExamenes(ev.examenesComplementarios);
@@ -204,6 +259,10 @@ export default function NuevaEvaluacionOcupacional() {
           const exp = await getExpedienteAntecedentes(trabajadorId);
           aplicarExpediente(exp);
         } catch (err) { console.error('Error al cargar antecedentes:', err); }
+        // Autocompletar las actividades de la jornada con las funciones más
+        // representativas del cargo (las primeras 6 del perfil).
+        const sugeridas = funcionesDeCargo(trab?.puestoTrabajo || '', FUNCIONES_AUTOCOMPLETAR);
+        if (sugeridas.length) setActividades(sugeridas);
       }
     };
     cargar();
@@ -218,8 +277,27 @@ export default function NuevaEvaluacionOcupacional() {
   };
   const updateHallazgo = (codigo: string, descripcion: string) => setEfHallazgos(prev => prev.map(h => h.codigo === codigo ? { ...h, descripcion } : h));
   const handleSignos = useCallback((d: SignosVitales) => setSignos(d), []);
-  const toggleRiesgo = (cat: keyof Pick<FactorRiesgoPuesto, 'fisicos' | 'mecanicos' | 'quimicos' | 'biologicos' | 'ergonomicos' | 'psicosociales'>, v: string) =>
-    setFactores(prev => { const arr = prev[cat]; return { ...prev, [cat]: arr.includes(v) ? arr.filter(x => x !== v) : [...arr, v] }; });
+  /** Marca/desmarca un riesgo en una actividad concreta de la jornada. */
+  const toggleRiesgoActividad = (riesgo: string, actIdx: number) => {
+    setRiesgoActs(prev => {
+      const actuales = prev[riesgo] ?? [];
+      const nuevos = actuales.includes(actIdx) ? actuales.filter(i => i !== actIdx) : [...actuales, actIdx].sort((a, b) => a - b);
+      const out = { ...prev };
+      if (nuevos.length) out[riesgo] = nuevos; else delete out[riesgo];
+      return out;
+    });
+  };
+
+  /** Arreglos por categoría derivados de la matriz (compatibilidad con el resto del sistema). */
+  const categoriasDesdeMatriz = (mapa: Record<string, number[]>): Pick<FactorRiesgoPuesto, 'fisicos' | 'mecanicos' | 'quimicos' | 'biologicos' | 'ergonomicos' | 'psicosociales'> => {
+    const out = { fisicos: [] as string[], mecanicos: [] as string[], quimicos: [] as string[], biologicos: [] as string[], ergonomicos: [] as string[], psicosociales: [] as string[] };
+    MATRIZ_RIESGOS.forEach(cat => {
+      cat.subgrupos.forEach(g => g.items.forEach(item => {
+        if ((mapa[item] ?? []).length) out[cat.clave].push(item);
+      }));
+    });
+    return out;
+  };
   const updateHabito = (i: number, f: keyof HabitoToxico, v: any) => setHabitos(prev => { const u = [...prev]; u[i] = { ...u[i], [f]: v }; return u; });
   const updateEmpleo = (i: number, f: keyof AntecedenteEmpleo, v: any) => setEmpleos(prev => { const u = [...prev]; u[i] = { ...u[i], [f]: v }; return u; });
   const updGineco = (p: Partial<AntecedentesGineco>) => setGineco(prev => ({ ...prev, ...p }));
@@ -262,7 +340,14 @@ export default function NuevaEvaluacionOcupacional() {
         enfermedadActual,
         signosVitales: signos,
         examenFisicoHallazgos: efHallazgos,
-        factoresRiesgo: factores,
+        factoresRiesgo: {
+          ...factores,
+          ...categoriasDesdeMatriz(riesgoActs),
+          actividadesJornada: actividades.filter(a => a.trim()),
+          riesgoActividades: riesgoActs,
+          // Texto plano de respaldo (informes y formatos antiguos).
+          actividades: actividades.filter(a => a.trim()).join('; '),
+        },
         antecedentesEmpleos: empleosLimpios,
         actividadesExtraLaborales: actividadesExtra,
         examenesComplementarios: examenes.filter(e => e.nombre.trim() !== ''),
@@ -534,22 +619,61 @@ export default function NuevaEvaluacionOcupacional() {
         {/* F. EXAMEN FÍSICO REGIONAL */}
         <SeccionI titulo="F. EXAMEN FÍSICO REGIONAL" REGIONES={REGIONES_EXAMEN_FISICO} seleccionados={efSel} hallazgos={efHallazgos} onToggle={toggleEf} onHallazgo={updateHallazgo} />
 
-        {/* G. FACTORES DE RIESGO */}
+        {/* G. FACTORES DE RIESGO — matriz riesgo × actividad (igual que la pág. 2) */}
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 md:p-6">
           <h2 className="text-sm font-bold text-slate-800 mb-1 border-b pb-2">G. FACTORES DE RIESGO DEL TRABAJO ACTUAL</h2>
-          <p className="text-xs text-slate-500 mb-4">Marca los factores presentes en el puesto. Se imprimen como matriz en la página 2 (horizontal).</p>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+          <p className="text-xs text-slate-500 mb-3">Marca en qué actividad de la jornada está presente cada factor. Se imprime tal cual en la página 2 (horizontal).</p>
+
+          <div className="mb-3">
+            <label className="block text-xs font-semibold text-slate-600 mb-1">Puesto de trabajo</label>
             <input type="text" className={INPUT} value={factores.puestoArea} onChange={e => setFactores(p => ({ ...p, puestoArea: e.target.value }))} placeholder="Puesto de trabajo" />
-            <input type="text" className={INPUT + ' md:col-span-2'} value={factores.actividades} onChange={e => setFactores(p => ({ ...p, actividades: e.target.value }))} placeholder="Actividades importantes dentro de la jornada laboral" />
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <GrupoRiesgo titulo="FÍSICO" color="bg-blue-600" items={RIESGOS_FISICOS} sel={factores.fisicos} onToggle={v => toggleRiesgo('fisicos', v)} />
-            <GrupoRiesgo titulo="DE SEGURIDAD (locativos, mecánicos, eléctricos)" color="bg-red-600" items={RIESGOS_SEGURIDAD} sel={factores.mecanicos} onToggle={v => toggleRiesgo('mecanicos', v)} />
-            <GrupoRiesgo titulo="QUÍMICO" color="bg-amber-600" items={RIESGOS_QUIMICOS_U} sel={factores.quimicos} onToggle={v => toggleRiesgo('quimicos', v)} />
-            <GrupoRiesgo titulo="BIOLÓGICO" color="bg-green-600" items={RIESGOS_BIOLOGICOS} sel={factores.biologicos} onToggle={v => toggleRiesgo('biologicos', v)} />
-            <GrupoRiesgo titulo="ERGONÓMICO" color="bg-purple-600" items={RIESGOS_ERGONOMICOS_U} sel={factores.ergonomicos} onToggle={v => toggleRiesgo('ergonomicos', v)} />
-            <GrupoRiesgo titulo="PSICOSOCIAL" color="bg-pink-600" items={RIESGOS_PSICOSOCIALES_U} sel={factores.psicosociales} onToggle={v => toggleRiesgo('psicosociales', v)} />
+
+          {/* Actividades importantes de la jornada (columnas 1..7 de la matriz) */}
+          <div className="rounded-lg border p-3 mb-3" style={{ borderColor: '#e4e6ea', background: '#f9fafb' }}>
+            <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
+              <label className="text-xs font-bold text-slate-700">Actividades importantes dentro de la jornada laboral ({actividades.length}/{MAX_ACTIVIDADES})</label>
+              <div className="flex gap-2">
+                {funcionesCargo.length > 0 && (
+                  <button type="button" onClick={() => setActividades(funcionesCargo.slice(0, FUNCIONES_AUTOCOMPLETAR))}
+                    className="text-[11.5px] font-semibold text-blue-700 border border-blue-200 bg-blue-50 rounded px-2 py-0.5">
+                    ↻ Autocompletar del cargo
+                  </button>
+                )}
+                {actividades.length < MAX_ACTIVIDADES && (
+                  <button type="button" onClick={() => setActividades(a => [...a, ''])} className="text-[11.5px] font-bold text-blue-600 hover:underline">+ Añadir actividad</button>
+                )}
+              </div>
+            </div>
+            {funcionesCargo.length === 0 && (
+              <p className="m-0 mb-2 text-[11px] text-amber-700">El cargo «{trabajador.puestoTrabajo}» no está en el catálogo de funciones: escribe las actividades a mano.</p>
+            )}
+            {actividades.length === 0 && <p className="m-0 text-[11.5px] text-slate-400 italic">Sin actividades. Añade al menos una para poder marcar los riesgos.</p>}
+            <div className="space-y-1.5">
+              {actividades.map((a, i) => (
+                <div key={i} className="flex items-center gap-1.5">
+                  <span className="w-6 h-6 grid place-items-center rounded bg-slate-200 text-[11px] font-bold text-slate-600 flex-shrink-0">{i + 1}</span>
+                  <input list="funciones-cargo" type="text" value={a} onChange={e => setActividades(arr => arr.map((x, j) => j === i ? e.target.value : x))}
+                    className={INPUT_XS} placeholder={`Actividad ${i + 1}`} />
+                  <button type="button" title="Quitar actividad"
+                    onClick={() => { setActividades(arr => arr.filter((_, j) => j !== i)); setRiesgoActs(prev => {
+                      // Al quitar una actividad se reindexan las marcas de la matriz.
+                      const out: Record<string, number[]> = {};
+                      Object.entries(prev).forEach(([r, idxs]) => {
+                        const nuevos = idxs.filter(k => k !== i).map(k => (k > i ? k - 1 : k));
+                        if (nuevos.length) out[r] = nuevos;
+                      });
+                      return out;
+                    }); }}
+                    className="text-red-400 hover:text-red-600 px-1"><X size={14} /></button>
+                </div>
+              ))}
+              <datalist id="funciones-cargo">{funcionesCargo.map(f => <option key={f} value={f} />)}</datalist>
+            </div>
           </div>
+
+          <MatrizRiesgos actividades={actividades} marcadas={riesgoActs} onToggle={toggleRiesgoActividad} />
+
           <div className="mt-4">
             <label className="block text-xs font-bold text-slate-700 mb-1">Medidas preventivas</label>
             <textarea rows={2} className={INPUT} value={factores.medidasPreventivas} onChange={e => setFactores(p => ({ ...p, medidasPreventivas: e.target.value }))} />

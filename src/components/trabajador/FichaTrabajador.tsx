@@ -21,7 +21,8 @@ import { getOrdenes, eliminarOrden } from '../../services/examenesPlan';
 import { estadoPermiso, duracionPermiso, fmtFecha as fmtPF, toDate, actualizarPermiso, eliminarPermiso } from '../../services/permisos';
 import { horasEntre } from '../../utils/permisosHorario';
 import { tipoEvaluacionLabel } from '../../utils/medicalHelpers';
-import { RIESGOS_FISICOS, RIESGOS_SEGURIDAD, RIESGOS_QUIMICOS_U, RIESGOS_BIOLOGICOS, RIESGOS_ERGONOMICOS_U, RIESGOS_PSICOSOCIALES_U } from '../../utils/catalogosEvaluacion';
+import { MATRIZ_RIESGOS } from '../../utils/catalogosEvaluacion';
+import { MAX_ACTIVIDADES as N_ACTIVIDADES } from '../../constants/funcionesCargo';
 import { TIPOS_PERMISO } from '../../types/permiso';
 import type { TipoPermiso } from '../../types/permiso';
 import type { OrdenExamen } from '../../types/examenPlan';
@@ -1441,14 +1442,24 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
     const check = (n: number) => { if (y + n > pdf.internal.pageSize.getHeight() - 8) { pdf.addPage(); y = 7; } };
     const sec = (texto: string, bg = cPri) => { check(9); pdf.setFillColor(bg); pdf.setDrawColor(0); pdf.rect(M, y, CW, 5, 'FD'); pdf.setFontSize(7); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(0); pdf.text(texto, M + 1.5, y + 3.5); y += 5; };
     const libre = (texto: string, minH = 6) => { pdf.setDrawColor(0); pdf.setFontSize(7); pdf.setFont('helvetica', 'normal'); pdf.setTextColor(0); const l = pdf.splitTextToSize(texto || '-', CW - 3); const h = Math.max(minH, l.length * 3 + 2); check(h + 2); pdf.rect(M, y, CW, h, 'S'); pdf.text(l, M + 1.5, y + 3); y += h; };
-    const cab = (pagina: string) => {
+    // `compacto` reduce el encabezado en la página 2 (horizontal), donde la
+    // matriz necesita todo el alto disponible.
+    const cab = (pagina: string, compacto = false) => {
       const ty = y;
-      AT({ startY: y, theme: 'grid', styles: { ...base, halign: 'center', fontSize: 8 }, columnStyles: { 0: { cellWidth: 42 }, 2: { cellWidth: 33 } }, body: [
-        [{ content: '', rowSpan: 3, styles: { fontSize: 10, valign: 'middle' } }, { content: 'HISTORIA CLÍNICA OCUPACIONAL:\nEVALUACIÓN MÉDICA OCUPACIONAL', rowSpan: 2, styles: { fontStyle: 'bold', fontSize: 9, valign: 'middle' } }, { content: 'Código:  HCU-form.123/2025', styles: { fontSize: 7, halign: 'left' } }],
-        [{ content: 'Revisión:  1', styles: { fontSize: 7, halign: 'left' } }],
-        [{ content: 'MACROPROCESO:  PLANIFICACIÓN, SEGURIDAD Y AMBIENTE', styles: { fontSize: 6, fontStyle: 'bold' } }, { content: pagina, styles: { fontSize: 7, halign: 'left' } }],
-      ] });
-      try { pdf.addImage(logoPdf.data, logoPdf.format, M + 1, ty + 1, 40, 12); } catch { /* sin logo */ }
+      if (compacto) {
+        AT({ startY: y, theme: 'grid', styles: { ...base, halign: 'center', fontSize: 8, cellPadding: 0.7 }, columnStyles: { 0: { cellWidth: 42 }, 2: { cellWidth: 46 } }, body: [
+          [{ content: '', rowSpan: 2 }, { content: 'HISTORIA CLÍNICA OCUPACIONAL: EVALUACIÓN MÉDICA OCUPACIONAL', styles: { fontStyle: 'bold', fontSize: 8.5 } }, { content: 'Código: HCU-form.123/2025', styles: { fontSize: 6, halign: 'left' } }],
+          [{ content: 'MACROPROCESO:  PLANIFICACIÓN, SEGURIDAD Y AMBIENTE', styles: { fontSize: 5.6, fontStyle: 'bold' } }, { content: `Revisión: 1     ${pagina}`, styles: { fontSize: 6, halign: 'left' } }],
+        ] });
+        try { pdf.addImage(logoPdf.data, logoPdf.format, M + 1, ty + 0.8, 38, 9); } catch { /* sin logo */ }
+      } else {
+        AT({ startY: y, theme: 'grid', styles: { ...base, halign: 'center', fontSize: 8 }, columnStyles: { 0: { cellWidth: 42 }, 2: { cellWidth: 33 } }, body: [
+          [{ content: '', rowSpan: 3, styles: { fontSize: 10, valign: 'middle' } }, { content: 'HISTORIA CLÍNICA OCUPACIONAL:\nEVALUACIÓN MÉDICA OCUPACIONAL', rowSpan: 2, styles: { fontStyle: 'bold', fontSize: 9, valign: 'middle' } }, { content: 'Código:  HCU-form.123/2025', styles: { fontSize: 7, halign: 'left' } }],
+          [{ content: 'Revisión:  1', styles: { fontSize: 7, halign: 'left' } }],
+          [{ content: 'MACROPROCESO:  PLANIFICACIÓN, SEGURIDAD Y AMBIENTE', styles: { fontSize: 6, fontStyle: 'bold' } }, { content: pagina, styles: { fontSize: 7, halign: 'left' } }],
+        ] });
+        try { pdf.addImage(logoPdf.data, logoPdf.format, M + 1, ty + 1, 40, 12); } catch { /* sin logo */ }
+      }
       y += 2;
     };
 
@@ -1532,38 +1543,97 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
     const hall = ev.examenFisicoHallazgos || [];
     libre(hall.length ? 'Observaciones: ' + hall.map((h: any) => `${h.codigo}. ${h.region}, ${h.subregion}: ${h.descripcion || '-'}`).join(' · ') : 'Observaciones: Sin hallazgos patológicos.', 5);
 
-    // ══════════ PÁGINA 2 (HORIZONTAL) — Factores de riesgo ══════════
+    // ══════════ PÁGINA 2 (HORIZONTAL) — Matriz de factores de riesgo ══════════
+    // Réplica de la hoja oficial: una sola matriz donde las FILAS son los
+    // factores de riesgo (agrupados por categoría y subcategoría) y las
+    // COLUMNAS 1..7 son las actividades importantes de la jornada laboral.
     pdf.addPage('a4', 'landscape');
     W = pdf.internal.pageSize.getWidth(); CW = W - M * 2; y = 7;
-    cab('Página:    2 de 3');
+    cab('Página: 2 de 3', true);
     sec('G. FACTORES DE RIESGO DEL TRABAJO ACTUAL');
+
     const fr = ev.factoresRiesgo || {};
-    AT({ startY: y, theme: 'grid', styles: { ...base, fontSize: 6.5 }, headStyles: { ...head, fontSize: 6 }, head: [['PUESTO DE TRABAJO', 'ACTIVIDADES IMPORTANTES DENTRO DE LA JORNADA LABORAL']], body: [[fr.puestoArea || trabajador.puestoTrabajo, fr.actividades || '-']], columnStyles: { 0: { cellWidth: 70 } } });
-    // Dos columnas de categorías (X en los marcados), aprovechando el ancho horizontal.
-    const cat = (titulo: string, todos: string[], marcados: string[]) => {
-      const rows = todos.map((it) => [{ content: it, styles: { fontSize: 5.6 } }, { content: (marcados || []).includes(it) ? 'X' : '', styles: { halign: 'center' as const, fontStyle: 'bold' as const } }]);
-      return { titulo, rows };
+    const acts: string[] = (fr.actividadesJornada && fr.actividadesJornada.length
+      ? fr.actividadesJornada
+      : String(fr.actividades || '').split(/\s*[;\n]\s*/).filter(Boolean)
+    ).slice(0, N_ACTIVIDADES);
+    const marcadasDe = (riesgo: string, clave: string): number[] => {
+      const mapa = fr.riesgoActividades || {};
+      if (mapa[riesgo]) return mapa[riesgo];
+      // Compatibilidad: si solo hay arreglos por categoría, se marca la actividad 1.
+      const lista: string[] = (fr as any)[clave] || [];
+      return lista.includes(riesgo) ? [0] : [];
     };
-    const cols = [
-      [cat('FÍSICO', RIESGOS_FISICOS, fr.fisicos), cat('QUÍMICO', RIESGOS_QUIMICOS_U, fr.quimicos), cat('ERGONÓMICO', RIESGOS_ERGONOMICOS_U, fr.ergonomicos)],
-      [cat('DE SEGURIDAD (locativos/mecánicos/eléctricos)', RIESGOS_SEGURIDAD, fr.mecanicos), cat('BIOLÓGICO', RIESGOS_BIOLOGICOS, fr.biologicos), cat('PSICOSOCIAL', RIESGOS_PSICOSOCIALES_U, fr.psicosociales)],
+
+    // Puesto de trabajo (una sola fila: rótulo + valor, como en la hoja).
+    AT({ startY: y, theme: 'grid', styles: { ...base, fontSize: 6.5, cellPadding: 0.8 },
+      body: [[{ content: 'PUESTO DE TRABAJO', styles: { fillColor: cSec, fontStyle: 'bold', cellWidth: 45, fontSize: 6 } }, { content: fr.puestoArea || trabajador.puestoTrabajo || '-' }]] });
+
+    // Anchos de la matriz: categoría | subcategoría | factor | 7 columnas numeradas.
+    const wCat = 22, wSub = 20, wAct = 11;
+    const wFac = CW - wCat - wSub - wAct * N_ACTIVIDADES;
+
+    // Encabezado: rótulo de actividades + números 1..7, y debajo el texto de cada actividad.
+    const cabActividades: any[] = [
+      { content: 'ACTIVIDADES IMPORTANTES DENTRO DE LA JORNADA LABORAL', colSpan: 3, styles: { fillColor: cSec, fontStyle: 'bold', fontSize: 6, halign: 'left' } },
+      ...Array.from({ length: N_ACTIVIDADES }, (_, i) => ({ content: String(i + 1), styles: { fillColor: cSec, fontStyle: 'bold', halign: 'center', fontSize: 6.5 } })),
     ];
-    const colW = (CW - 6) / 2;
-    const yInicio = y;
-    let yMax = y;
-    // Filas compactas para que las 6 categorías + medidas quepan en la página 2.
-    const denso = { lineColor: negro, lineWidth: 0.2, cellPadding: 0.5, textColor: negro, fontSize: 5.6, minCellHeight: 3.2 };
-    cols.forEach((grupos, idx) => {
-      let yc = yInicio;
-      const left = M + idx * (colW + 6);
-      grupos.forEach((g) => {
-        autoTable(pdf, { startY: yc, margin: { left, right: 0 }, tableWidth: colW, theme: 'grid', styles: denso, headStyles: { fillColor: cTer, textColor: negro, fontStyle: 'bold', fontSize: 5.8, cellPadding: 0.6, lineColor: negro, lineWidth: 0.2 }, columnStyles: { 1: { cellWidth: 8 } }, head: [[{ content: g.titulo, colSpan: 2, styles: { halign: 'left' } }]], body: g.rows as any });
-        yc = (pdf as any).lastAutoTable.finalY + 1.2;
+    // Las actividades se listan numeradas (dos por fila, para ganar altura).
+    const filasActividades: any[] = [];
+    if (acts.length) {
+      for (let i = 0; i < acts.length; i += 2) {
+        filasActividades.push([
+          { content: `${i + 1}.  ${acts[i]}`, colSpan: 3, styles: { fontSize: 5, halign: 'left' as const } },
+          { content: acts[i + 1] ? `${i + 2}.  ${acts[i + 1]}` : '', colSpan: N_ACTIVIDADES, styles: { fontSize: 5, halign: 'left' as const } },
+        ]);
+      }
+    } else {
+      filasActividades.push([{ content: 'Sin actividades registradas.', colSpan: 3 + N_ACTIVIDADES, styles: { fontSize: 5, textColor: [120, 120, 120] as [number, number, number] } }]);
+    }
+
+    // Filas de la matriz: categoría (rowSpan) | subcategoría (rowSpan) | factor | X por actividad
+    const cuerpo: any[] = [];
+    MATRIZ_RIESGOS.forEach((categoria) => {
+      const totalFilas = categoria.subgrupos.reduce((s, g) => s + g.items.length, 0);
+      let primeraDeCategoria = true;
+      categoria.subgrupos.forEach((grupo) => {
+        grupo.items.forEach((factor, idxItem) => {
+          const fila: any[] = [];
+          if (primeraDeCategoria) {
+            fila.push({ content: categoria.categoria, rowSpan: totalFilas, styles: { fillColor: cTer, fontStyle: 'bold', valign: 'middle', halign: 'center', fontSize: 5.6 } });
+            primeraDeCategoria = false;
+          }
+          if (idxItem === 0 && grupo.subcategoria) {
+            fila.push({ content: grupo.subcategoria, rowSpan: grupo.items.length, styles: { fillColor: '#f2f5f8', fontStyle: 'bold', valign: 'middle', halign: 'center', fontSize: 5 } });
+          }
+          // Sin subcategoría: la celda del factor se extiende sobre esa columna.
+          const celdaFactor = grupo.subcategoria
+            ? { content: factor, styles: { fontSize: 4.6 } }
+            : { content: factor, colSpan: 2, styles: { fontSize: 4.6 } };
+          fila.push(celdaFactor);
+          const marcadas = marcadasDe(factor, categoria.clave);
+          for (let i = 0; i < N_ACTIVIDADES; i++) {
+            fila.push({ content: marcadas.includes(i) ? 'X' : '', styles: { halign: 'center' as const, fontStyle: 'bold' as const, fontSize: 5.6 } });
+          }
+          cuerpo.push(fila);
+        });
       });
-      yMax = Math.max(yMax, yc);
     });
-    y = yMax;
-    autoTable(pdf, { startY: y, margin: { left: M, right: M }, theme: 'grid', styles: { ...base, fontSize: 6 }, headStyles: { ...head, fontSize: 5.5 }, head: [['MEDIDAS PREVENTIVAS']], body: [[fr.medidasPreventivas || '-']] });
+
+    const colStyles: Record<number, any> = { 0: { cellWidth: wCat }, 1: { cellWidth: wSub }, 2: { cellWidth: wFac } };
+    for (let i = 0; i < N_ACTIVIDADES; i++) colStyles[3 + i] = { cellWidth: wAct };
+
+    // margin.bottom explícito: autotable usa 40 mm por defecto y partiría la matriz.
+    AT({
+      startY: y, theme: 'grid', margin: { left: M, right: M, top: 7, bottom: 8 },
+      styles: { lineColor: negro, lineWidth: 0.2, cellPadding: 0.12, textColor: negro, fontSize: 4.6, minCellHeight: 1.95, overflow: 'ellipsize', valign: 'middle' },
+      headStyles: { lineColor: negro, lineWidth: 0.2, cellPadding: 0.6, textColor: negro, fillColor: cSec, fontStyle: 'bold', fontSize: 6 },
+      columnStyles: colStyles,
+      head: [cabActividades],
+      body: [...filasActividades, ...cuerpo],
+    });
+
+    autoTable(pdf, { startY: y, margin: { left: M, right: M, top: 7, bottom: 5 }, theme: 'grid', styles: { ...base, fontSize: 6, cellPadding: 0.6 }, headStyles: { ...head, fontSize: 5.5, cellPadding: 0.6 }, head: [['MEDIDAS PREVENTIVAS']], body: [[fr.medidasPreventivas || '-']] });
 
     // ══════════ PÁGINA 3 (vertical) ══════════
     pdf.addPage('a4', 'portrait');
