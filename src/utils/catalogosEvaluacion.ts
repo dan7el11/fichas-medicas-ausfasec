@@ -50,8 +50,7 @@ export const SISTEMAS = [
 export const REGIONES_EXAMEN_FISICO = [
   { numero: 1, region: 'Piel', subregiones: [
     { codigo: 'a', nombre: 'Cicatrices' },
-    { codigo: 'b', nombre: 'Tatuajes' },
-    { codigo: 'c', nombre: 'Piel y faneras' },
+    { codigo: 'b', nombre: 'Piel y Faneras' },
   ]},
   { numero: 2, region: 'Ojos', subregiones: [
     { codigo: 'a', nombre: 'Párpados' },
@@ -82,13 +81,13 @@ export const REGIONES_EXAMEN_FISICO = [
     { codigo: 'a', nombre: 'Tiroides / masas' },
     { codigo: 'b', nombre: 'Movilidad' },
   ]},
-  { numero: 7, region: 'Tórax (Corazón)', subregiones: [
+  { numero: 7, region: 'Tórax', subregiones: [
     { codigo: 'a', nombre: 'Mamas' },
-    { codigo: 'b', nombre: 'Corazón' },
   ]},
-  { numero: 8, region: 'Tórax (Pulmones)', subregiones: [
+  { numero: 8, region: 'Tórax', subregiones: [
     { codigo: 'a', nombre: 'Pulmones' },
-    { codigo: 'b', nombre: 'Parrilla costal' },
+    { codigo: 'b', nombre: 'Corazón' },
+    { codigo: 'c', nombre: 'Parrilla costal' },
   ]},
   { numero: 9, region: 'Abdomen', subregiones: [
     { codigo: 'a', nombre: 'Vísceras' },

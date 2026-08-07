@@ -24,6 +24,7 @@ import { tipoEvaluacionLabel } from '../../utils/medicalHelpers';
 import { MATRIZ_RIESGOS } from '../../utils/catalogosEvaluacion';
 import { MAX_ACTIVIDADES as N_ACTIVIDADES } from '../../constants/funcionesCargo';
 import { conFilasMinimas } from '../../utils/tablasPdf';
+import { dibujarPagina1Ocupacional } from './paginaUnoOcupacionalPdf';
 import { TIPOS_PERMISO } from '../../types/permiso';
 import type { TipoPermiso } from '../../types/permiso';
 import type { OrdenExamen } from '../../types/examenPlan';
@@ -1461,85 +1462,11 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
       y += 2;
     };
 
-    const dp = ev.datosPersonales || {};
     const tipoLabel = tipoEvaluacionLabel(ev).toUpperCase();
-    const marca = (activo: boolean) => activo ? 'X' : '';
 
     // ══════════ PÁGINA 1 (vertical) ══════════
-    cab('Página:    1 de 3');
-    sec('A. DATOS DEL ESTABLECIMIENTO - DATOS DEL USUARIO');
-    AT({ startY: y, theme: 'grid', styles: base, headStyles: head, head: [['INSTITUCIÓN DEL SISTEMA', 'RUC', 'CIIU', 'ESTABLECIMIENTO/CENTRO', 'N° HISTORIA CLÍNICA', 'N° ARCHIVO']], body: [[empresa.institucion, empresa.ruc, empresa.ciu, empresa.establecimiento, ev.numeroHistoriaClinica || trabajador.cedula, ev.numeroArchivo || '-']] });
-    AT({ startY: y, theme: 'grid', styles: base, headStyles: head, head: [['PRIMER APELLIDO', 'SEGUNDO APELLIDO', 'PRIMER NOMBRE', 'SEGUNDO NOMBRE', 'SEXO', 'GRUPO SANGUÍNEO', 'LATERALIDAD']], body: [[trabajador.primerApellido, (trabajador as any).segundoApellido || '-', trabajador.primerNombre, (trabajador as any).segundoNombre || '-', trabajador.sexo, dp.grupoSanguineo || '-', dp.lateralidad || '-']] });
-    AT({ startY: y, theme: 'grid', styles: { ...base, fontSize: 6, halign: 'center' }, headStyles: { ...head, fontSize: 5.5, halign: 'center' }, head: [['GRUPO DE ATENCIÓN PRIORITARIA →', 'Embarazada', 'Persona con discapacidad', 'Enf. catastrófica', 'Adulto mayor']], body: [[{ content: 'Marcados', styles: { fontStyle: 'bold' } }, marca((dp.gruposPrioritarios || []).includes('Embarazada')), marca((dp.gruposPrioritarios || []).includes('Persona con discapacidad')), marca((dp.gruposPrioritarios || []).includes('Enfermedad catastrófica')), marca((dp.gruposPrioritarios || []).includes('Adulto mayor'))]] });
-    y += 2;
-
-    sec('B. MOTIVO DE CONSULTA');
-    AT({ startY: y, theme: 'grid', styles: { ...base, halign: 'center' }, headStyles: { ...head, halign: 'center' }, head: [['PUESTO DE TRABAJO (CIUO)', 'FECHA DE ATENCIÓN', 'FECHA DE INGRESO', 'FECHA DE REINTEGRO', 'ÚLTIMO DÍA / SALIDA']], body: [[trabajador.puestoTrabajo, ev.fechaAtencion || fmtF(ev.fecha), ev.fechaIngresoTrabajo || '-', ev.fechaReingreso || '-', ev.fechaUltimoDiaLaboral || '-']] });
-    AT({ startY: y, theme: 'grid', styles: { ...base, halign: 'center', fontSize: 7 }, headStyles: { ...head, halign: 'center' }, head: [['TIPO DE EVALUACIÓN', 'INGRESO', 'PERIÓDICO', 'REINTEGRO', 'RETIRO']], body: [[{ content: '', styles: { fillColor: cTer } }, marca(/ingreso|preocup/i.test(tipoLabel)), marca(/peri/i.test(tipoLabel)), marca(/reintegro/i.test(tipoLabel)), marca(/retiro/i.test(tipoLabel))]] });
-    libre('Observación / motivo: ' + (ev.motivoConsulta || '-'), 6);
-    y += 1;
-
-    sec('C. ANTECEDENTES PERSONALES');
-    pdf.setFontSize(6.5); pdf.setFont('helvetica', 'bold'); pdf.setFillColor(204, 255, 204); pdf.setDrawColor(0); pdf.rect(M, y, CW, 4, 'FD'); pdf.text('ANTECEDENTES CLÍNICOS Y QUIRÚRGICOS', M + 1.5, y + 3); y += 4;
-    libre(ev.antecedentesClinicosTexto || 'Sin antecedentes relevantes.', 6);
-    pdf.setFontSize(6.5); pdf.setFont('helvetica', 'bold'); pdf.setFillColor(204, 255, 204); pdf.rect(M, y, CW, 4, 'FD'); pdf.text('ANTECEDENTES FAMILIARES', M + 1.5, y + 3); y += 4;
-    libre(ev.antecedentesFamiliaresTexto || 'Sin antecedentes familiares de importancia.', 6);
-    const ce = ev.condicionEspecial || {};
-    AT({ startY: y, theme: 'grid', styles: { ...base, fontSize: 6 }, body: [[
-      { content: 'Autoriza transfusiones:', styles: { fontStyle: 'bold', cellWidth: 40 } }, { content: ce.autorizaTransfusiones === true ? 'SÍ' : ce.autorizaTransfusiones === false ? 'NO' : '-', styles: { halign: 'center', cellWidth: 14 } },
-      { content: 'Tratamiento hormonal:', styles: { fontStyle: 'bold', cellWidth: 40 } }, { content: ce.tratamientoHormonal === true ? `SÍ${ce.tratamientoHormonalCual ? ': ' + ce.tratamientoHormonalCual : ''}` : ce.tratamientoHormonal === false ? 'NO' : '-' },
-    ], [{ content: 'Condición preexistente:', styles: { fontStyle: 'bold' } }, { content: ce.condicionPreexistente || '-', colSpan: 3 }]] });
-    // Gineco / reproductivos
-    if (ev.antecedentesGineco) {
-      const g = ev.antecedentesGineco;
-      AT({ startY: y, theme: 'grid', styles: { ...base, fontSize: 5.5, halign: 'center' }, headStyles: { ...head, fontSize: 5, halign: 'center' }, head: [['GINECO: FUM', 'GESTAS', 'PARTOS', 'CESÁREAS', 'ABORTOS', 'PLANIFICACIÓN', 'PAP', 'MAMOGRAFÍA']], body: [[g.fum || '-', g.gestas || '-', g.partos || '-', g.cesareas || '-', g.abortos || '-', g.planificacionFamiliar === true ? (g.planificacionTipo || 'SÍ') : g.planificacionFamiliar === false ? 'NO' : '-', g.papanicolaou?.realizado === true ? (g.papanicolaou.resultado || 'realizado') : '-', g.mamografia?.realizado === true ? (g.mamografia.resultado || 'realizada') : '-']] });
-    } else if (ev.antecedentesReproductivos) {
-      const r = ev.antecedentesReproductivos;
-      AT({ startY: y, theme: 'grid', styles: { ...base, fontSize: 6, halign: 'center' }, headStyles: { ...head, fontSize: 5.5, halign: 'center' }, head: [['REPRODUCTIVOS: ANTÍGENO PROSTÁTICO', 'MÉTODO DE PLANIFICACIÓN FAMILIAR']], body: [[r.antigenoProstatico?.realizado === true ? (r.antigenoProstatico.resultado || 'realizado') : '-', r.planificacionFamiliar === true ? (r.planificacionTipo || 'SÍ') : r.planificacionFamiliar === false ? 'NO' : '-']] });
-    }
-    if (ev.habitosToxicos?.length) {
-      AT({ startY: y, theme: 'grid', styles: { ...base, fontSize: 6 }, headStyles: { ...head, fontSize: 5.5 }, head: [['CONSUMO DE SUSTANCIAS', 'CONSUME', 'TIEMPO', 'EX CONSUMIDOR', 'ABSTINENCIA']], body: ev.habitosToxicos.map((h: any) => [h.tipo === 'drogas' ? 'OTRAS' : h.tipo.toUpperCase(), h.consume ? 'X' : '', h.tiempoConsumo || '-', h.exConsumidor ? 'X' : '', h.tiempoAbstinencia || '-']), columnStyles: { 1: { halign: 'center' }, 3: { halign: 'center' } } });
-    }
-    if (ev.estiloVida) {
-      const e = ev.estiloVida;
-      AT({ startY: y, theme: 'grid', styles: { ...base, fontSize: 6 }, headStyles: { ...head, fontSize: 5.5 }, head: [['ESTILO DE VIDA', '¿CUÁL?', 'TIEMPO / CANTIDAD']], body: [['Actividad física', e.tipoActividad || (e.actividadFisica ? 'Sí' : 'No'), e.tiempoCantidad || '-'], ['Medicación habitual', e.medicacionHabitual || '-', e.medicacionCantidad || '-']] });
-    }
-    y += 2;
-
-    sec('D. ENFERMEDAD O PROBLEMA ACTUAL');
-    libre(ev.enfermedadActual || 'PACIENTE ASINTOMÁTICO AL MOMENTO DE LA VALORACIÓN.', 7);
-    y += 1;
-
-    sec('E. CONSTANTES VITALES Y ANTROPOMETRÍA');
-    const sv = ev.signosVitales || {};
-    AT({ startY: y, theme: 'grid', styles: base, headStyles: head, head: [['TEMP (°C)', 'PRESIÓN ARTERIAL', 'FREC. CARDIACA', 'FREC. RESPIRATORIA', 'SAT O2 (%)', 'PESO (Kg)', 'TALLA (cm)', 'IMC', 'PERÍM. ABDOMINAL']], body: [[sv.temperatura || '-', `${sv.presionSistolica || '-'}/${sv.presionDiastolica || '-'}`, sv.frecuenciaCardiaca || '-', sv.frecuenciaRespiratoria || '-', sv.saturacion || '-', sv.peso || '-', sv.talla || '-', sv.imc ? Number(sv.imc).toFixed(1) : '-', sv.perimetroAbdominal || '-']], bodyStyles: { halign: 'center' } });
-    y += 2;
-
-    sec('F. EXAMEN FÍSICO REGIONAL');
-    const filF = FISICO_ROWS.map(row => row.map((cell: any) => {
-      if (cell.type === 'reg') return { content: '', textToRotate: cell.txt, rowSpan: cell.rs, styles: { fillColor: cTer, halign: 'center', valign: 'middle' } };
-      if (cell.type === 'sub') return { content: cell.txt, styles: { fillColor: '#ffffff' } };
-      if (cell.type === 'chk') return { content: hasFisico(ev, cell.code) ? 'X' : '', styles: { halign: 'center', fontStyle: 'bold', fillColor: '#ffffff' } };
-      if (cell.type === 'empty') return { content: '', rowSpan: cell.rs || 1, colSpan: cell.cs || 1, styles: { fillColor: '#ffffff', lineWidth: 0 } };
-      if (cell.type === 'instr') return { content: cell.txt, colSpan: cell.cs, styles: { fillColor: '#f8f8f8', textColor: negro, halign: 'center', valign: 'middle', fontStyle: 'bold', fontSize: 5.5 } };
-      return { content: '' };
-    }));
-    AT({ startY: y, theme: 'grid', styles: { ...base, fontSize: 5.5, cellPadding: 0.8 }, bodyStyles: { minCellHeight: 6.5 }, headStyles: { fillColor: cTer, textColor: negro, fontSize: 6 },
-      columnStyles: { 0: { cellWidth: 9 }, 1: { cellWidth: 23 }, 2: { cellWidth: 4, halign: 'center' }, 3: { cellWidth: 9 }, 4: { cellWidth: 23 }, 5: { cellWidth: 4, halign: 'center' }, 6: { cellWidth: 9 }, 7: { cellWidth: 23 }, 8: { cellWidth: 4, halign: 'center' }, 9: { cellWidth: 9 }, 10: { cellWidth: 23 }, 11: { cellWidth: 4, halign: 'center' }, 12: { cellWidth: 9 }, 13: { cellWidth: 23 }, 14: { cellWidth: 4, halign: 'center' } },
-      head: [[{ content: 'REGIONES', colSpan: 15, styles: { halign: 'left', fillColor: cTer } }]], body: filF as any,
-      didDrawCell: (data: any) => {
-        const raw = data.cell.raw as any;
-        if (data.section === 'body' && raw?.textToRotate) {
-          pdf.setTextColor(0); pdf.setFontSize(5.5); pdf.setFont('helvetica', 'bold');
-          const str = String(raw.textToRotate); const rh = 6.5 * (raw.rowSpan || 1); const tw = pdf.getTextWidth(str);
-          const cx = data.cell.x + data.cell.width / 2, cy = data.cell.y + rh / 2;
-          if (tw > rh - 2) { const ls = pdf.splitTextToSize(str, rh - 2); pdf.text(ls[0], cx + 1.5, cy + pdf.getTextWidth(ls[0]) / 2, { angle: 90 }); if (ls[1]) pdf.text(ls[1], cx - 0.5, cy + pdf.getTextWidth(ls[1]) / 2, { angle: 90 }); }
-          else pdf.text(str, cx + 0.8, cy + tw / 2, { angle: 90 });
-        }
-      },
-    });
-    const hall = ev.examenFisicoHallazgos || [];
-    libre(hall.length ? 'Observaciones: ' + hall.map((h: any) => `${h.codigo}. ${h.region}, ${h.subregion}: ${h.descripcion || '-'}`).join(' · ') : 'Observaciones: Sin hallazgos patológicos.', 5);
+    // Réplica de la hoja oficial, con sus mismos cortes de columna.
+    y = dibujarPagina1Ocupacional(pdf, { ev, trabajador, empresa, logoPdf, fmtFecha: fmtF });
 
     // ══════════ PÁGINA 2 (HORIZONTAL) — Matriz de factores de riesgo ══════════
     // Réplica de la hoja oficial: una sola matriz donde las FILAS son los

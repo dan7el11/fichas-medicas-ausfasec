@@ -1,4 +1,4 @@
 // Versión visible de la aplicación. Súbela en cada entrega importante para
 // poder verificar qué versión está desplegada (se muestra en el login y en el
 // menú de usuario).
-export const APP_VERSION = 'v4.3 · antecedentes detallados, fechas por tipo y buscador de cargos';
+export const APP_VERSION = 'v4.4 · página 1 fiel al formato oficial';
