@@ -72,6 +72,10 @@ export interface FichaLayoutProps {
   setBusquedaEval: (v: string) => void;
   onBack?: () => void;
   onOpenEval: (ev: any) => void;
+  /** Abre el formulario de edición de esa evaluación. */
+  onEditarEval?: (ev: any) => void;
+  /** Genera el PDF de esa evaluación en su formato. */
+  onPdfEval?: (ev: any) => void;
   onEditarDatos: () => void;
   onNuevaPeriodica: () => void;
   onNuevaRetiro: () => void;
@@ -198,7 +202,7 @@ export default function FichaLayout(props: FichaLayoutProps) {
       <div className="max-w-[1080px] mx-auto px-4 md:px-8 py-6">
         {tab === 'resumen' && (
           <>
-            <Resumen {...props} ultEval={ultEval} apt={apt} futuros={futuros.length} setTab={setTab} />
+            <Resumen {...props} futuros={futuros.length} setTab={setTab} />
             {props.ergonomia}
           </>
         )}
@@ -222,7 +226,7 @@ export default function FichaLayout(props: FichaLayoutProps) {
 }
 
 // ── SecCard ──────────────────────────────────────────────────────────────────
-export function SecCard({ icon, color, title, n, action, children, pad = true }: { icon: ReactNode; color: string; title: string; n?: number; action?: ReactNode; children: ReactNode; pad?: boolean }) {
+export function SecCard({ icon, color, title, n, action, children, pad = true, alturaMaxima }: { icon: ReactNode; color: string; title: string; n?: number; action?: ReactNode; children: ReactNode; pad?: boolean; alturaMaxima?: number }) {
   return (
     <div className="bg-white border rounded-[13px] overflow-hidden" style={{ borderColor: '#e4e6ea', boxShadow: '0 1px 2px rgba(28,29,34,.03)' }}>
       <div className="flex items-center gap-2.5 px-[18px] py-[15px] border-b" style={{ borderColor: '#e4e6ea' }}>
@@ -231,7 +235,12 @@ export function SecCard({ icon, color, title, n, action, children, pad = true }:
         {n != null && <span className="text-[11px] font-bold px-2 py-px rounded-full" style={{ fontFamily: MONO, background: '#eef0f3', color: '#646b75' }}>{n}</span>}
         {action && <div className="ml-auto">{action}</div>}
       </div>
-      <div className={pad ? 'p-[16px_18px]' : ''}>{children}</div>
+      {/* `alturaMaxima` da barra de desplazamiento a la tarjeta: en el resumen
+          las fichas con mucho historial no deben estirar la página. */}
+      <div className={pad ? 'p-[16px_18px]' : ''}
+        style={alturaMaxima ? { maxHeight: alturaMaxima, overflowY: 'auto' } : undefined}>
+        {children}
+      </div>
     </div>
   );
 }
@@ -247,34 +256,28 @@ function HeroKpi({ v, l, color }: { v: string; l: string; color?: string }) {
 }
 
 // ── Tab Resumen ──────────────────────────────────────────────────────────────
-function Resumen(p: FichaLayoutProps & { ultEval: any; apt: any; futuros: number; setTab: (t: Tab) => void }) {
+function Resumen(p: FichaLayoutProps & { futuros: number; setTab: (t: Tab) => void }) {
   return (
     <div className="flex flex-col gap-4">
       <SecCard icon={<HeartPulse size={17} />} color={C_SIGNOS} title="Seguimiento de signos" action={<Link onClick={() => p.setTab('signos')}>Ver detalle</Link>}>
         <SignosGrid evaluaciones={p.evaluaciones} trabajador={p.trabajador} />
       </SecCard>
       <AntecedentesCard evaluaciones={p.evaluaciones} onVerEval={p.onOpenEval} />
-      <div className="grid grid-cols-2 gap-4">
-        <SecCard icon={<ClipboardList size={17} />} color={C_EVAL} title="Última evaluación" action={<Link onClick={() => p.setTab('evaluaciones')}>Todas</Link>}>
-          {p.ultEval ? (
-            <div>
-              <div className="flex items-center gap-2 mb-2">
-                {(() => { const tb = tipoBadge(p.ultEval); return (
-                  <span className="text-[10px] font-bold uppercase px-2.5 py-0.5 rounded" style={{ color: tb.fg, background: tb.bg, letterSpacing: '.4px' }}>{tb.label}</span>
-                ); })()}
-                <span className="text-[14px] font-bold">{p.apt?.label}</span>
-              </div>
-              <div className="text-[12.5px]" style={{ color: '#646b75' }}>Realizada <span style={{ fontFamily: MONO, fontSize: 12 }}>{fmtF(p.ultEval.fecha)}</span></div>
-            </div>
-          ) : <Empty>Sin evaluaciones.</Empty>}
+      {/* Las evaluaciones recientes se listan aquí con sus acciones, para no
+          tener que cambiar de pestaña ni de pantalla. */}
+      <SecCard icon={<ClipboardList size={17} />} color={C_EVAL} title="Evaluaciones recientes" n={p.evaluaciones.length}
+        action={<Link onClick={() => p.setTab('evaluaciones')}>Todas</Link>} pad={false} alturaMaxima={320}>
+        {p.evaluaciones.length === 0 ? <div className="p-4"><Empty>Sin evaluaciones.</Empty></div>
+          : p.evaluaciones.slice(0, 5).map((ev, i) => <FilaEvaluacion key={ev.id} ev={ev} border={i > 0} p={p} />)}
+      </SecCard>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <SecCard icon={<CalendarDays size={17} />} color={C_PERMISO} title="Permisos" n={p.permisos.length} action={<Link onClick={() => p.setTab('permisos')}>Ver</Link>} alturaMaxima={220}>
+          {p.permisos.length === 0 ? <Empty>Sin permisos.</Empty> : <div className="flex flex-col gap-2">{p.permisos.map((pm) => <PermisoMini key={pm.id} p={pm} />)}</div>}
         </SecCard>
-        <SecCard icon={<CalendarDays size={17} />} color={C_PERMISO} title="Permisos" n={p.permisos.length} action={<Link onClick={() => p.setTab('permisos')}>Ver</Link>}>
-          {p.permisos.length === 0 ? <Empty>Sin permisos.</Empty> : <div className="flex flex-col gap-2">{p.permisos.slice(0, 3).map((pm) => <PermisoMini key={pm.id} p={pm} />)}</div>}
+        <SecCard icon={<Stethoscope size={17} />} color={C_CONSULTA} title="Últimas atenciones" n={p.atenciones.length} action={<Link onClick={() => p.setTab('consultas')}>Ver</Link>} pad={false} alturaMaxima={220}>
+          {p.atenciones.length === 0 ? <div className="p-4"><Empty>Sin consultas.</Empty></div> : p.atenciones.map((a, i) => <AtRow key={a.id} a={a} border={i > 0} />)}
         </SecCard>
       </div>
-      <SecCard icon={<Stethoscope size={17} />} color={C_CONSULTA} title="Últimas atenciones" n={p.atenciones.length} action={<Link onClick={() => p.setTab('consultas')}>Ver</Link>} pad={false}>
-        {p.atenciones.length === 0 ? <div className="p-4"><Empty>Sin consultas.</Empty></div> : p.atenciones.slice(0, 4).map((a, i) => <AtRow key={a.id} a={a} border={i > 0} />)}
-      </SecCard>
       <SecCard icon={<ClipboardList size={17} />} color={C_EXAMEN} title="Exámenes ocupacionales" action={<Link onClick={() => p.setTab('examenes')}>Ver</Link>}>
         <div className="grid grid-cols-2 gap-3">
           <div className="border rounded-[11px] p-[12px_14px]" style={{ background: '#f6f7f9', borderColor: '#e4e6ea' }}><div className="text-[11px] font-bold uppercase mb-1.5" style={{ color: '#98a0ab' }}>Programados</div><div className="text-[13px]"><strong className="text-[20px]" style={{ fontFamily: MONO, color: C_EXAMEN }}>{p.futuros}</strong> próximos</div></div>
@@ -296,27 +299,44 @@ function Evaluaciones(p: FichaLayoutProps) {
           <input value={p.busquedaEval} onChange={(e) => p.setBusquedaEval(e.target.value)} placeholder="Buscar por fecha, motivo, diagnóstico o aptitud…" className="flex-1 border-none outline-none text-[13px] bg-transparent" />
         </div>
       </div>
-      {list.length === 0 ? <div className="p-4"><Empty>Sin evaluaciones.</Empty></div> : list.map((ev, i) => {
-        const a = aptInfo(ev.aptitudMedica); const retiro = ev.tipo === 'RETIRO';
-        const tb = tipoBadge(ev);
-        const dxCount = Array.isArray(ev.diagnosticos) ? ev.diagnosticos.length : 0;
-        return (
-          <button key={ev.id} onClick={() => p.onOpenEval(ev)} className="flex items-center gap-3.5 w-full text-left p-[13px_18px] bg-white cursor-pointer hover:bg-slate-50" style={{ border: 'none', borderTop: i > 0 ? '1px solid #eef0f3' : 'none' }}>
-            <div className="text-center min-w-[54px]">
-              <div className="text-[21px] font-bold leading-none" style={{ fontFamily: SERIF }}>{fmtF(ev.fecha).split(' ')[0]}</div>
-              <div className="text-[10.5px] uppercase mt-0.5" style={{ fontFamily: MONO, color: '#98a0ab' }}>{fmtF(ev.fecha).split(' ').slice(1).join(' ')}</div>
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="text-[13.5px] font-semibold">{retiro ? 'Evaluación de retiro' : (ev.motivoConsulta || `Evaluación ${tb.label.toLowerCase()}`)}</div>
-              <div className="text-[12px]" style={{ color: '#98a0ab' }}>{dxCount > 0 ? `${dxCount} diagnóstico${dxCount > 1 ? 's' : ''}` : 'Sin diagnósticos'}{ev.medicoNombre ? ` · ${ev.medicoNombre}` : ''}</div>
-            </div>
-            <span className="text-[10px] font-bold uppercase px-2.5 py-0.5 rounded" style={{ background: tb.bg, color: tb.fg, letterSpacing: '.4px' }}>{tb.label}</span>
-            <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full" style={{ background: a.bg, color: a.fg }}>{a.label}</span>
-            <ChevronRight size={16} style={{ color: '#cabfb4' }} />
-          </button>
-        );
-      })}
+      {list.length === 0 ? <div className="p-4"><Empty>Sin evaluaciones.</Empty></div> : list.map((ev, i) => (
+        <FilaEvaluacion key={ev.id} ev={ev} border={i > 0} p={p} />
+      ))}
     </SecCard>
+  );
+}
+
+/**
+ * Fila de una evaluación con sus acciones a mano: ver el detalle, editarla o
+ * bajar el PDF sin tener que entrar a la pantalla de evaluaciones.
+ */
+function FilaEvaluacion({ ev, border, p }: { ev: any; border: boolean; p: FichaLayoutProps }) {
+  const a = aptInfo(ev.aptitudMedica);
+  const retiro = ev.tipo === 'RETIRO';
+  const tb = tipoBadge(ev);
+  const dxCount = Array.isArray(ev.diagnosticos) ? ev.diagnosticos.length : 0;
+  const btn = 'text-[11.5px] px-2.5 py-1 rounded-lg font-semibold cursor-pointer border-none whitespace-nowrap';
+  return (
+    <div className="flex items-center gap-3.5 w-full p-[13px_18px] bg-white hover:bg-slate-50" style={{ borderTop: border ? '1px solid #eef0f3' : 'none' }}>
+      <button onClick={() => p.onOpenEval(ev)} title="Ver el detalle" className="flex items-center gap-3.5 flex-1 min-w-0 text-left bg-transparent border-none cursor-pointer p-0">
+        <div className="text-center min-w-[54px]">
+          <div className="text-[21px] font-bold leading-none" style={{ fontFamily: SERIF }}>{fmtF(ev.fecha).split(' ')[0]}</div>
+          <div className="text-[10.5px] uppercase mt-0.5" style={{ fontFamily: MONO, color: '#98a0ab' }}>{fmtF(ev.fecha).split(' ').slice(1).join(' ')}</div>
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="text-[13.5px] font-semibold truncate">{retiro ? 'Evaluación de retiro' : (ev.motivoConsulta || `Evaluación ${tb.label.toLowerCase()}`)}</div>
+          <div className="text-[12px] truncate" style={{ color: '#98a0ab' }}>{dxCount > 0 ? `${dxCount} diagnóstico${dxCount > 1 ? 's' : ''}` : 'Sin diagnósticos'}{ev.medicoNombre ? ` · ${ev.medicoNombre}` : ''}</div>
+        </div>
+        <span className="text-[10px] font-bold uppercase px-2.5 py-0.5 rounded hidden md:inline" style={{ background: tb.bg, color: tb.fg, letterSpacing: '.4px' }}>{tb.label}</span>
+        <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full hidden md:inline" style={{ background: a.bg, color: a.fg }}>{a.label}</span>
+      </button>
+      <div className="flex items-center gap-1.5 shrink-0">
+        <button onClick={() => p.onOpenEval(ev)} className={btn} style={{ background: '#eaf0f9', color: C_EVAL }}>Ver</button>
+        {p.onEditarEval && <button onClick={() => p.onEditarEval!(ev)} className={btn} style={{ background: '#f8eddc', color: '#9a5b12' }}>Editar</button>}
+        {p.onPdfEval && <button onClick={() => p.onPdfEval!(ev)} title="Descargar el PDF" className={btn} style={{ background: '#f9e6e8', color: '#a3142a' }}><FileText size={12} /></button>}
+        <ChevronRight size={16} style={{ color: '#cabfb4' }} />
+      </div>
+    </div>
   );
 }
 
@@ -435,9 +455,13 @@ function Permisos(p: FichaLayoutProps) {
 // (SO-RE-41) y se actualizan en las posteriores. Este recuadro muestra la
 // versión más reciente de cada bloque para consultarlos de un vistazo.
 function AntecedentesCard({ evaluaciones, onVerEval }: { evaluaciones: any[]; onVerEval: (ev: any) => void }) {
-  // Primera evaluación (más reciente) que traiga datos de antecedentes.
+  // Primera evaluación (más reciente) que traiga datos de antecedentes. El
+  // formato unificado guarda además el resumen en `antecedentesClinicosTexto`,
+  // así que también cuenta como fuente válida.
   const fuente = evaluaciones.find((e) =>
-    e.antecedentesClinicosQ !== undefined || (e.antecedentesClinicosLista?.length ?? 0) > 0 ||
+    e.antecedentesClinicosQ != null || (e.antecedentesClinicosLista?.length ?? 0) > 0 ||
+    (e.antecedentesClinicosTexto ?? '').trim() !== '' || (e.antecedentesFamiliaresTexto ?? '').trim() !== '' ||
+    e.antecedentesQuirurgicosQ != null || e.alergiasTiene != null ||
     (e.antecedentesFamiliares?.length ?? 0) > 0 || (e.habitosToxicos?.length ?? 0) > 0 ||
     (e.antecedentesEmpleos?.length ?? 0) > 0 || e.antecedentesGineco || e.antecedentesReproductivos,
   );
@@ -460,11 +484,22 @@ function AntecedentesCard({ evaluaciones, onVerEval }: { evaluaciones: any[]; on
   const alergias: string[] = fuente.alergiasTiene === true
     ? (fuente.alergias ?? []).map((a: any) => `${a.alergeno || '?'}${a.intensidadReaccion ? ` — ${a.intensidadReaccion}` : ''}`)
     : [];
+  // Evaluaciones del formato unificado guardadas antes de que existiera la
+  // captura detallada: solo tienen la línea de resumen.
+  const sinDetalle = clinicos.length === 0 && quirurgicos.length === 0 && alergias.length === 0;
+  const soloResumen = sinDetalle && (fuente.antecedentesClinicosTexto ?? '').trim()
+    ? fuente.antecedentesClinicosTexto.trim()
+    : '';
   const habitos: string[] = (fuente.habitosToxicos ?? [])
     .filter((h: any) => h.consume || h.exConsumidor)
     .map((h: any) => `${h.tipo}${h.consume ? ` (${h.cantidad || 'consume'})` : ' (ex consumidor)'}`);
+  // Los formatos antiguos guardan los familiares como lista; el unificado, como
+  // un texto libre.
   const familiares: string[] = (fuente.antecedentesFamiliares ?? [])
     .map((a: any) => `${a.tipo}${a.parentesco ? `: ${a.parentesco}` : ''}${a.descripcion ? ` (${a.descripcion})` : ''}`);
+  if (familiares.length === 0 && (fuente.antecedentesFamiliaresTexto ?? '').trim()) {
+    familiares.push(fuente.antecedentesFamiliaresTexto.trim());
+  }
   const empleos: string[] = (fuente.antecedentesEmpleos ?? [])
     .map((e: any) => `${e.empresa || '?'} — ${e.puesto || '?'}${e.tiempoMeses ? ` (${e.tiempoMeses} meses)` : ''}${e.riesgos?.length ? ` · ${e.riesgos.join(', ')}` : ''}`);
 
@@ -492,16 +527,20 @@ function AntecedentesCard({ evaluaciones, onVerEval }: { evaluaciones: any[]; on
 
   return (
     <SecCard icon={<ClipboardList size={17} />} color="#0d6b5f" title="Antecedentes"
-      action={<Link onClick={() => onVerEval(fuente)}>Ver ficha origen</Link>}>
+      action={<Link onClick={() => onVerEval(fuente)}>Ver ficha origen</Link>} alturaMaxima={340}>
       <div className="mb-3 text-[11.5px]" style={{ color: '#98a0ab' }}>
         Fuente: <span className="font-bold px-1.5 py-0.5 rounded" style={{ background: tb.bg, color: tb.fg }}>{tb.label}</span>
         {' '}del <span style={{ fontFamily: MONO }}>{fmtF(fuente.fecha)}</span>
         {fuente.edadInicioLaboral ? <> · Inició actividad laboral a los <span style={{ fontFamily: MONO }}>{fuente.edadInicioLaboral}</span> años</> : null}
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        <Bloque titulo="Clínicos" items={clinicos} vacio={fuente.antecedentesClinicosQ === false ? 'Sin antecedentes clínicos.' : 'No registrados.'} />
-        <Bloque titulo="Quirúrgicos" items={quirurgicos} vacio={fuente.antecedentesQuirurgicosQ === false ? 'Sin antecedentes quirúrgicos.' : 'No registrados.'} />
-        <Bloque titulo="Alergias" items={alergias} vacio={fuente.alergiasTiene === false ? 'Sin alergias conocidas.' : 'No registradas.'} />
+        {soloResumen
+          ? <div className="md:col-span-2"><Bloque titulo="Clínicos, quirúrgicos y alergias" items={[soloResumen]} vacio="No registrados." /></div>
+          : <>
+              <Bloque titulo="Clínicos" items={clinicos} vacio={fuente.antecedentesClinicosQ === false ? 'Sin antecedentes clínicos.' : 'No registrados.'} />
+              <Bloque titulo="Quirúrgicos" items={quirurgicos} vacio={fuente.antecedentesQuirurgicosQ === false ? 'Sin antecedentes quirúrgicos.' : 'No registrados.'} />
+              <Bloque titulo="Alergias" items={alergias} vacio={fuente.alergiasTiene === false ? 'Sin alergias conocidas.' : 'No registradas.'} />
+            </>}
         <Bloque titulo="Hábitos tóxicos" items={habitos} vacio="Sin consumos nocivos reportados." />
         <Bloque titulo="Familiares" items={familiares} vacio="Sin antecedentes familiares de importancia." />
         {gineco && <Bloque titulo="Gineco-obstétricos" items={ginecoResumen} vacio="No registrados." />}

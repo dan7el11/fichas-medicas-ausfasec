@@ -706,6 +706,83 @@ export const PERFILES_CARGO: PerfilCargo[] = [
 
 const norm = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
 
+/**
+ * Normalización para la barra de búsqueda: sin tildes, sin espacios y sin
+ * signos, para que «tecnicoseguridad», «TÉCNICO SEGURIDAD» y «tec-seguridad»
+ * encuentren lo mismo. Es el mismo criterio del buscador CIE-10.
+ *
+ * Además descarta el sufijo inclusivo «/A» con el que el consolidado escribe
+ * casi todos los cargos («TÉCNICO/A DE SEGURIDAD»); si no, quien teclea
+ * «tecnico de seguridad» no encontraría nada.
+ */
+export const normalizarBusqueda = (s: string) =>
+  norm(s ?? '').replace(/\/a(?![a-z])/g, '').replace(/[^a-z0-9]/g, '');
+
+/** Siglas por departamento, para componer el código de cada cargo. */
+const SIGLA_DEPARTAMENTO: Record<string, string> = {
+  'TALENTO HUMANO': 'TTHH',
+  'JEFATURA ADMINISTRATIVA': 'ADM',
+  'JEFATURA FINANCIERA': 'FIN',
+  'COMERCIAL': 'COM',
+  'ENVASADO, MANTENIMIENTO Y ALMACENAMIENTO': 'ENV',
+  'PLANIFICACIÓN, SEGURIDAD Y AMBIENTE': 'PSA',
+  'JEFATURA DE TECNOLOGÍAS DE LA INFORMACIÓN': 'TIC',
+  'PROCESOS ADJETIVOS DE ASESORÍA': 'ASE',
+};
+
+export interface CargoCatalogo extends PerfilCargo {
+  codigo: string;
+}
+
+/**
+ * Catálogo con código: sigla del departamento + correlativo dentro de él,
+ * según el orden del consolidado (p. ej. `ENV-03`). El consolidado
+ * institucional de funciones no trae códigos, así que se derivan aquí para
+ * poder buscar por código además de por nombre; son estables mientras no se
+ * reordene PERFILES_CARGO.
+ */
+export const CARGOS: CargoCatalogo[] = (() => {
+  const correlativo: Record<string, number> = {};
+  return PERFILES_CARGO.map((p) => {
+    const sigla = SIGLA_DEPARTAMENTO[p.departamento] ?? norm(p.departamento).slice(0, 3).toUpperCase();
+    correlativo[sigla] = (correlativo[sigla] ?? 0) + 1;
+    return { ...p, codigo: `${sigla}-${String(correlativo[sigla]).padStart(2, '0')}` };
+  });
+})();
+
+/**
+ * Cargos que coinciden con el texto tecleado, por código, nombre o
+ * departamento. Prioriza los que empiezan por el texto buscado.
+ */
+export function buscarCargos(texto: string, limite = 20): CargoCatalogo[] {
+  const q = normalizarBusqueda(texto);
+  if (!q) return [];
+  const puntuar = (c: CargoCatalogo): number => {
+    const codigo = normalizarBusqueda(c.codigo);
+    const nombre = normalizarBusqueda(c.cargo);
+    const depto = normalizarBusqueda(c.departamento);
+    if (codigo === q) return 0;
+    if (nombre.startsWith(q)) return 1;
+    if (codigo.startsWith(q)) return 2;
+    if (nombre.includes(q)) return 3;
+    if (depto.includes(q)) return 4;
+    return Infinity;
+  };
+  return CARGOS
+    .map((c) => ({ c, p: puntuar(c) }))
+    .filter((x) => x.p !== Infinity)
+    .sort((a, b) => a.p - b.p || a.c.cargo.localeCompare(b.c.cargo, 'es'))
+    .slice(0, limite)
+    .map((x) => x.c);
+}
+
+/** Cargo del catálogo cuyo nombre coincide con el registrado en el trabajador. */
+export function cargoPorNombre(cargo: string): CargoCatalogo | null {
+  const q = normalizarBusqueda(cargo);
+  if (!q) return null;
+  return CARGOS.find((c) => normalizarBusqueda(c.cargo) === q) ?? null;
+}
+
 /** Busca el perfil de un cargo (tolerante a tildes, mayúsculas y variantes). */
 export function perfilDeCargo(cargo: string): PerfilCargo | null {
   const c = norm(cargo || '');

@@ -46,6 +46,39 @@ describe('fusionarAntecedentes (secuencial, formato unificado)', () => {
     expect(r.habitosToxicos?.[0]).toMatchObject({ consume: true });
   });
 
+  it('conserva el detalle clínico cuando la evaluación nueva no responde el bloque', () => {
+    const previo: ExpedienteAntecedentes = {
+      trabajadorId: 'T1',
+      antecedentesClinicosQ: true,
+      antecedentesClinicosLista: [{ enfermedad: 'HTA' } as any],
+    };
+    const r = fusionarAntecedentes(previo, { antecedentesFamiliaresTexto: 'Padre HTA.' });
+    expect(r.antecedentesClinicosQ).toBe(true);
+    expect(r.antecedentesClinicosLista).toHaveLength(1);
+  });
+
+  it('un «No» explícito vacía la lista heredada de ese bloque', () => {
+    const previo: ExpedienteAntecedentes = {
+      trabajadorId: 'T1',
+      antecedentesQuirurgicosQ: true,
+      antecedentesQuirurgicosLista: [{ procedimiento: 'Apendicectomía' } as any],
+    };
+    const r = fusionarAntecedentes(previo, { antecedentesQuirurgicosQ: false, antecedentesQuirurgicosLista: [] });
+    expect(r.antecedentesQuirurgicosQ).toBe(false);
+    expect(r.antecedentesQuirurgicosLista).toEqual([]);
+  });
+
+  it('el detalle nuevo reemplaza al anterior en el mismo bloque', () => {
+    const previo: ExpedienteAntecedentes = {
+      trabajadorId: 'T1',
+      alergiasTiene: true,
+      alergias: [{ alergeno: 'polen' } as any],
+    };
+    const r = fusionarAntecedentes(previo, { alergiasTiene: true, alergias: [{ alergeno: 'penicilina' } as any] });
+    expect(r.alergias).toHaveLength(1);
+    expect(r.alergias?.[0]).toMatchObject({ alergeno: 'penicilina' });
+  });
+
   it('actualiza datos personales cuando vienen informados', () => {
     const previo: ExpedienteAntecedentes = { trabajadorId: 'T1', datosPersonales: { grupoSanguineo: 'O+' } as any };
     const r = fusionarAntecedentes(previo, { datosPersonales: { grupoSanguineo: 'A+' } as any });

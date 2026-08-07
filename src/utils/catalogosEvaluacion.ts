@@ -303,6 +303,50 @@ export const TIPOS_EVALUACION_OCUP = [
 ] as const;
 export type TipoEvaluacionOcup = typeof TIPOS_EVALUACION_OCUP[number]['valor'];
 
+/** Una de las cuatro fechas de la cabecera del formato (Sección B). */
+export type CampoFechaEvaluacion = 'fechaAtencion' | 'fechaIngresoTrabajo' | 'fechaReingreso' | 'fechaUltimoDia';
+
+export const ETIQUETA_CAMPO_FECHA: Record<CampoFechaEvaluacion, string> = {
+  fechaAtencion: 'Fecha de atención',
+  fechaIngresoTrabajo: 'Fecha de ingreso al trabajo',
+  fechaReingreso: 'Fecha de reintegro',
+  fechaUltimoDia: 'Último día laboral / salida',
+};
+
+/**
+ * Fechas que pide el formato según el tipo de evaluación. La cabecera imprime
+ * las cuatro columnas siempre, pero solo tienen sentido las de aquí: en un
+ * RETIRO se llenan ingreso y último día laboral; en un REINTEGRO, además, la
+ * fecha de reintegro y el último día trabajado antes de la ausencia.
+ *
+ * `obligatorias` son las que se exigen al guardar.
+ */
+export const CAMPOS_FECHA_POR_TIPO: Record<string, { campos: CampoFechaEvaluacion[]; obligatorias: CampoFechaEvaluacion[] }> = {
+  preocupacional: {
+    campos: ['fechaAtencion', 'fechaIngresoTrabajo'],
+    obligatorias: ['fechaAtencion'],
+  },
+  periodica: {
+    campos: ['fechaAtencion', 'fechaIngresoTrabajo'],
+    obligatorias: ['fechaAtencion', 'fechaIngresoTrabajo'],
+  },
+  reintegro: {
+    campos: ['fechaAtencion', 'fechaIngresoTrabajo', 'fechaUltimoDia', 'fechaReingreso'],
+    obligatorias: ['fechaAtencion', 'fechaIngresoTrabajo', 'fechaReingreso'],
+  },
+  retiro: {
+    campos: ['fechaAtencion', 'fechaIngresoTrabajo', 'fechaUltimoDia'],
+    obligatorias: ['fechaAtencion', 'fechaIngresoTrabajo', 'fechaUltimoDia'],
+  },
+};
+
+/** Ayuda contextual bajo cada campo, según el tipo de evaluación. */
+export const AYUDA_CAMPO_FECHA: Record<string, Partial<Record<CampoFechaEvaluacion, string>>> = {
+  preocupacional: { fechaIngresoTrabajo: 'Fecha prevista de ingreso' },
+  reintegro: { fechaUltimoDia: 'Último día trabajado antes de la ausencia', fechaReingreso: 'Fecha en que se reincorpora' },
+  retiro: { fechaUltimoDia: 'Último día laboral (salida)' },
+};
+
 // ── Fábricas de objetos vacíos ───────────────────────────────────────────────
 
 export const emptyAntecedenteClinico = (): AntecedenteClinico => ({

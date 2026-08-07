@@ -118,6 +118,8 @@ export interface AntecedenteClinico {
   seguimientoEspecialista: boolean;
   especialista: string;
   complicaciones: string;
+  /** Adherencia al tratamiento: 'buena' | 'irregular' | 'mala'. */
+  adherencia?: string;
 }
 
 export interface AntecedenteQuirurgico {
@@ -199,8 +201,18 @@ export interface ExpedienteAntecedentes {
   trabajadorId: string;
   datosPersonales?: DatosPersonalesSO41;
   condicionEspecial?: CondicionEspecial;
-  /** Antecedentes clínicos y quirúrgicos (descripción, formato unificado). */
+  /** Antecedentes clínicos y quirúrgicos (resumen en una línea del recuadro). */
   antecedentesClinicosTexto?: string;
+  /**
+   * Detalle estructurado que genera `antecedentesClinicosTexto`. Se conserva
+   * para poder reabrir el formulario con las respuestas Sí/No y sus campos.
+   */
+  antecedentesClinicosQ?: boolean | null;
+  antecedentesClinicosLista?: AntecedenteClinico[];
+  antecedentesQuirurgicosQ?: boolean | null;
+  antecedentesQuirurgicosLista?: AntecedenteQuirurgico[];
+  alergiasTiene?: boolean | null;
+  alergias?: Alergia[];
   /** Antecedentes familiares (descripción). */
   antecedentesFamiliaresTexto?: string;
   antecedentesGineco?: AntecedentesGineco;
@@ -315,6 +327,8 @@ export interface FactorRiesgoPuesto {
    * Es la base del profesiograma por cargo y actividad.
    */
   riesgoActividades?: Record<string, number[]>;
+  /** Medidas preventivas de cada actividad (misma posición que actividadesJornada). */
+  medidasActividades?: string[];
 }
 
 // ====================================================================

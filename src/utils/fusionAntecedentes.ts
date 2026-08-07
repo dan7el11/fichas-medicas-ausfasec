@@ -23,6 +23,23 @@ function preferir<T>(previo: T | undefined, nuevo: T | undefined, vacio: (v: any
   return !vacio(nuevo) ? nuevo : previo;
 }
 
+/**
+ * Bloque «pregunta Sí/No + lista de detalle» (clínicos, quirúrgicos, alergias).
+ * Un «No» explícito en la evaluación nueva manda: vacía la lista heredada, para
+ * que el expediente no afirme y niegue lo mismo a la vez.
+ */
+function fusionarBloque<Q extends keyof ExpedienteAntecedentes, L extends keyof ExpedienteAntecedentes>(
+  claveQ: Q, claveLista: L,
+  previo: ExpedienteAntecedentes, nuevos: Partial<ExpedienteAntecedentes>,
+): Pick<ExpedienteAntecedentes, Q | L> {
+  const qNuevo = (nuevos[claveQ] ?? null) as boolean | null;
+  const q = (qNuevo ?? previo[claveQ] ?? null) as boolean | null;
+  const lista = q === false
+    ? []
+    : (preferir(previo[claveLista] as any[], nuevos[claveLista] as any[], vacioArr) ?? []);
+  return { [claveQ]: q, [claveLista]: lista } as Pick<ExpedienteAntecedentes, Q | L>;
+}
+
 export function fusionarAntecedentes(
   previo: ExpedienteAntecedentes | null,
   nuevos: Partial<ExpedienteAntecedentes>,
@@ -34,6 +51,11 @@ export function fusionarAntecedentes(
     datosPersonales: preferir(p.datosPersonales, nuevos.datosPersonales, vacioObj),
     condicionEspecial: preferir(p.condicionEspecial, nuevos.condicionEspecial, vacioObj),
     antecedentesClinicosTexto: preferir(p.antecedentesClinicosTexto, nuevos.antecedentesClinicosTexto, vacioStr) ?? '',
+    // Detalle estructurado: un «No» explícito es información, así que solo se
+    // conserva el valor previo cuando el nuevo viene sin responder (null).
+    ...fusionarBloque('antecedentesClinicosQ', 'antecedentesClinicosLista', p, nuevos),
+    ...fusionarBloque('antecedentesQuirurgicosQ', 'antecedentesQuirurgicosLista', p, nuevos),
+    ...fusionarBloque('alergiasTiene', 'alergias', p, nuevos),
     antecedentesFamiliaresTexto: preferir(p.antecedentesFamiliaresTexto, nuevos.antecedentesFamiliaresTexto, vacioStr) ?? '',
     antecedentesGineco: preferir(p.antecedentesGineco, nuevos.antecedentesGineco, vacioObj),
     antecedentesReproductivos: preferir(p.antecedentesReproductivos, nuevos.antecedentesReproductivos, vacioObj),

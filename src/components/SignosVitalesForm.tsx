@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { calcularIMC } from '../utils/calculations';
 import { validarSigno, validarPresion, type CampoSigno } from '../utils/signosValidacion';
 import type { SignosVitales } from '../types';
@@ -38,12 +38,33 @@ export default function SignosVitalesForm({ onDataChange, initialData }: SignosV
     glucosaCapilar: initialData?.glucosaCapilar || '',
   });
 
-  // Precargar la talla de evaluaciones anteriores si existe
+  // Al EDITAR una evaluación, el padre carga los signos de forma asíncrona: el
+  // formulario ya se montó (con los campos vacíos) cuando llegan los datos. Sin
+  // esta resincronización el estado interno vacío se devolvía por onDataChange y
+  // borraba lo guardado; solo la talla se recuperaba.
+  //
+  // Se compara por CONTENIDO y no por identidad: `initialData` es un objeto
+  // nuevo en cada render (el padre lo reconstruye con lo que este mismo
+  // formulario le envía), así que comparar referencias entraría en bucle.
+  const firma = (s?: Partial<SignosVitales> | null) =>
+    CAMPOS.map(c => String((s as any)?.[c.name] ?? '')).join('|');
+  const firmaRecibida = firma(initialData);
+  const ultimaFirma = useRef(firmaRecibida);
+
   useEffect(() => {
-    if (initialData && initialData.talla) {
-      setDatos(prev => ({ ...prev, talla: initialData.talla }));
-    }
-  }, [initialData?.talla]);
+    if (firmaRecibida === ultimaFirma.current) return;
+    ultimaFirma.current = firmaRecibida;
+    setDatos(prev => {
+      const next = { ...prev };
+      // Solo se copian los campos con valor: un campo vacío que llega del padre
+      // no debe pisar lo que el médico acaba de escribir.
+      CAMPOS.forEach(c => {
+        const v = (initialData as any)?.[c.name];
+        if (v !== undefined && v !== null && v !== '') (next as any)[c.name] = v;
+      });
+      return next;
+    });
+  }, [firmaRecibida]);
 
   useEffect(() => {
     const pesoNum = parseFloat(datos.peso);
