@@ -1,4 +1,4 @@
 // Versión visible de la aplicación. Súbela en cada entrega importante para
 // poder verificar qué versión está desplegada (se muestra en el login y en el
 // menú de usuario).
-export const APP_VERSION = 'v3.5 · reintegro SO-RE-39 + correo y ausentismo corregidos';
+export const APP_VERSION = 'v4.1 · matriz de riesgos fiel + funciones por cargo';

@@ -16,6 +16,7 @@ const NuevaEvaluacion = lazy(() => import('./pages/NuevaEvaluacion'));
 const NuevaEvaluacionRetiro = lazy(() => import('./pages/NuevaEvaluacionRetiro'));
 const NuevaPreocupacional = lazy(() => import('./pages/NuevaPreocupacional'));
 const NuevaEvaluacionReintegro = lazy(() => import('./pages/NuevaEvaluacionReintegro'));
+const NuevaEvaluacionOcupacional = lazy(() => import('./pages/NuevaEvaluacionOcupacional'));
 const DetalleTrabajador = lazy(() => import('./pages/DetalleTrabajador'));
 const Reportes = lazy(() => import('./pages/Reportes'));
 const NuevoReposo = lazy(() => import('./pages/NuevoReposo'));
@@ -86,6 +87,7 @@ function App() {
                   <Route path="/evaluar-retiro/:trabajadorId" element={<ProtectedRoute><NuevaEvaluacionRetiro /></ProtectedRoute>} />
                   <Route path="/evaluar-preocupacional/:trabajadorId" element={<ProtectedRoute><NuevaPreocupacional /></ProtectedRoute>} />
                   <Route path="/evaluar-reintegro/:trabajadorId" element={<ProtectedRoute><NuevaEvaluacionReintegro /></ProtectedRoute>} />
+                  <Route path="/evaluar-ocupacional/:trabajadorId" element={<ProtectedRoute><NuevaEvaluacionOcupacional /></ProtectedRoute>} />
 
                   {/* Consulta diaria */}
                   <Route path="/consulta-diaria" element={<ProtectedRoute><ConsultaDiaria /></ProtectedRoute>} />

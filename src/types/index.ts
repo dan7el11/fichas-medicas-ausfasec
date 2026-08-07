@@ -175,17 +175,65 @@ export interface DatosPersonalesSO41 {
   gradoInstruccion: string;
   profesion: string;
   actividadesRelevantes: string;
+  // ── Campos del formato unificado (Evaluación Médica Ocupacional) ──
+  /** Grupos de atención prioritaria marcados (embarazada, discapacidad, etc.). */
+  gruposPrioritarios?: string[];
+  fechaNacimiento?: string;
 }
 
-/** Empleo anterior (Sección D del SO-RE-41: antecedentes de trabajo). */
+/** Condición especial para urgencias (formato unificado, referido por el paciente). */
+export interface CondicionEspecial {
+  autorizaTransfusiones: boolean | null;
+  tratamientoHormonal: boolean | null;
+  tratamientoHormonalCual: string;
+  condicionPreexistente: string;
+}
+
+/**
+ * Expediente de antecedentes por trabajador (colección `antecedentes`, id =
+ * trabajadorId). Se registra en la PRIMERA evaluación y las siguientes lo
+ * recuperan, autocompletan y actualizan (añadiendo sin duplicar). Es la fuente
+ * única de antecedentes, administrable desde la ficha del trabajador.
+ */
+export interface ExpedienteAntecedentes {
+  trabajadorId: string;
+  datosPersonales?: DatosPersonalesSO41;
+  condicionEspecial?: CondicionEspecial;
+  /** Antecedentes clínicos y quirúrgicos (descripción, formato unificado). */
+  antecedentesClinicosTexto?: string;
+  /** Antecedentes familiares (descripción). */
+  antecedentesFamiliaresTexto?: string;
+  antecedentesGineco?: AntecedentesGineco;
+  antecedentesReproductivos?: AntecedentesReproductivos;
+  habitosToxicos?: HabitoToxico[];
+  estiloVida?: EstiloVida;
+  antecedentesEmpleos?: AntecedenteEmpleo[];
+  /** Metadatos de trazabilidad. */
+  primeraEvaluacionId?: string;
+  primeraVez?: any;
+  actualizadoEn?: any;
+  actualizadoPor?: string;
+}
+
+/** Empleo anterior o actual (antecedentes de trabajo). */
 export interface AntecedenteEmpleo {
-  empresa: string;
+  empresa: string;       // centro de trabajo
   puesto: string;
   actividades: string;
   tiempoMeses: string;
   /** Riesgos a los que estuvo expuesto: FÍSICO, MECÁNICO, QUÍMICO, BIOLÓGICO, ERGONÓMICO, PSICOSOCIAL. */
   riesgos: string[];
   observaciones: string;
+  // ── Campos del formato unificado (Sección H) ──
+  /** true = trabajo actual; false/undefined = empleo anterior. */
+  esActual?: boolean;
+  incidente?: boolean;
+  accidente?: boolean;
+  enfermedadProfesional?: boolean;
+  /** Calificado por el IESS (accidente/enfermedad profesional). */
+  calificadoIess?: boolean | null;
+  fechaCalificacion?: string;
+  especificar?: string;
 }
 
 /** Examen de tamizaje con antigüedad y resultado (PAP, mamografía, PSA, etc.). */
@@ -259,6 +307,14 @@ export interface FactorRiesgoPuesto {
   ergonomicos: string[];
   psicosociales: string[];
   medidasPreventivas: string;
+  // ── Formato unificado: matriz de riesgo × actividad (Sección G) ──
+  /** Actividades importantes de la jornada, numeradas 1..7 (columnas de la matriz). */
+  actividadesJornada?: string[];
+  /**
+   * Riesgo → índices (0-based) de las actividades en las que está presente.
+   * Es la base del profesiograma por cargo y actividad.
+   */
+  riesgoActividades?: Record<string, number[]>;
 }
 
 // ====================================================================
@@ -416,6 +472,19 @@ export interface EvaluacionMedica {
   causaSalida?: string;
   /** Reubicación indicada en la aptitud (Sección H del SO-RE-39). */
   aptitudReubicacion?: string;
+
+  // ── Campos del FORMATO UNIFICADO (Evaluación Médica Ocupacional) ──
+  /** Condición especial para urgencias (transfusiones, tratamiento hormonal). */
+  condicionEspecial?: CondicionEspecial;
+  /** Fecha de la atención (aaaa-mm-dd). */
+  fechaAtencion?: string;
+  /** Fecha de ingreso al trabajo (aaaa-mm-dd). */
+  fechaIngresoTrabajo?: string;
+  /** Sección N (retiro): se realizó la evaluación de retiro. */
+  retiroEvaluacionRealizada?: boolean | null;
+  /** Sección N (retiro): la condición de salud está relacionada con el trabajo. */
+  retiroRelacionadaTrabajo?: boolean | null;
+  retiroObservacion?: string;
 
   createdAt: any;
 }
