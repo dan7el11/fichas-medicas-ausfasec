@@ -108,6 +108,25 @@ export function tipoEvaluacionLabel(e: EvaluacionMedica): string {
   return 'Periódica';
 }
 
+/** Las cuatro casillas de «TIPO DE EVALUACIÓN» de la hoja oficial. */
+export type ClaveTipoEvaluacion = 'preocupacional' | 'periodica' | 'reintegro' | 'retiro';
+
+/**
+ * Clave del tipo de evaluación, para marcar la casilla correspondiente del
+ * formato. Se lee del valor guardado y NO del label: el label «Pre-ocupacional»
+ * lleva guion, así que buscar «preocup» sobre él nunca casaba y la casilla
+ * INGRESO quedaba sin marcar.
+ */
+export function tipoEvaluacionClave(e: EvaluacionMedica): ClaveTipoEvaluacion {
+  const raw = normalizarTexto(
+    String(e.tipo ?? (e as EvaluacionMedica & { tipoEvaluacion?: string }).tipoEvaluacion ?? ''),
+  ).replace(/[^a-z]/g, '');
+  if (raw.includes('retiro')) return 'retiro';
+  if (raw.includes('reintegro')) return 'reintegro';
+  if (raw.includes('preocupacional') || raw.includes('ingreso') || raw.includes('preempleo')) return 'preocupacional';
+  return 'periodica';
+}
+
 // ── Transformación Segura de Fechas de Firebase ────────────────────────────
 
 // Esta es la función mágica que evitará que el sistema se congele

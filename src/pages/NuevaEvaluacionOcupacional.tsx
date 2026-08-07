@@ -163,6 +163,7 @@ export default function NuevaEvaluacionOcupacional() {
     { tipo: 'drogas', consume: false, tiempoConsumo: '', cantidad: '', exConsumidor: false, tiempoAbstinencia: '' },
   ]);
   const [estiloVida, setEstiloVida] = useState<EstiloVida>({ actividadFisica: false, tipoActividad: '', tiempoCantidad: '', medicacionHabitual: '', medicacionCantidad: '' });
+  const [observacionHabitos, setObservacionHabitos] = useState('');
   // D
   const [enfermedadActual, setEnfermedadActual] = useState('');
   // E
@@ -283,6 +284,7 @@ export default function NuevaEvaluacionOcupacional() {
             if (ev.antecedentesReproductivos) setReproductivos({ ...emptyAntecedentesReproductivos(), ...ev.antecedentesReproductivos });
             if (ev.habitosToxicos) setHabitos(ev.habitosToxicos);
             if (ev.estiloVida) setEstiloVida(ev.estiloVida);
+            setObservacionHabitos(ev.observacionHabitos || '');
             setEnfermedadActual(ev.enfermedadActual || '');
             if (ev.signosVitales) setSignos(ev.signosVitales);
             if (ev.examenFisicoHallazgos) {
@@ -420,6 +422,7 @@ export default function NuevaEvaluacionOcupacional() {
         condicionEspecial: condicion,
         habitosToxicos: habitos,
         estiloVida,
+        observacionHabitos,
         enfermedadActual,
         signosVitales: signos,
         examenFisicoHallazgos: efHallazgos,
@@ -846,6 +849,13 @@ export default function NuevaEvaluacionOcupacional() {
               <input type="text" placeholder="¿Cuál?" value={estiloVida.medicacionHabitual} onChange={e => setEstiloVida(p => ({ ...p, medicacionHabitual: e.target.value }))} className="flex-1 min-w-[120px] px-2 py-1 border rounded text-xs" />
               <input type="text" placeholder="Cantidad" value={estiloVida.medicacionCantidad} onChange={e => setEstiloVida(p => ({ ...p, medicacionCantidad: e.target.value }))} className="flex-1 min-w-[120px] px-2 py-1 border rounded text-xs" />
             </div>
+          </div>
+          <div>
+            {/* Va al renglón «Observación» que el formato imprime bajo el
+                bloque de consumo de sustancias y estilo de vida. */}
+            <label className="block text-xs font-bold text-slate-700 mb-1">Observación de hábitos y estilo de vida</label>
+            <input type="text" value={observacionHabitos} onChange={e => setObservacionHabitos(e.target.value)} className={INPUT_XS}
+              placeholder="Ej: alcohol, frecuencia de consumo 2 veces al mes." />
           </div>
         </div>
 
