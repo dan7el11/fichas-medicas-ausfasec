@@ -119,7 +119,12 @@ export default function AntecedentesPanel({ trabajadorId, sexo }: { trabajadorId
               exp.condicionEspecial?.tratamientoHormonal === true && `Tratamiento hormonal: ${exp.condicionEspecial.tratamientoHormonalCual || 'sí'}`,
               exp.condicionEspecial?.condicionPreexistente && `Preexistente: ${exp.condicionEspecial.condicionPreexistente}`,
             ].filter(Boolean) as string[]}</Bloque>
-            <BloqueTexto titulo="Clínicos y quirúrgicos" texto={exp.antecedentesClinicosTexto} />
+            <BloqueTexto titulo="Clínicos, quirúrgicos y alergias" texto={exp.antecedentesClinicosTexto} />
+            <Bloque titulo="Detalle registrado">{[
+              exp.antecedentesClinicosQ != null && `Clínicos: ${exp.antecedentesClinicosQ ? `${exp.antecedentesClinicosLista?.length ?? 0} registrado(s)` : 'no refiere'}`,
+              exp.alergiasTiene != null && `Alergias: ${exp.alergiasTiene ? `${exp.alergias?.length ?? 0} registrada(s)` : 'no refiere'}`,
+              exp.antecedentesQuirurgicosQ != null && `Quirúrgicos: ${exp.antecedentesQuirurgicosQ ? `${exp.antecedentesQuirurgicosLista?.length ?? 0} registrado(s)` : 'no refiere'}`,
+            ].filter(Boolean) as string[]}</Bloque>
             <BloqueTexto titulo="Familiares" texto={exp.antecedentesFamiliaresTexto} />
             <Bloque titulo="Hábitos / estilo de vida">{[
               ...(exp.habitosToxicos ?? []).filter(h => h.consume || h.exConsumidor).map(h => `${h.tipo === 'drogas' ? 'otras' : h.tipo}${h.consume ? ` (${h.cantidad || 'consume'})` : ' (ex)'}`),
@@ -144,8 +149,11 @@ export default function AntecedentesPanel({ trabajadorId, sexo }: { trabajadorId
             <div><label className="block text-xs font-semibold text-slate-600 mb-1">Lateralidad</label>
               <select value={borrador?.datosPersonales?.lateralidad ?? ''} onChange={e => setDP({ lateralidad: e.target.value })} className={input}><option value="">—</option>{LATERALIDADES.map(o => <option key={o}>{o}</option>)}</select></div>
           </div>
-          <div><label className="block text-xs font-bold text-slate-700 mb-1">Antecedentes clínicos y quirúrgicos</label>
-            <textarea rows={2} value={borrador?.antecedentesClinicosTexto ?? ''} onChange={e => setB({ antecedentesClinicosTexto: e.target.value })} className={input} /></div>
+          <div><label className="block text-xs font-bold text-slate-700 mb-1">Resumen de clínicos, quirúrgicos y alergias</label>
+            <textarea rows={2} value={borrador?.antecedentesClinicosTexto ?? ''} onChange={e => setB({ antecedentesClinicosTexto: e.target.value })} className={input} />
+            <p className="m-0 mt-1 text-[11px] text-slate-400">
+              Es la línea que se imprime en el formato. El detalle (Sí/No y cada antecedente) se captura en la evaluación y vuelve a generar este resumen al guardarla.
+            </p></div>
           <div><label className="block text-xs font-bold text-slate-700 mb-1">Antecedentes familiares</label>
             <textarea rows={2} value={borrador?.antecedentesFamiliaresTexto ?? ''} onChange={e => setB({ antecedentesFamiliaresTexto: e.target.value })} className={input} /></div>
           <div className="border border-slate-200 rounded-lg p-3 space-y-2">

@@ -23,6 +23,7 @@ import { horasEntre } from '../../utils/permisosHorario';
 import { tipoEvaluacionLabel } from '../../utils/medicalHelpers';
 import { MATRIZ_RIESGOS } from '../../utils/catalogosEvaluacion';
 import { MAX_ACTIVIDADES as N_ACTIVIDADES } from '../../constants/funcionesCargo';
+import { conFilasMinimas } from '../../utils/tablasPdf';
 import { TIPOS_PERMISO } from '../../types/permiso';
 import type { TipoPermiso } from '../../types/permiso';
 import type { OrdenExamen } from '../../types/examenPlan';
@@ -251,19 +252,16 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
     return () => { cancelled = true; };
   }, [trabajadorId]);
 
-  // Al volver de guardar una evaluación con ?certificado=<id>, abrir el
-  // certificado de aptitud autocompletado para esa evaluación.
+  // El formato unificado (HCU-form.123/2025) ya contiene la aptitud médica y
+  // las recomendaciones, así que no se abre ningún certificado al terminar una
+  // evaluación. El parámetro `?certificado=` de enlaces antiguos se descarta.
   useEffect(() => {
-    const certId = searchParams.get('certificado');
-    if (!certId || evaluaciones.length === 0) return;
-    const ev = evaluaciones.find(e => e.id === certId);
-    if (ev) setCertEval(ev);
-    // Limpiar el parámetro para que no se reabra al refrescar
+    if (!searchParams.get('certificado')) return;
     const next = new URLSearchParams(searchParams);
     next.delete('certificado');
     setSearchParams(next, { replace: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [evaluaciones]);
+  }, [searchParams]);
 
   // ----------------------------------------------------------------
   // MODAL EDITAR
@@ -1569,27 +1567,18 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
     AT({ startY: y, theme: 'grid', styles: { ...base, fontSize: 6.5, cellPadding: 0.8 },
       body: [[{ content: 'PUESTO DE TRABAJO', styles: { fillColor: cSec, fontStyle: 'bold', cellWidth: 45, fontSize: 6 } }, { content: fr.puestoArea || trabajador.puestoTrabajo || '-' }]] });
 
-    // Anchos de la matriz: categoría | subcategoría | factor | 7 columnas numeradas.
-    const wCat = 22, wSub = 20, wAct = 11;
-    const wFac = CW - wCat - wSub - wAct * N_ACTIVIDADES;
+    // Anchos: se estrecha el bloque de factores para dar aire a las actividades.
+    const wCat = 17, wSub = 13, wFac = 42;
+    const wAct = (CW - wCat - wSub - wFac) / N_ACTIVIDADES;
 
-    // Encabezado: rótulo de actividades + números 1..7, y debajo el texto de cada actividad.
+    // Encabezado: cada columna es UNA actividad de la jornada (número + texto).
     const cabActividades: any[] = [
-      { content: 'ACTIVIDADES IMPORTANTES DENTRO DE LA JORNADA LABORAL', colSpan: 3, styles: { fillColor: cSec, fontStyle: 'bold', fontSize: 6, halign: 'left' } },
-      ...Array.from({ length: N_ACTIVIDADES }, (_, i) => ({ content: String(i + 1), styles: { fillColor: cSec, fontStyle: 'bold', halign: 'center', fontSize: 6.5 } })),
+      { content: 'ACTIVIDADES IMPORTANTES DENTRO DE LA JORNADA LABORAL', colSpan: 3, styles: { fillColor: cSec, fontStyle: 'bold', fontSize: 5.5, halign: 'left', valign: 'middle' } },
+      ...Array.from({ length: N_ACTIVIDADES }, (_, i) => ({
+        content: acts[i] ? `${i + 1}.  ${acts[i]}` : String(i + 1),
+        styles: { fillColor: cSec, fontStyle: 'bold' as const, halign: 'left' as const, valign: 'top' as const, fontSize: 4.2, cellPadding: 0.5, overflow: 'linebreak' as const },
+      })),
     ];
-    // Las actividades se listan numeradas (dos por fila, para ganar altura).
-    const filasActividades: any[] = [];
-    if (acts.length) {
-      for (let i = 0; i < acts.length; i += 2) {
-        filasActividades.push([
-          { content: `${i + 1}.  ${acts[i]}`, colSpan: 3, styles: { fontSize: 5, halign: 'left' as const } },
-          { content: acts[i + 1] ? `${i + 2}.  ${acts[i + 1]}` : '', colSpan: N_ACTIVIDADES, styles: { fontSize: 5, halign: 'left' as const } },
-        ]);
-      }
-    } else {
-      filasActividades.push([{ content: 'Sin actividades registradas.', colSpan: 3 + N_ACTIVIDADES, styles: { fontSize: 5, textColor: [120, 120, 120] as [number, number, number] } }]);
-    }
 
     // Filas de la matriz: categoría (rowSpan) | subcategoría (rowSpan) | factor | X por actividad
     const cuerpo: any[] = [];
@@ -1600,11 +1589,11 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
         grupo.items.forEach((factor, idxItem) => {
           const fila: any[] = [];
           if (primeraDeCategoria) {
-            fila.push({ content: categoria.categoria, rowSpan: totalFilas, styles: { fillColor: cTer, fontStyle: 'bold', valign: 'middle', halign: 'center', fontSize: 5.6 } });
+            fila.push({ content: categoria.categoria, rowSpan: totalFilas, styles: { fillColor: cTer, fontStyle: 'bold', valign: 'middle', halign: 'center', fontSize: 5.4, overflow: 'linebreak' } });
             primeraDeCategoria = false;
           }
           if (idxItem === 0 && grupo.subcategoria) {
-            fila.push({ content: grupo.subcategoria, rowSpan: grupo.items.length, styles: { fillColor: '#f2f5f8', fontStyle: 'bold', valign: 'middle', halign: 'center', fontSize: 5 } });
+            fila.push({ content: grupo.subcategoria, rowSpan: grupo.items.length, styles: { fillColor: '#f2f5f8', fontStyle: 'bold', valign: 'middle', halign: 'center', fontSize: 4.8, overflow: 'linebreak' } });
           }
           // Sin subcategoría: la celda del factor se extiende sobre esa columna.
           const celdaFactor = grupo.subcategoria
@@ -1620,20 +1609,28 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
       });
     });
 
+    // Última fila: las medidas preventivas al pie de la columna de cada actividad.
+    const medidas: string[] = fr.medidasActividades || [];
+    cuerpo.push([
+      { content: 'MEDIDAS PREVENTIVAS', colSpan: 3, styles: { fillColor: cSec, fontStyle: 'bold' as const, fontSize: 5.2, halign: 'left' as const, valign: 'middle' as const, minCellHeight: 12 } },
+      ...Array.from({ length: N_ACTIVIDADES }, (_, i) => ({
+        content: acts[i] ? (medidas[i] || fr.medidasPreventivas || '') : '',
+        styles: { fontSize: 4.2, halign: 'left' as const, valign: 'top' as const, cellPadding: 0.5, overflow: 'linebreak' as const, minCellHeight: 12 },
+      })),
+    ]);
+
     const colStyles: Record<number, any> = { 0: { cellWidth: wCat }, 1: { cellWidth: wSub }, 2: { cellWidth: wFac } };
     for (let i = 0; i < N_ACTIVIDADES; i++) colStyles[3 + i] = { cellWidth: wAct };
 
     // margin.bottom explícito: autotable usa 40 mm por defecto y partiría la matriz.
     AT({
-      startY: y, theme: 'grid', margin: { left: M, right: M, top: 7, bottom: 8 },
-      styles: { lineColor: negro, lineWidth: 0.2, cellPadding: 0.12, textColor: negro, fontSize: 4.6, minCellHeight: 1.95, overflow: 'ellipsize', valign: 'middle' },
+      startY: y, theme: 'grid', margin: { left: M, right: M, top: 7, bottom: 5 },
+      styles: { lineColor: negro, lineWidth: 0.2, cellPadding: 0.12, textColor: negro, fontSize: 4.6, minCellHeight: 2.05, overflow: 'ellipsize', valign: 'middle' },
       headStyles: { lineColor: negro, lineWidth: 0.2, cellPadding: 0.6, textColor: negro, fillColor: cSec, fontStyle: 'bold', fontSize: 6 },
       columnStyles: colStyles,
       head: [cabActividades],
-      body: [...filasActividades, ...cuerpo],
+      body: cuerpo,
     });
-
-    autoTable(pdf, { startY: y, margin: { left: M, right: M, top: 7, bottom: 5 }, theme: 'grid', styles: { ...base, fontSize: 6, cellPadding: 0.6 }, headStyles: { ...head, fontSize: 5.5, cellPadding: 0.6 }, head: [['MEDIDAS PREVENTIVAS']], body: [[fr.medidasPreventivas || '-']] });
 
     // ══════════ PÁGINA 3 (vertical) ══════════
     pdf.addPage('a4', 'portrait');
@@ -1641,11 +1638,12 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
     cab('Página:    3 de 3');
     sec('H. ACTIVIDAD LABORAL / INCIDENTES / ACCIDENTES / ENFERMEDADES OCUPACIONALES');
     const emps = ev.antecedentesEmpleos || [];
-    if (emps.length) {
-      AT({ startY: y, theme: 'grid', styles: { ...base, fontSize: 5.5 }, headStyles: { ...head, fontSize: 5 }, head: [['CENTRO DE TRABAJO', 'ACTIVIDADES', 'ACT.', 'TIEMPO', 'INC.', 'ACC.', 'E.P.', 'CALIF. IESS', 'ESPECIFICAR / OBS.']],
-        body: emps.map((e: any) => [e.empresa || '-', e.actividades || '-', e.esActual ? 'X' : '', e.tiempoMeses || '-', e.incidente ? 'X' : '', e.accidente ? 'X' : '', e.enfermedadProfesional ? 'X' : '', e.calificadoIess === true ? 'SÍ' : e.calificadoIess === false ? 'NO' : '-', `${e.especificar || ''} ${e.observaciones || ''}`.trim() || '-']),
-        columnStyles: { 2: { halign: 'center' }, 4: { halign: 'center' }, 5: { halign: 'center' }, 6: { halign: 'center' }, 7: { halign: 'center' } } });
-    } else libre('Sin empleos anteriores ni novedades registradas.', 5);
+    AT({ startY: y, theme: 'grid', styles: { ...base, fontSize: 5.5 }, headStyles: { ...head, fontSize: 5 }, head: [['CENTRO DE TRABAJO', 'ACTIVIDADES', 'ACT.', 'TIEMPO', 'INC.', 'ACC.', 'E.P.', 'CALIF. IESS', 'ESPECIFICAR / OBS.']],
+      body: conFilasMinimas(
+        emps.map((e: any) => [e.empresa || '-', e.actividades || '-', e.esActual ? 'X' : '', e.tiempoMeses || '-', e.incidente ? 'X' : '', e.accidente ? 'X' : '', e.enfermedadProfesional ? 'X' : '', e.calificadoIess === true ? 'SÍ' : e.calificadoIess === false ? 'NO' : '-', `${e.especificar || ''} ${e.observaciones || ''}`.trim() || '-']),
+        9,
+      ),
+      columnStyles: { 2: { halign: 'center' }, 4: { halign: 'center' }, 5: { halign: 'center' }, 6: { halign: 'center' }, 7: { halign: 'center' } } });
     y += 1;
 
     sec('I. ACTIVIDADES EXTRA LABORALES');
@@ -1654,8 +1652,8 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
 
     sec('J. RESULTADOS DE EXÁMENES GENERALES Y ESPECÍFICOS');
     const exs = (ev.examenesComplementarios || []).filter((e: any) => e.nombre?.trim());
-    if (exs.length) AT({ startY: y, theme: 'grid', styles: { ...base, fontSize: 6.5 }, headStyles: { ...head, fontSize: 6 }, head: [['NOMBRE DEL EXAMEN', 'FECHA', 'RESULTADOS']], body: exs.map((e: any) => [e.nombre, e.fecha || '-', e.resultado || '-']) });
-    else libre('Sin exámenes registrados.', 5);
+    AT({ startY: y, theme: 'grid', styles: { ...base, fontSize: 6.5 }, headStyles: { ...head, fontSize: 6 }, head: [['NOMBRE DEL EXAMEN', 'FECHA', 'RESULTADOS']],
+      body: conFilasMinimas(exs.map((e: any) => [e.nombre, e.fecha || '-', e.resultado || '-']), 3) });
     y += 1;
 
     sec('K. DIAGNÓSTICO                    PRE = PRESUNTIVO     DEF = DEFINITIVO');
@@ -1738,6 +1736,23 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
     return 'Sin aptitud';
   };
 
+  // Acciones de una evaluación, disponibles tanto en el detalle como
+  // directamente en la lista de la ficha (sin abrir la pantalla dedicada).
+  const editarEvaluacion = (ev: any) => {
+    if (ev.formato === 'ocupacional-unificado') navigate(`/evaluar-ocupacional/${trabajadorId}?editId=${ev.id}`);
+    else if (ev.tipo === 'RETIRO') navigate(`/evaluar-retiro/${trabajadorId}?editId=${ev.id}`);
+    else if (String(ev.tipoEvaluacion || '').includes('preocupacional')) navigate(`/evaluar-preocupacional/${trabajadorId}?editId=${ev.id}`);
+    else if (String(ev.tipoEvaluacion || '').includes('reintegro')) navigate(`/evaluar-reintegro/${trabajadorId}?editId=${ev.id}`);
+    else navigate(`/evaluar/${trabajadorId}?editId=${ev.id}`);
+  };
+  const pdfEvaluacion = (ev: any) => {
+    if (ev.formato === 'ocupacional-unificado') generarPDFOcupacional(ev);
+    else if (ev.tipo === 'RETIRO') generarPDFRetiro(ev);
+    else if (String(ev.tipoEvaluacion || '').includes('preocupacional')) generarPDFPreocupacional(ev);
+    else if (String(ev.tipoEvaluacion || '').includes('reintegro')) generarPDFReintegro(ev);
+    else generarPDF(ev);
+  };
+
   return (
     <>
       <FichaLayout
@@ -1759,6 +1774,8 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
         setBusquedaEval={setBusquedaEval}
         onBack={() => navigate(-1)}
         onOpenEval={setEvDrawer}
+        onEditarEval={editarEvaluacion}
+        onPdfEval={pdfEvaluacion}
         onEditarDatos={abrirModalEditar}
         onNuevaPeriodica={() => navigate(`/evaluar/${trabajadorId}`)}
         onNuevaRetiro={() => navigate(`/evaluar-retiro/${trabajadorId}`)}
@@ -1948,32 +1965,22 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
               </div>
               <div className="flex items-center gap-2">
                 <button
-                  onClick={() => {
-                    const ev: any = evDrawer;
-                    if (ev.formato === 'ocupacional-unificado') navigate(`/evaluar-ocupacional/${trabajadorId}?editId=${ev.id}`);
-                    else if (ev.tipo === 'RETIRO') navigate(`/evaluar-retiro/${trabajadorId}?editId=${ev.id}`);
-                    else if (String(ev.tipoEvaluacion || '').includes('preocupacional')) navigate(`/evaluar-preocupacional/${trabajadorId}?editId=${ev.id}`);
-                    else if (String(ev.tipoEvaluacion || '').includes('reintegro')) navigate(`/evaluar-reintegro/${trabajadorId}?editId=${ev.id}`);
-                    else navigate(`/evaluar/${trabajadorId}?editId=${ev.id}`);
-                  }}
+                  onClick={() => editarEvaluacion(evDrawer)}
                   className="px-3 py-1.5 bg-amber-500 text-white text-xs font-semibold rounded-lg hover:bg-amber-600"
                 >✏️ Editar</button>
                 <button
-                  onClick={() => {
-                    const ev: any = evDrawer;
-                    if (ev.formato === 'ocupacional-unificado') generarPDFOcupacional(ev);
-                    else if (ev.tipo === 'RETIRO') generarPDFRetiro(ev);
-                    else if (String(ev.tipoEvaluacion || '').includes('preocupacional')) generarPDFPreocupacional(ev);
-                    else if (String(ev.tipoEvaluacion || '').includes('reintegro')) generarPDFReintegro(ev);
-                    else generarPDF(ev);
-                  }}
+                  onClick={() => pdfEvaluacion(evDrawer)}
                   className="px-3 py-1.5 bg-red-600 text-white text-xs font-semibold rounded-lg hover:bg-red-700"
                 >📄 PDF</button>
-                <button
-                  onClick={() => { setCertEval(evDrawer); setEvDrawer(null); }}
-                  title="Certificado de Aptitud Médico Laboral (SO-RE-20)"
-                  className="px-3 py-1.5 bg-teal-600 text-white text-xs font-semibold rounded-lg hover:bg-teal-700"
-                >📜 Certificado{(evDrawer as any).certificadoAptitud ? ' ✓' : ''}</button>
+                {/* El certificado SO-RE-20 solo aplica a las evaluaciones de
+                    los formatos antiguos: el unificado ya lo incorpora. */}
+                {(evDrawer as any).formato !== 'ocupacional-unificado' && (
+                  <button
+                    onClick={() => { setCertEval(evDrawer); setEvDrawer(null); }}
+                    title="Certificado de Aptitud Médico Laboral (SO-RE-20)"
+                    className="px-3 py-1.5 bg-teal-600 text-white text-xs font-semibold rounded-lg hover:bg-teal-700"
+                  >📜 Certificado{(evDrawer as any).certificadoAptitud ? ' ✓' : ''}</button>
+                )}
                 <button onClick={() => setEvDrawer(null)} className="ml-2 text-slate-400 hover:text-slate-700 text-2xl leading-none">&times;</button>
               </div>
             </div>

@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { PERFILES_CARGO, perfilDeCargo, funcionesDeCargo, CARGOS_CATALOGO, FUNCIONES_AUTOCOMPLETAR, MAX_ACTIVIDADES } from './funcionesCargo';
+import {
+  PERFILES_CARGO, perfilDeCargo, funcionesDeCargo, CARGOS_CATALOGO,
+  FUNCIONES_AUTOCOMPLETAR, MAX_ACTIVIDADES, CARGOS, buscarCargos, cargoPorNombre,
+  normalizarBusqueda,
+} from './funcionesCargo';
 import { MATRIZ_RIESGOS } from '../utils/catalogosEvaluacion';
 
 describe('catálogo de funciones por cargo', () => {
@@ -32,6 +36,49 @@ describe('catálogo de funciones por cargo', () => {
   it('devuelve vacío para un cargo desconocido', () => {
     expect(funcionesDeCargo('CARGO QUE NO EXISTE XYZ')).toEqual([]);
     expect(perfilDeCargo('')).toBeNull();
+  });
+});
+
+describe('buscador de cargos', () => {
+  it('asigna un código único a cada cargo', () => {
+    expect(CARGOS.length).toBe(PERFILES_CARGO.length);
+    const codigos = CARGOS.map(c => c.codigo);
+    expect(new Set(codigos).size).toBe(codigos.length);
+    codigos.forEach(c => expect(c).toMatch(/^[A-Z]{3,4}-\d{2}$/));
+  });
+
+  it('normaliza tildes, espacios y signos', () => {
+    expect(normalizarBusqueda('TÉCNICO/A DE SEGURIDAD')).toBe('tecnicodeseguridad');
+    expect(normalizarBusqueda('  env-03 ')).toBe('env03');
+  });
+
+  it('encuentra por nombre sin tildes ni espacios', () => {
+    const uno = CARGOS[0];
+    const tecleado = normalizarBusqueda(uno.cargo).slice(0, 8);
+    expect(buscarCargos(tecleado).map(c => c.codigo)).toContain(uno.codigo);
+  });
+
+  it('encuentra por código, con o sin guion', () => {
+    const uno = CARGOS[3];
+    expect(buscarCargos(uno.codigo)[0].codigo).toBe(uno.codigo);
+    expect(buscarCargos(uno.codigo.replace('-', '').toLowerCase())[0].codigo).toBe(uno.codigo);
+  });
+
+  it('encuentra por departamento', () => {
+    const res = buscarCargos('talento humano');
+    expect(res.length).toBeGreaterThan(0);
+    expect(res.every(c => c.departamento === 'TALENTO HUMANO' || normalizarBusqueda(c.cargo).includes('talentohumano'))).toBe(true);
+  });
+
+  it('no sugiere nada con menos de dos caracteres útiles ni para texto desconocido', () => {
+    expect(buscarCargos('')).toEqual([]);
+    expect(buscarCargos('zzzqqq')).toEqual([]);
+  });
+
+  it('resuelve el cargo guardado en el trabajador', () => {
+    const uno = CARGOS[1];
+    expect(cargoPorNombre(uno.cargo)?.codigo).toBe(uno.codigo);
+    expect(cargoPorNombre('NO EXISTE')).toBeNull();
   });
 });
 

@@ -8,7 +8,7 @@ import { useState, useEffect, useCallback, Fragment } from 'react';
 import { X } from 'lucide-react';
 import { useToast } from '../components/Toast';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { doc, getDoc, collection, addDoc, updateDoc, arrayUnion, Timestamp } from 'firebase/firestore';
+import { doc, getDoc, getDocs, query, where, collection, addDoc, updateDoc, arrayUnion } from 'firebase/firestore';
 import { db } from '../services/firebase';
 import { registrarAuditoria } from '../services/auditoria';
 import { useAuth } from '../contexts/AuthContext';
@@ -22,12 +22,16 @@ import {
   OPCIONES_RECOMENDACIONES, REGIONES_EXAMEN_FISICO, MATRIZ_RIESGOS,
   GRUPOS_PRIORITARIOS, GRUPOS_SANGUINEOS, LATERALIDADES, TIPOS_EVALUACION_OCUP,
   emptyAntecedenteEmpleo, emptyAntecedentesGineco, emptyAntecedentesReproductivos, emptyDatosPersonales,
+  emptyAntecedenteClinico, emptyAntecedenteQuirurgico, emptyAlergia,
 } from '../utils/catalogosEvaluacion';
 import { funcionesDeCargo, perfilDeCargo, MAX_ACTIVIDADES, FUNCIONES_AUTOCOMPLETAR } from '../constants/funcionesCargo';
+import { resumirAntecedentes } from '../utils/resumenAntecedentes';
+import { CAMPOS_FECHA_POR_TIPO, ETIQUETA_CAMPO_FECHA, AYUDA_CAMPO_FECHA, type CampoFechaEvaluacion } from '../utils/catalogosEvaluacion';
 import type {
   Trabajador, SignosVitales, HabitoToxico, EstiloVida, ExamenFisicoHallazgo, ExamenComplementario,
   Diagnostico, Usuario, FactorRiesgoPuesto, DatosPersonalesSO41, CondicionEspecial,
   AntecedentesGineco, AntecedentesReproductivos, AntecedenteEmpleo, ExpedienteAntecedentes,
+  AntecedenteClinico, AntecedenteQuirurgico, Alergia,
 } from '../types';
 
 const emptyCondicion = (): CondicionEspecial => ({
@@ -42,6 +46,14 @@ const SiNo = ({ value, onChange }: { value: boolean | null; onChange: (v: boolea
         {val ? 'Sí' : 'No'}
       </button>
     ))}
+  </div>
+);
+
+/** Encabezado de un bloque de antecedentes con su pregunta Sí/No. */
+const TituloSiNo = ({ titulo, valor, onChange }: { titulo: string; valor: boolean | null; onChange: (v: boolean | null) => void }) => (
+  <div className="flex items-center gap-3 flex-wrap">
+    <label className="text-xs font-bold text-slate-700 uppercase">{titulo}</label>
+    <SiNo value={valor} onChange={onChange} />
   </div>
 );
 
@@ -116,6 +128,9 @@ export default function NuevaEvaluacionOcupacional() {
   const [trabajador, setTrabajador] = useState<Trabajador | null>(null);
   const [medicoData, setMedicoData] = useState<Usuario | null>(null);
   const [guardando, setGuardando] = useState(false);
+  // El formulario no se monta hasta terminar la carga: SignosVitalesForm y las
+  // demás secciones deben nacer ya con los datos de la evaluación que se edita.
+  const [cargando, setCargando] = useState(true);
 
   // A. Datos
   const [datosPersonales, setDatosPersonales] = useState<DatosPersonalesSO41>(emptyDatosPersonales());
@@ -126,8 +141,18 @@ export default function NuevaEvaluacionOcupacional() {
   const [fechaReingreso, setFechaReingreso] = useState('');
   const [fechaUltimoDia, setFechaUltimoDia] = useState('');
   const [motivoConsulta, setMotivoConsulta] = useState('');
-  // C. Antecedentes
-  const [clinicosTexto, setClinicosTexto] = useState('');
+  // C. Antecedentes.
+  // La captura es la de siempre (Sí/No + detalle por antecedente); el formato
+  // unificado los imprime resumidos en un único recuadro, y ese resumen es
+  // `clinicosTexto`, que se recalcula solo a partir del detalle.
+  const [clinicosQ, setClinicosQ] = useState<boolean | null>(null);
+  const [clinicos, setClinicos] = useState<AntecedenteClinico[]>([]);
+  const [quirurgicosQ, setQuirurgicosQ] = useState<boolean | null>(null);
+  const [quirurgicos, setQuirurgicos] = useState<AntecedenteQuirurgico[]>([]);
+  const [alergiasQ, setAlergiasQ] = useState<boolean | null>(null);
+  const [alergias, setAlergias] = useState<Alergia[]>([]);
+  /** Texto heredado de evaluaciones antiguas que no tienen el detalle. */
+  const [clinicosTextoManual, setClinicosTextoManual] = useState('');
   const [familiaresTexto, setFamiliaresTexto] = useState('');
   const [condicion, setCondicion] = useState<CondicionEspecial>(emptyCondicion());
   const [gineco, setGineco] = useState<AntecedentesGineco>(emptyAntecedentesGineco());
@@ -148,6 +173,8 @@ export default function NuevaEvaluacionOcupacional() {
   // G — factores de riesgo + actividades de la jornada (matriz riesgo × actividad)
   const [factores, setFactores] = useState<FactorRiesgoPuesto>({ puestoArea: '', actividades: '', tiempoTrabajoMeses: '', fisicos: [], mecanicos: [], quimicos: [], biologicos: [], ergonomicos: [], psicosociales: [], medidasPreventivas: '' });
   const [actividades, setActividades] = useState<string[]>([]);
+  // Medidas preventivas por actividad (van al pie de cada columna de la matriz).
+  const [medidasActs, setMedidasActs] = useState<string[]>([]);
   const [riesgoActs, setRiesgoActs] = useState<Record<string, number[]>>({});
   /** Funciones del cargo disponibles para añadir manualmente (más allá de las 6). */
   const [funcionesCargo, setFuncionesCargo] = useState<string[]>([]);
@@ -171,15 +198,38 @@ export default function NuevaEvaluacionOcupacional() {
   const [retiroObs, setRetiroObs] = useState('');
 
   const esRetiro = tipoEvaluacion === 'retiro';
-  const esReintegro = tipoEvaluacion === 'reintegro';
   const esMujer = trabajador?.sexo === 'F';
+
+  // Fechas exigidas por el formato para el tipo elegido (Sección B).
+  const fechasDelTipo = CAMPOS_FECHA_POR_TIPO[tipoEvaluacion] ?? CAMPOS_FECHA_POR_TIPO.periodica;
+  const valorFecha: Record<CampoFechaEvaluacion, string> = {
+    fechaAtencion, fechaIngresoTrabajo, fechaReingreso, fechaUltimoDia,
+  };
+  const setFecha: Record<CampoFechaEvaluacion, (v: string) => void> = {
+    fechaAtencion: setFechaAtencion,
+    fechaIngresoTrabajo: setFechaIngresoTrabajo,
+    fechaReingreso: setFechaReingreso,
+    fechaUltimoDia: setFechaUltimoDia,
+  };
+
+  // Resumen de antecedentes que se imprime en el recuadro del formato.
+  const resumenClinicos = resumirAntecedentes({
+    clinicosQ, clinicos, quirurgicosQ, quirurgicos, alergiasQ, alergias,
+  });
+  const clinicosTexto = resumenClinicos || clinicosTextoManual;
 
   // Aplica un expediente de antecedentes al formulario (autocompletado).
   const aplicarExpediente = useCallback((exp: ExpedienteAntecedentes | null, tallaFallback?: string) => {
     if (!exp) { if (tallaFallback) setSignos(prev => ({ ...prev, talla: tallaFallback })); return; }
     if (exp.datosPersonales) setDatosPersonales(prev => ({ ...prev, ...exp.datosPersonales }));
     if (exp.condicionEspecial) setCondicion({ ...emptyCondicion(), ...exp.condicionEspecial });
-    if (exp.antecedentesClinicosTexto) setClinicosTexto(exp.antecedentesClinicosTexto);
+    if (exp.antecedentesClinicosTexto) setClinicosTextoManual(exp.antecedentesClinicosTexto);
+    if (exp.antecedentesClinicosQ !== undefined) setClinicosQ(exp.antecedentesClinicosQ ?? null);
+    if (exp.antecedentesClinicosLista?.length) setClinicos(exp.antecedentesClinicosLista);
+    if (exp.antecedentesQuirurgicosQ !== undefined) setQuirurgicosQ(exp.antecedentesQuirurgicosQ ?? null);
+    if (exp.antecedentesQuirurgicosLista?.length) setQuirurgicos(exp.antecedentesQuirurgicosLista);
+    if (exp.alergiasTiene !== undefined) setAlergiasQ(exp.alergiasTiene ?? null);
+    if (exp.alergias?.length) setAlergias(exp.alergias);
     if (exp.antecedentesFamiliaresTexto) setFamiliaresTexto(exp.antecedentesFamiliaresTexto);
     if (exp.antecedentesGineco) setGineco({ ...emptyAntecedentesGineco(), ...exp.antecedentesGineco });
     if (exp.antecedentesReproductivos) setReproductivos({ ...emptyAntecedentesReproductivos(), ...exp.antecedentesReproductivos });
@@ -221,7 +271,13 @@ export default function NuevaEvaluacionOcupacional() {
             setMotivoConsulta(ev.motivoConsulta || '');
             if (ev.datosPersonales) setDatosPersonales({ ...emptyDatosPersonales(), ...ev.datosPersonales });
             if (ev.condicionEspecial) setCondicion({ ...emptyCondicion(), ...ev.condicionEspecial });
-            setClinicosTexto(ev.antecedentesClinicosTexto || ev.antecedentesClinicosQuirurgicos || '');
+            setClinicosTextoManual(ev.antecedentesClinicosTexto || ev.antecedentesClinicosQuirurgicos || '');
+            setClinicosQ(ev.antecedentesClinicosQ ?? null);
+            setClinicos(ev.antecedentesClinicosLista ?? []);
+            setQuirurgicosQ(ev.antecedentesQuirurgicosQ ?? null);
+            setQuirurgicos(ev.antecedentesQuirurgicosLista ?? []);
+            setAlergiasQ(ev.alergiasTiene ?? null);
+            setAlergias(ev.alergias ?? []);
             setFamiliaresTexto(ev.antecedentesFamiliaresTexto || '');
             if (ev.antecedentesGineco) setGineco({ ...emptyAntecedentesGineco(), ...ev.antecedentesGineco });
             if (ev.antecedentesReproductivos) setReproductivos({ ...emptyAntecedentesReproductivos(), ...ev.antecedentesReproductivos });
@@ -239,6 +295,7 @@ export default function NuevaEvaluacionOcupacional() {
               setFactores(ev.factoresRiesgo);
               setActividades(ev.factoresRiesgo.actividadesJornada ?? []);
               setRiesgoActs(ev.factoresRiesgo.riesgoActividades ?? {});
+              setMedidasActs(ev.factoresRiesgo.medidasActividades ?? []);
             }
             if (ev.antecedentesEmpleos) setEmpleos(ev.antecedentesEmpleos);
             setActividadesExtra(ev.actividadesExtraLaborales || '');
@@ -259,13 +316,24 @@ export default function NuevaEvaluacionOcupacional() {
           const exp = await getExpedienteAntecedentes(trabajadorId);
           aplicarExpediente(exp);
         } catch (err) { console.error('Error al cargar antecedentes:', err); }
+        // En una evaluación NUEVA los signos vitales se toman de cero, salvo la
+        // talla: no varía a corto plazo, así que se arrastra de la última
+        // evaluación registrada para no volver a medirla.
+        try {
+          const previas = await getDocs(query(collection(db, 'evaluaciones'), where('trabajadorId', '==', trabajadorId)));
+          const ordenadas = previas.docs
+            .map(d => d.data() as any)
+            .sort((a, b) => (b.fecha?.seconds ?? 0) - (a.fecha?.seconds ?? 0));
+          const talla = ordenadas.find(e => e.signosVitales?.talla)?.signosVitales?.talla;
+          if (talla) setSignos(prev => ({ ...prev, talla }));
+        } catch (err) { console.warn('No se pudo precargar la talla:', err); }
         // Autocompletar las actividades de la jornada con las funciones más
         // representativas del cargo (las primeras 6 del perfil).
         const sugeridas = funcionesDeCargo(trab?.puestoTrabajo || '', FUNCIONES_AUTOCOMPLETAR);
         if (sugeridas.length) setActividades(sugeridas);
       }
     };
-    cargar();
+    cargar().finally(() => setCargando(false));
   }, [trabajadorId, user, editEvalId, aplicarExpediente]);
 
   // ===== HANDLERS =====
@@ -298,6 +366,9 @@ export default function NuevaEvaluacionOcupacional() {
     });
     return out;
   };
+  const updClinico = (i: number, f: keyof AntecedenteClinico, v: any) => setClinicos(prev => prev.map((x, j) => j === i ? { ...x, [f]: v } : x));
+  const updQuirurgico = (i: number, f: keyof AntecedenteQuirurgico, v: any) => setQuirurgicos(prev => prev.map((x, j) => j === i ? { ...x, [f]: v } : x));
+  const updAlergia = (i: number, f: keyof Alergia, v: any) => setAlergias(prev => prev.map((x, j) => j === i ? { ...x, [f]: v } : x));
   const updateHabito = (i: number, f: keyof HabitoToxico, v: any) => setHabitos(prev => { const u = [...prev]; u[i] = { ...u[i], [f]: v }; return u; });
   const updateEmpleo = (i: number, f: keyof AntecedenteEmpleo, v: any) => setEmpleos(prev => { const u = [...prev]; u[i] = { ...u[i], [f]: v }; return u; });
   const updGineco = (p: Partial<AntecedentesGineco>) => setGineco(prev => ({ ...prev, ...p }));
@@ -308,6 +379,9 @@ export default function NuevaEvaluacionOcupacional() {
     if (!trabajadorId || !user || !trabajador) return;
     const errores: string[] = [];
     if (!motivoConsulta.trim()) errores.push('Indica el motivo de consulta (Sección B).');
+    fechasDelTipo.obligatorias.forEach(campo => {
+      if (!valorFecha[campo]) errores.push(`Completa «${ETIQUETA_CAMPO_FECHA[campo]}» (Sección B).`);
+    });
     if (!signos.presionSistolica || !signos.presionDiastolica || !signos.frecuenciaCardiaca || !signos.peso || !signos.talla)
       errores.push('Completa los signos vitales mínimos: PA, FC, Peso y Talla (Sección E).');
     const dxValidos = diagnosticos.filter(d => d.descripcion.trim() !== '');
@@ -328,11 +402,20 @@ export default function NuevaEvaluacionOcupacional() {
         medicoNombre: nombreProfesionalDe(medicoData) || '',
         medicoCedula: codigoProfesionalDe(medicoData),
         datosPersonales,
+        // Solo se guardan las fechas que pide el tipo de evaluación; las demás
+        // se limpian para no arrastrar valores de un tipo anterior.
         fechaAtencion,
-        fechaIngresoTrabajo,
-        ...(esReintegro ? { fechaReingreso, fechaUltimoDiaLaboral: fechaUltimoDia } : {}),
+        fechaIngresoTrabajo: fechasDelTipo.campos.includes('fechaIngresoTrabajo') ? fechaIngresoTrabajo : '',
+        fechaReingreso: fechasDelTipo.campos.includes('fechaReingreso') ? fechaReingreso : '',
+        fechaUltimoDiaLaboral: fechasDelTipo.campos.includes('fechaUltimoDia') ? fechaUltimoDia : '',
         motivoConsulta,
         antecedentesClinicosTexto: clinicosTexto,
+        antecedentesClinicosQ: clinicosQ,
+        antecedentesClinicosLista: clinicosQ === true ? clinicos.filter(c => c.enfermedad.trim()) : [],
+        antecedentesQuirurgicosQ: quirurgicosQ,
+        antecedentesQuirurgicosLista: quirurgicosQ === true ? quirurgicos.filter(q => q.procedimiento.trim()) : [],
+        alergiasTiene: alergiasQ,
+        alergias: alergiasQ === true ? alergias.filter(a => a.alergeno.trim()) : [],
         antecedentesFamiliaresTexto: familiaresTexto,
         condicionEspecial: condicion,
         habitosToxicos: habitos,
@@ -345,8 +428,10 @@ export default function NuevaEvaluacionOcupacional() {
           ...categoriasDesdeMatriz(riesgoActs),
           actividadesJornada: actividades.filter(a => a.trim()),
           riesgoActividades: riesgoActs,
+          medidasActividades: actividades.map((a, i) => (a.trim() ? (medidasActs[i] || '') : '')).filter((_, i) => actividades[i]?.trim()),
           // Texto plano de respaldo (informes y formatos antiguos).
           actividades: actividades.filter(a => a.trim()).join('; '),
+          medidasPreventivas: medidasActs.filter(m => m && m.trim()).join(' · '),
         },
         antecedentesEmpleos: empleosLimpios,
         actividadesExtraLaborales: actividadesExtra,
@@ -386,6 +471,12 @@ export default function NuevaEvaluacionOcupacional() {
           datosPersonales,
           condicionEspecial: condicion,
           antecedentesClinicosTexto: clinicosTexto,
+          antecedentesClinicosQ: clinicosQ,
+          antecedentesClinicosLista: clinicosQ === true ? clinicos.filter(c => c.enfermedad.trim()) : [],
+          antecedentesQuirurgicosQ: quirurgicosQ,
+          antecedentesQuirurgicosLista: quirurgicosQ === true ? quirurgicos.filter(q => q.procedimiento.trim()) : [],
+          alergiasTiene: alergiasQ,
+          alergias: alergiasQ === true ? alergias.filter(a => a.alergeno.trim()) : [],
           antecedentesFamiliaresTexto: familiaresTexto,
           habitosToxicos: habitos,
           estiloVida,
@@ -395,8 +486,9 @@ export default function NuevaEvaluacionOcupacional() {
         await fusionarYGuardarAntecedentes(trabajadorId, nuevosAntec, { evaluacionId: evaluacionId ?? undefined, medicoId: user.uid });
       } catch (err) { console.warn('No se pudo actualizar el expediente de antecedentes:', err); }
 
-      // Al terminar se ofrece el Certificado de Aptitud (SO-RE-20).
-      navigate(evaluacionId ? `/trabajador/${trabajadorId}?certificado=${evaluacionId}` : `/trabajador/${trabajadorId}`);
+      // El formato unificado ya incluye la aptitud y las recomendaciones, así
+      // que no se emite un certificado aparte al terminar.
+      navigate(`/trabajador/${trabajadorId}`);
     } catch (error) {
       console.error('Error al guardar:', error);
       toast.error('Hubo un error al procesar la evaluación.');
@@ -405,7 +497,7 @@ export default function NuevaEvaluacionOcupacional() {
     }
   };
 
-  if (!trabajador) return <div className="min-h-screen p-8 text-center text-slate-500">Cargando datos del trabajador...</div>;
+  if (cargando || !trabajador) return <div className="min-h-screen p-8 text-center text-slate-500">Cargando datos del trabajador...</div>;
 
   const totalRiesgos = factores.fisicos.length + factores.mecanicos.length + factores.quimicos.length + factores.biologicos.length + factores.ergonomicos.length + factores.psicosociales.length;
 
@@ -490,21 +582,25 @@ export default function NuevaEvaluacionOcupacional() {
               ))}
             </div>
           </div>
+          {/* Las fechas que se piden dependen del tipo: un retiro necesita
+              ingreso y último día laboral; un reintegro, además, la fecha de
+              reincorporación. */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1">Fecha de atención</label>
-              <input type="date" value={fechaAtencion} onChange={e => setFechaAtencion(e.target.value)} className={INPUT} />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1">Fecha de ingreso al trabajo</label>
-              <input type="date" value={fechaIngresoTrabajo} onChange={e => setFechaIngresoTrabajo(e.target.value)} className={INPUT} />
-            </div>
-            {esReintegro && (
-              <>
-                <div><label className="block text-xs font-semibold text-slate-600 mb-1">Fecha de reintegro</label><input type="date" value={fechaReingreso} onChange={e => setFechaReingreso(e.target.value)} className={INPUT} /></div>
-                <div><label className="block text-xs font-semibold text-slate-600 mb-1">Último día laboral / salida</label><input type="date" value={fechaUltimoDia} onChange={e => setFechaUltimoDia(e.target.value)} className={INPUT} /></div>
-              </>
-            )}
+            {fechasDelTipo.campos.map(campo => {
+              const obligatoria = fechasDelTipo.obligatorias.includes(campo);
+              const falta = obligatoria && !valorFecha[campo];
+              const ayuda = AYUDA_CAMPO_FECHA[tipoEvaluacion]?.[campo];
+              return (
+                <div key={campo}>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">
+                    {ETIQUETA_CAMPO_FECHA[campo]} {obligatoria && <span className="text-red-500">*</span>}
+                  </label>
+                  <input type="date" value={valorFecha[campo]} onChange={e => setFecha[campo](e.target.value)}
+                    className={`${INPUT} ${falta ? 'border-red-300 bg-red-50' : ''}`} />
+                  {ayuda && <p className="m-0 mt-1 text-[11px] text-slate-400">{ayuda}</p>}
+                </div>
+              );
+            })}
           </div>
           <div>
             <label className="block text-xs font-semibold text-slate-600 mb-1">Observación / motivo <span className="text-red-500">*</span></label>
@@ -515,9 +611,155 @@ export default function NuevaEvaluacionOcupacional() {
         {/* C. ANTECEDENTES PERSONALES */}
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 md:p-6 space-y-4">
           <h2 className="text-sm font-bold text-slate-800 border-b pb-2">C. ANTECEDENTES PERSONALES</h2>
-          <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">Antecedentes clínicos y quirúrgicos</label>
-            <textarea rows={2} value={clinicosTexto} onChange={e => setClinicosTexto(e.target.value)} className={INPUT} placeholder="Descripción…" />
+          {/* Captura detallada (como en los formatos anteriores): Sí/No por
+              bloque y, si es Sí, los datos de cada antecedente. El formato
+              unificado los imprime resumidos en un solo recuadro. */}
+          <div className="space-y-4">
+            {/* ── Clínicos ── */}
+            <div>
+              <TituloSiNo titulo="Antecedentes clínicos" valor={clinicosQ}
+                onChange={v => { setClinicosQ(v); if (v && clinicos.length === 0) setClinicos([emptyAntecedenteClinico()]); }} />
+              {clinicosQ === true && (
+                <div className="space-y-3 mt-2">
+                  {clinicos.map((ac, i) => (
+                    <div key={i} className="bg-blue-50 p-3 rounded-lg border border-blue-200 space-y-2.5">
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs font-semibold text-blue-800">Antecedente clínico #{i + 1}</span>
+                        <button type="button" onClick={() => setClinicos(prev => prev.filter((_, j) => j !== i))} className="text-red-400 hover:text-red-600 text-xs">Eliminar</button>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-xs text-slate-600 mb-1 block">¿Qué enfermedad/condición padece?</label>
+                          <input type="text" value={ac.enfermedad} onChange={e => updClinico(i, 'enfermedad', e.target.value)} className={INPUT_XS} placeholder="Ej: HTA, diabetes…" />
+                        </div>
+                        <div>
+                          <label className="text-xs text-slate-600 mb-1 block">¿Desde hace cuánto?</label>
+                          <input type="text" value={ac.desdeCuando} onChange={e => updClinico(i, 'desdeCuando', e.target.value)} className={INPUT_XS} placeholder="Ej: 6 años, 2018…" />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="flex items-center gap-2 text-xs font-semibold text-slate-700 mb-1.5 cursor-pointer">
+                          <input type="checkbox" checked={ac.tomaMedicacion} onChange={e => updClinico(i, 'tomaMedicacion', e.target.checked)} /> ¿Toma medicación?
+                        </label>
+                        {ac.tomaMedicacion && (
+                          <div className="grid grid-cols-1 sm:grid-cols-4 gap-2 ml-5">
+                            <input type="text" value={ac.medicacionNombre} onChange={e => updClinico(i, 'medicacionNombre', e.target.value)} className={INPUT_XS} placeholder="Medicamento" />
+                            <input type="text" value={ac.medicacionDosis} onChange={e => updClinico(i, 'medicacionDosis', e.target.value)} className={INPUT_XS} placeholder="Dosis" />
+                            <input type="text" value={ac.medicacionFrecuencia} onChange={e => updClinico(i, 'medicacionFrecuencia', e.target.value)} className={INPUT_XS} placeholder="Frecuencia" />
+                            <select value={ac.adherencia ?? ''} onChange={e => updClinico(i, 'adherencia', e.target.value)} className={INPUT_XS + ' bg-white'}>
+                              <option value="">Adherencia…</option><option value="buena">Buena</option><option value="irregular">Irregular</option><option value="mala">Mala</option>
+                            </select>
+                          </div>
+                        )}
+                      </div>
+                      <div>
+                        <label className="flex items-center gap-2 text-xs font-semibold text-slate-700 mb-1.5 cursor-pointer">
+                          <input type="checkbox" checked={ac.seguimientoEspecialista} onChange={e => updClinico(i, 'seguimientoEspecialista', e.target.checked)} /> ¿Seguimiento por especialista?
+                        </label>
+                        {ac.seguimientoEspecialista && (
+                          <input type="text" value={ac.especialista} onChange={e => updClinico(i, 'especialista', e.target.value)} className={INPUT_XS} placeholder="Especialidad o nombre del especialista…" />
+                        )}
+                      </div>
+                      <div>
+                        <label className="text-xs text-slate-600 mb-1 block">¿Complicaciones u hospitalizaciones?</label>
+                        <input type="text" value={ac.complicaciones} onChange={e => updClinico(i, 'complicaciones', e.target.value)} className={INPUT_XS} placeholder="Ninguna / describir…" />
+                      </div>
+                    </div>
+                  ))}
+                  <button type="button" onClick={() => setClinicos(prev => [...prev, emptyAntecedenteClinico()])} className="text-blue-600 text-xs font-medium hover:underline">+ Agregar otro antecedente clínico</button>
+                </div>
+              )}
+            </div>
+
+            {/* ── Alergias ── */}
+            <div>
+              <TituloSiNo titulo="Alergias" valor={alergiasQ}
+                onChange={v => { setAlergiasQ(v); if (v && alergias.length === 0) setAlergias([emptyAlergia()]); }} />
+              {alergiasQ === true && (
+                <div className="space-y-3 mt-2">
+                  {alergias.map((al, i) => (
+                    <div key={i} className="bg-amber-50 p-3 rounded-lg border border-amber-200 space-y-2.5">
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs font-semibold text-amber-800">Alergia #{i + 1}</span>
+                        <button type="button" onClick={() => setAlergias(prev => prev.filter((_, j) => j !== i))} className="text-red-400 hover:text-red-600 text-xs">Eliminar</button>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-xs text-slate-600 mb-1 block">¿A qué es alérgico?</label>
+                          <input type="text" value={al.alergeno} onChange={e => updAlergia(i, 'alergeno', e.target.value)} className={INPUT_XS} placeholder="Penicilina, mariscos, polen…" />
+                        </div>
+                        <div>
+                          <label className="text-xs text-slate-600 mb-1 block">Intensidad de la reacción</label>
+                          <input type="text" value={al.intensidadReaccion} onChange={e => updAlergia(i, 'intensidadReaccion', e.target.value)} className={INPUT_XS} placeholder="Leve, moderada, severa…" />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-xs text-slate-600 mb-1 block">Síntomas</label>
+                          <input type="text" value={al.sintomas} onChange={e => updAlergia(i, 'sintomas', e.target.value)} className={INPUT_XS} placeholder="Urticaria, disnea…" />
+                        </div>
+                        <div>
+                          <label className="text-xs text-slate-600 mb-1 block">Tratamiento habitual</label>
+                          <input type="text" value={al.tratamientoHabitual} onChange={e => updAlergia(i, 'tratamientoHabitual', e.target.value)} className={INPUT_XS} placeholder="Ninguno / antihistamínico…" />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  <button type="button" onClick={() => setAlergias(prev => [...prev, emptyAlergia()])} className="text-amber-700 text-xs font-medium hover:underline">+ Agregar otra alergia</button>
+                </div>
+              )}
+            </div>
+
+            {/* ── Quirúrgicos ── */}
+            <div>
+              <TituloSiNo titulo="Antecedentes quirúrgicos" valor={quirurgicosQ}
+                onChange={v => { setQuirurgicosQ(v); if (v && quirurgicos.length === 0) setQuirurgicos([emptyAntecedenteQuirurgico()]); }} />
+              {quirurgicosQ === true && (
+                <div className="space-y-3 mt-2">
+                  {quirurgicos.map((aq, i) => (
+                    <div key={i} className="bg-purple-50 p-3 rounded-lg border border-purple-200 space-y-2.5">
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs font-semibold text-purple-800">Antecedente quirúrgico #{i + 1}</span>
+                        <button type="button" onClick={() => setQuirurgicos(prev => prev.filter((_, j) => j !== i))} className="text-red-400 hover:text-red-600 text-xs">Eliminar</button>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-xs text-slate-600 mb-1 block">¿Qué procedimiento fue realizado?</label>
+                          <input type="text" value={aq.procedimiento} onChange={e => updQuirurgico(i, 'procedimiento', e.target.value)} className={INPUT_XS} placeholder="Nombre del procedimiento…" />
+                        </div>
+                        <div>
+                          <label className="text-xs text-slate-600 mb-1 block">Fecha aproximada</label>
+                          <input type="text" value={aq.fechaAproximada} onChange={e => updQuirurgico(i, 'fechaAproximada', e.target.value)} className={INPUT_XS} placeholder="Ej: 2019, hace 3 años…" />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="text-xs text-slate-600 mb-1 block">¿Hubo complicaciones?</label>
+                        <input type="text" value={aq.complicaciones} onChange={e => updQuirurgico(i, 'complicaciones', e.target.value)} className={INPUT_XS} placeholder="Ninguna / describir…" />
+                      </div>
+                      <div>
+                        <label className="flex items-center gap-2 text-xs font-semibold text-slate-700 mb-1.5 cursor-pointer">
+                          <input type="checkbox" checked={aq.recuperacionCompleta} onChange={e => updQuirurgico(i, 'recuperacionCompleta', e.target.checked)} /> ¿Recuperación completa?
+                        </label>
+                        {!aq.recuperacionCompleta && (
+                          <input type="text" value={aq.secuelas} onChange={e => updQuirurgico(i, 'secuelas', e.target.value)} className={INPUT_XS} placeholder="Secuelas posteriores…" />
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                  <button type="button" onClick={() => setQuirurgicos(prev => [...prev, emptyAntecedenteQuirurgico()])} className="text-purple-600 text-xs font-medium hover:underline">+ Agregar otro antecedente quirúrgico</button>
+                </div>
+              )}
+            </div>
+
+            {/* Vista previa del recuadro que se imprime en el PDF */}
+            <div className="border border-slate-300 rounded-lg overflow-hidden">
+              <div className="bg-slate-100 px-3 py-1.5 text-[11px] font-bold uppercase text-slate-500">
+                Recuadro del formato · Antecedentes clínicos y quirúrgicos
+              </div>
+              <p className={`m-0 px-3 py-2.5 text-xs ${clinicosTexto ? 'text-slate-700' : 'text-slate-400 italic'}`}>
+                {clinicosTexto || 'Responde los bloques de arriba: aquí verás la línea que se imprimirá.'}
+              </p>
+            </div>
           </div>
           <div>
             <label className="block text-xs font-bold text-slate-700 mb-1">Antecedentes familiares</label>
@@ -635,7 +877,7 @@ export default function NuevaEvaluacionOcupacional() {
               <label className="text-xs font-bold text-slate-700">Actividades importantes dentro de la jornada laboral ({actividades.length}/{MAX_ACTIVIDADES})</label>
               <div className="flex gap-2">
                 {funcionesCargo.length > 0 && (
-                  <button type="button" onClick={() => setActividades(funcionesCargo.slice(0, FUNCIONES_AUTOCOMPLETAR))}
+                  <button type="button" onClick={() => { setActividades(funcionesCargo.slice(0, FUNCIONES_AUTOCOMPLETAR)); setMedidasActs([]); }}
                     className="text-[11.5px] font-semibold text-blue-700 border border-blue-200 bg-blue-50 rounded px-2 py-0.5">
                     ↻ Autocompletar del cargo
                   </button>
@@ -651,12 +893,17 @@ export default function NuevaEvaluacionOcupacional() {
             {actividades.length === 0 && <p className="m-0 text-[11.5px] text-slate-400 italic">Sin actividades. Añade al menos una para poder marcar los riesgos.</p>}
             <div className="space-y-1.5">
               {actividades.map((a, i) => (
-                <div key={i} className="flex items-center gap-1.5">
+                <div key={i} className="flex items-start gap-1.5">
                   <span className="w-6 h-6 grid place-items-center rounded bg-slate-200 text-[11px] font-bold text-slate-600 flex-shrink-0">{i + 1}</span>
-                  <input list="funciones-cargo" type="text" value={a} onChange={e => setActividades(arr => arr.map((x, j) => j === i ? e.target.value : x))}
-                    className={INPUT_XS} placeholder={`Actividad ${i + 1}`} />
+                  <div className="flex-1 space-y-1">
+                    <input list="funciones-cargo" type="text" value={a} onChange={e => setActividades(arr => arr.map((x, j) => j === i ? e.target.value : x))}
+                      className={INPUT_XS} placeholder={`Actividad ${i + 1}`} />
+                    <input type="text" value={medidasActs[i] || ''}
+                      onChange={e => setMedidasActs(arr => { const out = [...arr]; while (out.length <= i) out.push(''); out[i] = e.target.value; return out; })}
+                      className={INPUT_XS + ' bg-emerald-50'} placeholder={`Medidas preventivas de la actividad ${i + 1} (pie de su columna)`} />
+                  </div>
                   <button type="button" title="Quitar actividad"
-                    onClick={() => { setActividades(arr => arr.filter((_, j) => j !== i)); setRiesgoActs(prev => {
+                    onClick={() => { setActividades(arr => arr.filter((_, j) => j !== i)); setMedidasActs(arr => arr.filter((_, j) => j !== i)); setRiesgoActs(prev => {
                       // Al quitar una actividad se reindexan las marcas de la matriz.
                       const out: Record<string, number[]> = {};
                       Object.entries(prev).forEach(([r, idxs]) => {
@@ -674,10 +921,9 @@ export default function NuevaEvaluacionOcupacional() {
 
           <MatrizRiesgos actividades={actividades} marcadas={riesgoActs} onToggle={toggleRiesgoActividad} />
 
-          <div className="mt-4">
-            <label className="block text-xs font-bold text-slate-700 mb-1">Medidas preventivas</label>
-            <textarea rows={2} className={INPUT} value={factores.medidasPreventivas} onChange={e => setFactores(p => ({ ...p, medidasPreventivas: e.target.value }))} />
-          </div>
+          <p className="text-[11px] text-slate-500 mt-3">
+            Las medidas preventivas se escriben por actividad (campo verde de cada una) y se imprimen al pie de su columna en la matriz.
+          </p>
           {totalRiesgos > 0 && <p className="text-[11px] text-slate-400 mt-2">{totalRiesgos} factores marcados.</p>}
         </div>
 
