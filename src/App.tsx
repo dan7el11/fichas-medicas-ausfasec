@@ -24,6 +24,7 @@ const ConsultaDiaria = lazy(() => import('./pages/ConsultaDiaria'));
 const Permisos = lazy(() => import('./pages/Permisos'));
 const AgendaExamenes = lazy(() => import('./pages/AgendaExamenes'));
 const Ergonomia = lazy(() => import('./pages/Ergonomia'));
+const PerfilesRiesgo = lazy(() => import('./pages/PerfilesRiesgo'));
 const ExpedienteResumen = lazy(() => import('./pages/ExpedienteResumen'));
 const ConfiguracionEmpresa = lazy(() => import('./pages/ConfiguracionEmpresa'));
 const ConfiguracionInicial = lazy(() => import('./pages/ConfiguracionInicial'));
@@ -101,6 +102,7 @@ function App() {
 
                   {/* Ergonomía */}
                   <Route path="/ergonomia" element={<ProtectedRoute><Ergonomia /></ProtectedRoute>} />
+                  <Route path="/perfiles-riesgo" element={<ProtectedRoute><PerfilesRiesgo /></ProtectedRoute>} />
 
                   {/* Reportes y perfil */}
                   <Route path="/reportes" element={<ProtectedRoute><Reportes /></ProtectedRoute>} />

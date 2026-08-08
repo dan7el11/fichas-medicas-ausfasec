@@ -67,6 +67,7 @@ service cloud.firestore {
     match /consultasEspecialista/{id}   { allow read, write: if isSignedIn(); }
     match /fisioterapia/{id}            { allow read, write: if isSignedIn(); }
     match /antecedentes/{id}            { allow read, write: if isSignedIn(); }
+    match /perfilesRiesgo/{id}          { allow read, write: if isSignedIn(); }
 
     // Inventario / botiquín: escritura para todo el equipo, porque al guardar
     // una atención con medicación el sistema descuenta del stock. No restringir

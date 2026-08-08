@@ -269,7 +269,15 @@ export const MATRIZ_RIESGOS: CategoriaRiesgo[] = [
         'Proyección de partículas – fragmentos', 'Contacto con superficies de trabajos',
       ] },
       { subcategoria: 'ELÉCTRICOS', items: ['Contacto eléctrico'] },
-      { subcategoria: 'OTROS', items: ['Otros __________'] },
+      // Los tres primeros salen del perfil de riesgo auditado por cargo: la
+      // hoja oficial los deja en la línea «Otros», pero al ser propios de la
+      // operación con GLP se listan para poder marcarlos igual que el resto.
+      { subcategoria: 'OTROS', items: [
+        'Incendio y explosión (atmósfera GLP)',
+        'Manejo de recipientes a presión',
+        'Desplazamiento en medios de transporte',
+        'Otros __________',
+      ] },
     ],
   },
   {
