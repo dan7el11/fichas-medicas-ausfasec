@@ -23,6 +23,7 @@ const TABS = [
   { key: '/permisos',        label: 'Permisos médicos' },
   { key: '/agenda-examenes', label: 'Exámenes' },
   { key: '/ergonomia',       label: 'Ergonomía' },
+  { key: '/perfiles-riesgo', label: 'Perfiles de riesgo' },
   { key: '/inventario',      label: 'Inventario' },
   { key: '/reportes',        label: 'Reportes y Estadísticas' },
 ];

@@ -17,6 +17,8 @@ import BuscadorCIE10 from '../components/BuscadorCIE10';
 import { useEmpresa } from '../hooks/useEmpresa';
 import { SeccionI } from '../components/evaluacion/SeccionesEvaluacion';
 import { getExpedienteAntecedentes, fusionarYGuardarAntecedentes } from '../services/antecedentes';
+import { getPerfilRiesgo } from '../services/perfilesRiesgo';
+import type { PerfilRiesgoCargo } from '../types/perfilRiesgo';
 import { nombreProfesionalDe, codigoProfesionalDe } from '../utils/medicalHelpers';
 import {
   OPCIONES_RECOMENDACIONES, REGIONES_EXAMEN_FISICO, MATRIZ_RIESGOS,
@@ -179,6 +181,8 @@ export default function NuevaEvaluacionOcupacional() {
   const [riesgoActs, setRiesgoActs] = useState<Record<string, number[]>>({});
   /** Funciones del cargo disponibles para añadir manualmente (más allá de las 6). */
   const [funcionesCargo, setFuncionesCargo] = useState<string[]>([]);
+  /** Perfil de riesgo del cargo aplicado al abrir la evaluación (si lo hay). */
+  const [perfilRiesgo, setPerfilRiesgo] = useState<PerfilRiesgoCargo | null>(null);
   // H
   const [empleos, setEmpleos] = useState<AntecedenteEmpleo[]>([]);
   // I
@@ -329,10 +333,30 @@ export default function NuevaEvaluacionOcupacional() {
           const talla = ordenadas.find(e => e.signosVitales?.talla)?.signosVitales?.talla;
           if (talla) setSignos(prev => ({ ...prev, talla }));
         } catch (err) { console.warn('No se pudo precargar la talla:', err); }
-        // Autocompletar las actividades de la jornada con las funciones más
-        // representativas del cargo (las primeras 6 del perfil).
-        const sugeridas = funcionesDeCargo(trab?.puestoTrabajo || '', FUNCIONES_AUTOCOMPLETAR);
-        if (sugeridas.length) setActividades(sugeridas);
+        // Autocompletar la Sección G con el perfil de riesgo del cargo: sus
+        // actividades representativas y, sobre ellas, los factores de riesgo
+        // que el análisis auditado marcó para cada una.
+        let perfilAplicado = false;
+        try {
+          const perfil = await getPerfilRiesgo(trab?.puestoTrabajo || '');
+          if (perfil?.actividades.length) {
+            setActividades(perfil.actividades.slice(0, MAX_ACTIVIDADES));
+            // Se descartan las marcas de actividades recortadas por el máximo.
+            const dentro: Record<string, number[]> = {};
+            Object.entries(perfil.riesgoActividades).forEach(([factor, idxs]) => {
+              const v = idxs.filter(i => i < MAX_ACTIVIDADES);
+              if (v.length) dentro[factor] = v;
+            });
+            setRiesgoActs(dentro);
+            setPerfilRiesgo(perfil);
+            perfilAplicado = true;
+          }
+        } catch (err) { console.warn('No se pudo aplicar el perfil de riesgo del cargo:', err); }
+        // Sin perfil de riesgo se cae a las primeras funciones del cargo.
+        if (!perfilAplicado) {
+          const sugeridas = funcionesDeCargo(trab?.puestoTrabajo || '', FUNCIONES_AUTOCOMPLETAR);
+          if (sugeridas.length) setActividades(sugeridas);
+        }
       }
     };
     cargar().finally(() => setCargando(false));
@@ -368,6 +392,20 @@ export default function NuevaEvaluacionOcupacional() {
     });
     return out;
   };
+  /** Vuelve a dejar la Sección G tal como la define el perfil de riesgo del cargo. */
+  const aplicarPerfilRiesgo = () => {
+    if (!perfilRiesgo) return;
+    setActividades(perfilRiesgo.actividades.slice(0, MAX_ACTIVIDADES));
+    const dentro: Record<string, number[]> = {};
+    Object.entries(perfilRiesgo.riesgoActividades).forEach(([factor, idxs]) => {
+      const v = idxs.filter(i => i < MAX_ACTIVIDADES);
+      if (v.length) dentro[factor] = v;
+    });
+    setRiesgoActs(dentro);
+    setMedidasActs([]);
+    toast.info('Sección G restablecida con el perfil del cargo.');
+  };
+
   const updClinico = (i: number, f: keyof AntecedenteClinico, v: any) => setClinicos(prev => prev.map((x, j) => j === i ? { ...x, [f]: v } : x));
   const updQuirurgico = (i: number, f: keyof AntecedenteQuirurgico, v: any) => setQuirurgicos(prev => prev.map((x, j) => j === i ? { ...x, [f]: v } : x));
   const updAlergia = (i: number, f: keyof Alergia, v: any) => setAlergias(prev => prev.map((x, j) => j === i ? { ...x, [f]: v } : x));
@@ -875,6 +913,25 @@ export default function NuevaEvaluacionOcupacional() {
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 md:p-6">
           <h2 className="text-sm font-bold text-slate-800 mb-1 border-b pb-2">G. FACTORES DE RIESGO DEL TRABAJO ACTUAL</h2>
           <p className="text-xs text-slate-500 mb-3">Marca en qué actividad de la jornada está presente cada factor. Se imprime tal cual en la página 2 (horizontal).</p>
+
+          {perfilRiesgo ? (
+            <div className="mb-3 flex items-start gap-2 flex-wrap rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2">
+              <span className="text-[11.5px] text-emerald-900 flex-1 min-w-[220px]">
+                Autocompletado con el <strong>perfil de riesgo del cargo</strong> «{perfilRiesgo.cargo}»:
+                {' '}{perfilRiesgo.actividades.length} actividades y {Object.keys(perfilRiesgo.riesgoActividades).length} factores.
+                Ajusta lo que no corresponda a este trabajador.
+              </span>
+              <button type="button" onClick={aplicarPerfilRiesgo}
+                className="text-[11.5px] font-semibold text-emerald-800 border border-emerald-300 bg-white rounded px-2 py-0.5">
+                ↻ Reaplicar perfil
+              </button>
+            </div>
+          ) : (
+            <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[11.5px] text-amber-800">
+              El cargo «{trabajador.puestoTrabajo}» todavía no tiene perfil de riesgo por función.
+              Márcalo a mano aquí y regístralo en Perfiles de riesgo para que se autocomplete la próxima vez.
+            </div>
+          )}
 
           <div className="mb-3">
             <label className="block text-xs font-semibold text-slate-600 mb-1">Puesto de trabajo</label>

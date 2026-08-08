@@ -6,7 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { collection, getCountFromServer } from 'firebase/firestore';
 import {
   Users, Stethoscope, CalendarDays, ClipboardList, BarChart3,
-  ArrowRight, Plus, Activity, AlertTriangle, Calendar, Package, Shield,
+  ArrowRight, Plus, Activity, AlertTriangle, Calendar, Package, Shield, ShieldAlert,
 } from 'lucide-react';
 import { db } from '../services/firebase';
 import { useAuth } from '../contexts/AuthContext';
@@ -66,6 +66,7 @@ export default function Inicio() {
     { key: 'permisos', titulo: 'Permisos médicos', desc: 'Reposos, citas y ausentismo', ruta: '/permisos', icon: <CalendarDays size={24} />, color: '#7c5cf2', stat: `${stats.permisosActivos} activos` },
     { key: 'examenes', titulo: 'Exámenes', desc: 'Agenda, cobertura y protocolos', ruta: '/agenda-examenes', icon: <ClipboardList size={24} />, color: '#0e7490', stat: stats.examenesAtrasados > 0 ? `${stats.examenesAtrasados} atrasados` : 'Al día' },
     { key: 'ergonomia', titulo: 'Ergonomía', desc: 'Evaluaciones RULA y REBA de carga postural', ruta: '/ergonomia', icon: <Activity size={24} />, color: '#0d9488', stat: 'Evaluar' },
+    { key: 'perfiles-riesgo', titulo: 'Perfiles de riesgo', desc: 'Funciones y factores de riesgo por cargo', ruta: '/perfiles-riesgo', icon: <ShieldAlert size={24} />, color: '#b45309', stat: 'Ver cobertura' },
     { key: 'reportes', titulo: 'Reportes y estadísticas', desc: 'Indicadores de salud ocupacional', ruta: '/reportes', icon: <BarChart3 size={24} />, color: '#0f766e', stat: 'Ver tableros' },
     { key: 'inventario', titulo: 'Inventario médico', desc: 'Medicamentos, consumos y movimientos', ruta: '/inventario', icon: <Package size={24} />, color: '#9a3036', stat: 'Ver stock' },
   ];
