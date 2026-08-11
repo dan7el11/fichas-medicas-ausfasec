@@ -28,7 +28,8 @@ import {
 } from '../utils/catalogosEvaluacion';
 import { funcionesDeCargo, perfilDeCargo, MAX_ACTIVIDADES, FUNCIONES_AUTOCOMPLETAR } from '../constants/funcionesCargo';
 import { resumirAntecedentes } from '../utils/resumenAntecedentes';
-import { resumirActividades } from '../utils/resumenFuncion';
+import { resumirActividades, actividadesCortas } from '../utils/resumenFuncion';
+import { medidaCompleta } from '../constants/medidasPreventivas';
 import { validarFechasEvaluacion, mesesEntre, hoyIso, ANIO_MINIMO } from '../utils/validacionFechas';
 import { convertirCsv, campo, siNo, soloNumero, normalizarFechaCsv, type FilaCsv } from '../utils/csvTexto';
 import { CAMPOS_FECHA_POR_TIPO, ETIQUETA_CAMPO_FECHA, AYUDA_CAMPO_FECHA, type CampoFechaEvaluacion } from '../utils/catalogosEvaluacion';
@@ -420,6 +421,8 @@ export default function NuevaEvaluacionOcupacional() {
               if (v.length) dentro[factor] = v;
             });
             setRiesgoActs(dentro);
+            // Las seis medidas preventivas analizadas para cada actividad.
+            setMedidasActs((perfil.medidasActividades ?? []).slice(0, MAX_ACTIVIDADES).map(m => m.join('; ')));
             setPerfilRiesgo(perfil);
             perfilAplicado = true;
           }
@@ -476,8 +479,9 @@ export default function NuevaEvaluacionOcupacional() {
       // Se usan las funciones resumidas: la lista completa del cargo no cabe
       // en la columna «actividades que desempeñaba» del formato.
       const actividades = prev.actividades.trim()
-        || resumirActividades(perfilRiesgo?.actividades
-          ?? funcionesDeCargo(trabajador.puestoTrabajo || '', FUNCIONES_AUTOCOMPLETAR)).join('; ');
+        || (perfilRiesgo
+          ? actividadesCortas(perfilRiesgo.actividades, perfilRiesgo.actividadesResumen).join('; ')
+          : resumirActividades(funcionesDeCargo(trabajador.puestoTrabajo || '', FUNCIONES_AUTOCOMPLETAR)).join('; '));
       const meses = mesesEntre(fechaIngresoTrabajo, fechaAtencion);
       const siguiente: AntecedenteEmpleo = {
         ...prev,
@@ -504,7 +508,7 @@ export default function NuevaEvaluacionOcupacional() {
       if (v.length) dentro[factor] = v;
     });
     setRiesgoActs(dentro);
-    setMedidasActs([]);
+    setMedidasActs((perfilRiesgo.medidasActividades ?? []).slice(0, MAX_ACTIVIDADES).map(m => m.join('; ')));
     toast.info('Sección G restablecida con el perfil del cargo.');
   };
 
@@ -637,6 +641,11 @@ export default function NuevaEvaluacionOcupacional() {
           ...factores,
           ...categoriasDesdeMatriz(riesgoActs),
           actividadesJornada: actividades.filter(a => a.trim()),
+          // El resumen viaja con la evaluación: es lo que imprime la página 2,
+          // y así no cambia si el perfil del cargo se edita más adelante.
+          actividadesResumen: actividades
+            .map((a, i) => (a.trim() ? (a === perfilRiesgo?.actividades[i] ? (perfilRiesgo?.actividadesResumen?.[i] ?? a) : a) : ''))
+            .filter(Boolean),
           riesgoActividades: riesgoActs,
           medidasActividades: actividades.map((a, i) => (a.trim() ? (medidasActs[i] || '') : '')).filter((_, i) => actividades[i]?.trim()),
           // Texto plano de respaldo (informes y formatos antiguos).
@@ -1143,6 +1152,16 @@ export default function NuevaEvaluacionOcupacional() {
                     <input type="text" value={medidasActs[i] || ''}
                       onChange={e => setMedidasActs(arr => { const out = [...arr]; while (out.length <= i) out.push(''); out[i] = e.target.value; return out; })}
                       className={INPUT_XS + ' bg-emerald-50'} placeholder={`Medidas preventivas de la actividad ${i + 1} (pie de su columna)`} />
+                    {/* Cada etiqueta corta lleva su redacción clínica completa
+                        en el tooltip, que es la que sustenta la medida. */}
+                    {(medidasActs[i] || '').split(';').map(m => m.trim()).filter(Boolean).length > 0 && (
+                      <div className="flex flex-wrap gap-1">
+                        {(medidasActs[i] || '').split(';').map(m => m.trim()).filter(Boolean).map((m, k) => (
+                          <span key={k} title={medidaCompleta(m)}
+                            className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 cursor-help">{m}</span>
+                        ))}
+                      </div>
+                    )}
                   </div>
                   <button type="button" title="Quitar actividad"
                     onClick={() => { setActividades(arr => arr.filter((_, j) => j !== i)); setMedidasActs(arr => arr.filter((_, j) => j !== i)); setRiesgoActs(prev => {

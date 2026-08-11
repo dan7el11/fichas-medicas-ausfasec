@@ -12,6 +12,7 @@ import { useState } from 'react';
 import {
   ArrowLeft, ClipboardList, Activity, Stethoscope, CalendarDays, HeartPulse,
   ChevronDown, ChevronRight, Search, Plus, FileText, Upload, Pencil, X, Check, ArrowRight,
+  LayoutDashboard, FlaskConical, UserRound, Accessibility,
 } from 'lucide-react';
 import { estadoPermiso, duracionPermiso, fmtFecha as fmtPF, toDate } from '../../services/permisos';
 import { tipoEvaluacionLabel } from '../../utils/medicalHelpers';
@@ -112,16 +113,16 @@ export default function FichaLayout(props: FichaLayoutProps) {
     .filter((p) => p.tipo !== 'cita' && toDate(p.desde).getFullYear() === anio)
     .reduce((s, p) => s + (p.dias || 0), 0);
 
-  const tabs: { key: Tab; label: string; n?: number }[] = [
-    { key: 'resumen', label: 'Resumen' },
-    { key: 'evaluaciones', label: 'Evaluaciones', n: evaluaciones.length },
-    { key: 'antecedentes', label: 'Antecedentes' },
-    { key: 'signos', label: 'Signos' },
-    { key: 'consultas', label: 'Consultas', n: atenciones.length },
-    { key: 'examenes', label: 'Exámenes', n: ordenes.length },
-    { key: 'permisos', label: 'Permisos', n: permisos.length },
-    { key: 'especialistas', label: 'Especialistas' },
-    { key: 'fisioterapia', label: 'Fisioterapia' },
+  const tabs: { key: Tab; label: string; n?: number; icon: ReactNode }[] = [
+    { key: 'resumen', label: 'Resumen', icon: <LayoutDashboard size={14} /> },
+    { key: 'evaluaciones', label: 'Evaluaciones', n: evaluaciones.length, icon: <ClipboardList size={14} /> },
+    { key: 'antecedentes', label: 'Antecedentes', icon: <FileText size={14} /> },
+    { key: 'signos', label: 'Signos', icon: <HeartPulse size={14} /> },
+    { key: 'consultas', label: 'Consultas', n: atenciones.length, icon: <Stethoscope size={14} /> },
+    { key: 'examenes', label: 'Exámenes', n: ordenes.length, icon: <FlaskConical size={14} /> },
+    { key: 'permisos', label: 'Permisos', n: permisos.length, icon: <CalendarDays size={14} /> },
+    { key: 'especialistas', label: 'Especialistas', icon: <UserRound size={14} /> },
+    { key: 'fisioterapia', label: 'Fisioterapia', icon: <Accessibility size={14} /> },
   ];
 
   return (
@@ -182,13 +183,18 @@ export default function FichaLayout(props: FichaLayoutProps) {
             <HeroKpi v={`${diasReposoAnio} d`} l="Reposo (año)" color={C_PERMISO} />
             <HeroKpi v={apt ? apt.label : '—'} l="Aptitud actual" color={apt ? apt.fg : undefined} />
           </div>
-          {/* TABS */}
-          <div className="flex gap-1 overflow-x-auto [scrollbar-width:none] whitespace-nowrap">
+          {/* TABS — se reparten en varias filas en vez de desplazarse en
+              horizontal: antes las últimas (permisos, especialistas,
+              fisioterapia) quedaban fuera de vista, y la barra ocultaba su
+              propio scroll, así que no había forma de saber que existían. */}
+          <div className="flex flex-wrap gap-x-1 gap-y-0.5 pb-1">
             {tabs.map((tb) => {
               const on = tab === tb.key;
               return (
-                <button key={tb.key} onClick={() => setTab(tb.key)} className="inline-flex items-center gap-1.5 px-[14px] py-3 border-none bg-transparent cursor-pointer text-[13.5px] -mb-px"
+                <button key={tb.key} onClick={() => setTab(tb.key)} title={tb.label}
+                  className="inline-flex items-center gap-1.5 px-[11px] py-2.5 border-none bg-transparent cursor-pointer text-[13px] whitespace-nowrap"
                   style={{ fontWeight: on ? 700 : 600, color: on ? BRAND : '#646b75', borderBottom: `2.5px solid ${on ? BRAND : 'transparent'}` }}>
+                  <span style={{ opacity: on ? 1 : 0.65, display: 'inline-flex' }}>{tb.icon}</span>
                   {tb.label}
                   {tb.n != null && <span className="text-[10.5px] font-bold px-[7px] py-px rounded-full" style={{ fontFamily: MONO, background: on ? BRAND_SOFT : '#eef0f3', color: on ? BRAND : '#98a0ab' }}>{tb.n}</span>}
                 </button>

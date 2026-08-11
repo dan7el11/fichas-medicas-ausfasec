@@ -329,6 +329,11 @@ export interface FactorRiesgoPuesto {
   riesgoActividades?: Record<string, number[]>;
   /** Medidas preventivas de cada actividad (misma posición que actividadesJornada). */
   medidasActividades?: string[];
+  /**
+   * Redacción corta de cada actividad (misma posición que actividadesJornada).
+   * Es la que se imprime en los encabezados de la matriz de la página 2.
+   */
+  actividadesResumen?: string[];
 }
 
 // ====================================================================

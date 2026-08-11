@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { resumirFuncion, resumirActividades, LARGO_ACTIVIDAD_MATRIZ } from './resumenFuncion';
+import { resumirFuncion, resumirActividades, textoCortoActividad, actividadesCortas, LARGO_ACTIVIDAD_MATRIZ } from './resumenFuncion';
 import { PERFILES_RIESGO_CARGO } from '../constants/perfilRiesgoCargo';
 
 describe('resumirFuncion', () => {
@@ -58,5 +58,46 @@ describe('resumirActividades', () => {
 
   it('tolera una lista vacía', () => {
     expect(resumirActividades([])).toEqual([]);
+  });
+});
+
+describe('textoCortoActividad', () => {
+  const completas = ['Elaborar comunicaciones internas y externas, relacionadas con los procesos del departamento comercial'];
+  const resumidas = ['Elaborar comunicaciones internas y externas'];
+
+  it('prefiere la redacción corta revisada del análisis', () => {
+    expect(textoCortoActividad(completas, resumidas, 0)).toBe('Elaborar comunicaciones internas y externas');
+  });
+
+  it('cae en el recorte automático si no hay redacción revisada', () => {
+    const r = textoCortoActividad(completas, undefined, 0);
+    expect(r.endsWith('…')).toBe(true);
+  });
+
+  it('ignora una redacción revisada vacía', () => {
+    expect(textoCortoActividad(completas, ['   '], 0).endsWith('…')).toBe(true);
+  });
+
+  it('acota también la redacción revisada si viene larga', () => {
+    const larga = ['x'.repeat(200)];
+    expect(textoCortoActividad(larga, larga, 0).length).toBeLessThanOrEqual(LARGO_ACTIVIDAD_MATRIZ + 1);
+  });
+
+  it('devuelve vacío cuando no hay actividad en ese índice', () => {
+    expect(textoCortoActividad(completas, resumidas, 5)).toBe('');
+    expect(textoCortoActividad(undefined, undefined, 0)).toBe('');
+  });
+});
+
+describe('actividadesCortas', () => {
+  it('todas las actividades del catálogo caben en la columna de la matriz', () => {
+    PERFILES_RIESGO_CARGO.forEach(p => {
+      const cortas = actividadesCortas(p.actividades, p.actividadesResumen);
+      expect(cortas, p.cargo).toHaveLength(p.actividades.length);
+      cortas.forEach(a => {
+        expect(a.trim(), p.cargo).not.toBe('');
+        expect(a.length, `${p.cargo}: ${a}`).toBeLessThanOrEqual(LARGO_ACTIVIDAD_MATRIZ + 1);
+      });
+    });
   });
 });

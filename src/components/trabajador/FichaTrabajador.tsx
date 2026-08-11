@@ -22,7 +22,7 @@ import { estadoPermiso, duracionPermiso, fmtFecha as fmtPF, toDate, actualizarPe
 import { horasEntre } from '../../utils/permisosHorario';
 import { tipoEvaluacionLabel } from '../../utils/medicalHelpers';
 import { MATRIZ_RIESGOS, esFactorAnalizable } from '../../utils/catalogosEvaluacion';
-import { resumirActividades } from '../../utils/resumenFuncion';
+import { actividadesCortas } from '../../utils/resumenFuncion';
 import { MAX_ACTIVIDADES as N_ACTIVIDADES } from '../../constants/funcionesCargo';
 import { conFilasMinimas } from '../../utils/tablasPdf';
 import { dibujarPagina1Ocupacional } from './paginaUnoOcupacionalPdf';
@@ -1503,9 +1503,10 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
       ? fr.actividadesJornada
       : String(fr.actividades || '').split(/\s*[;\n]\s*/).filter(Boolean)
     ).slice(0, N_ACTIVIDADES);
-    // En la matriz van resumidas: el texto completo estiraría las filas hasta
+    // En la matriz va la redacción corta revisada del análisis (o un recorte
+    // automático si no la hay): el texto completo estiraría las filas hasta
     // desbordar la única página que el formato reserva para este recuadro.
-    const acts: string[] = resumirActividades(actsCompletas);
+    const acts: string[] = actividadesCortas(actsCompletas, fr.actividadesResumen);
     const marcadasDe = (riesgo: string, clave: string): number[] => {
       const mapa = fr.riesgoActividades || {};
       if (mapa[riesgo]) return mapa[riesgo];

@@ -36,3 +36,30 @@ export function resumirFuncion(texto: string, max = LARGO_ACTIVIDAD_MATRIZ): str
 /** Aplica el recorte a la lista de actividades de la jornada. */
 export const resumirActividades = (actividades: string[], max = LARGO_ACTIVIDAD_MATRIZ): string[] =>
   (actividades ?? []).map(a => resumirFuncion(a, max));
+
+/**
+ * Texto corto de una actividad para los recuadros estrechos (matriz de la
+ * página 2 e historia laboral).
+ *
+ * Prefiere la redacción corta revisada del análisis, que está escrita a mano y
+ * se lee mejor que cualquier recorte automático. Como algunas de esas
+ * redacciones siguen siendo largas, se les aplica el mismo tope por si acaso.
+ */
+export function textoCortoActividad(
+  completas: string[] | undefined,
+  resumidas: string[] | undefined,
+  indice: number,
+  max = LARGO_ACTIVIDAD_MATRIZ,
+): string {
+  const revisada = (resumidas ?? [])[indice];
+  const original = (completas ?? [])[indice];
+  return resumirFuncion(revisada?.trim() || original || '', max);
+}
+
+/** Aplica `textoCortoActividad` a toda la lista. */
+export const actividadesCortas = (
+  completas: string[] | undefined,
+  resumidas: string[] | undefined,
+  max = LARGO_ACTIVIDAD_MATRIZ,
+): string[] =>
+  (completas ?? []).map((_, i) => textoCortoActividad(completas, resumidas, i, max));
