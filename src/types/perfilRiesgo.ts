@@ -11,6 +11,17 @@ export interface PerfilRiesgoCargo {
   departamento: string;
   /** Actividades representativas de la jornada (columnas 1..n de la matriz). */
   actividades: string[];
+  /**
+   * Redacción corta y revisada de cada actividad, en la misma posición que
+   * `actividades`. Es la que se imprime en los encabezados de la matriz y en
+   * el recuadro de historia laboral, donde el texto completo no cabe.
+   */
+  actividadesResumen?: string[];
+  /**
+   * Las seis medidas preventivas de cada actividad, como etiquetas del
+   * catálogo `constants/medidasPreventivas.ts`, en la misma posición.
+   */
+  medidasActividades?: string[][];
   /** Factor de riesgo → índices (base 0) de las actividades donde está presente. */
   riesgoActividades: Record<string, number[]>;
   /** Nivel registrado en el profesiograma previo (TRIVIAL, MODERADO, …). */
