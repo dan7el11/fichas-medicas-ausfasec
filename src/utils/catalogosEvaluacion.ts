@@ -298,6 +298,16 @@ export const MATRIZ_RIESGOS: CategoriaRiesgo[] = [
   },
 ];
 
+/**
+ * ¿Es un factor de riesgo analizable, y no una de las líneas «Otros ______»
+ * que el formato deja en blanco al final de cada categoría?
+ *
+ * Con el perfil de riesgo por cargo ya analizado no hay factores adicionales
+ * que anotar a mano, así que esas líneas se omiten al imprimir la matriz.
+ */
+export const esFactorAnalizable = (factor: string): boolean =>
+  !/^otros\b/i.test((factor ?? '').trim());
+
 /** Grupo de atención prioritaria (Sección A del formato unificado). */
 export const GRUPOS_PRIORITARIOS = ['Embarazada', 'Persona con discapacidad', 'Enfermedad catastrófica', 'Adulto mayor'];
 

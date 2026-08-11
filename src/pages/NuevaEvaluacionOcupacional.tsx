@@ -28,6 +28,9 @@ import {
 } from '../utils/catalogosEvaluacion';
 import { funcionesDeCargo, perfilDeCargo, MAX_ACTIVIDADES, FUNCIONES_AUTOCOMPLETAR } from '../constants/funcionesCargo';
 import { resumirAntecedentes } from '../utils/resumenAntecedentes';
+import { resumirActividades } from '../utils/resumenFuncion';
+import { validarFechasEvaluacion, mesesEntre, hoyIso, ANIO_MINIMO } from '../utils/validacionFechas';
+import { convertirCsv, campo, siNo, soloNumero, normalizarFechaCsv, type FilaCsv } from '../utils/csvTexto';
 import { CAMPOS_FECHA_POR_TIPO, ETIQUETA_CAMPO_FECHA, AYUDA_CAMPO_FECHA, type CampoFechaEvaluacion } from '../utils/catalogosEvaluacion';
 import type {
   Trabajador, SignosVitales, HabitoToxico, EstiloVida, ExamenFisicoHallazgo, ExamenComplementario,
@@ -50,6 +53,51 @@ const SiNo = ({ value, onChange }: { value: boolean | null; onChange: (v: boolea
     ))}
   </div>
 );
+
+/**
+ * Recuadro para pegar varios registros de golpe, separados por punto y coma
+ * (una línea por registro). Muestra el formato esperado y un ejemplo, para no
+ * tener que adivinar el orden de las columnas.
+ */
+function CargaCsv({ titulo, formato, ejemplo, valor, onCambiar, onImportar }: {
+  titulo: string;
+  formato: string;
+  ejemplo: string;
+  valor: string;
+  onCambiar: (v: string) => void;
+  onImportar: () => void;
+}) {
+  const [abierto, setAbierto] = useState(false);
+  const lineas = valor.split('\n').filter(l => l.trim()).length;
+  return (
+    <div className="mt-3 border border-slate-200 rounded-lg overflow-hidden">
+      <button type="button" onClick={() => setAbierto(o => !o)}
+        className="w-full flex items-center justify-between px-3 py-2 bg-slate-50 text-left border-none cursor-pointer">
+        <span className="text-xs font-bold text-slate-600">{abierto ? '▾' : '▸'} {titulo}</span>
+        {lineas > 0 && <span className="text-[11px] font-semibold text-blue-600">{lineas} línea(s)</span>}
+      </button>
+      {abierto && (
+        <div className="p-3 space-y-2">
+          <p className="m-0 text-[11px] text-slate-500">
+            Una línea por registro, campos separados por <strong>;</strong> — <span className="font-mono">{formato}</span>
+          </p>
+          <textarea rows={4} value={valor} onChange={e => onCambiar(e.target.value)}
+            className={INPUT_XS + ' font-mono'} placeholder={ejemplo} spellCheck={false} />
+          <div className="flex items-center gap-2 flex-wrap">
+            <button type="button" onClick={onImportar} disabled={!valor.trim()}
+              className="text-[11.5px] font-bold text-white bg-blue-600 rounded px-3 py-1 border-none cursor-pointer disabled:opacity-40">
+              Agregar al listado
+            </button>
+            {valor.trim() && (
+              <button type="button" onClick={() => onCambiar('')} className="text-[11.5px] font-semibold text-slate-500 bg-transparent border-none cursor-pointer">Limpiar</button>
+            )}
+            <span className="text-[11px] text-slate-400">Los campos que falten quedan vacíos.</span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 /** Encabezado de un bloque de antecedentes con su pregunta Sí/No. */
 const TituloSiNo = ({ titulo, valor, onChange }: { titulo: string; valor: boolean | null; onChange: (v: boolean | null) => void }) => (
@@ -183,8 +231,12 @@ export default function NuevaEvaluacionOcupacional() {
   const [funcionesCargo, setFuncionesCargo] = useState<string[]>([]);
   /** Perfil de riesgo del cargo aplicado al abrir la evaluación (si lo hay). */
   const [perfilRiesgo, setPerfilRiesgo] = useState<PerfilRiesgoCargo | null>(null);
-  // H
+  // H. El trabajo ACTUAL se maneja aparte y siempre encabeza la lista que se
+  // guarda; `empleos` son solo los anteriores.
+  const [empleoActual, setEmpleoActual] = useState<AntecedenteEmpleo>({ ...emptyAntecedenteEmpleo(), esActual: true });
   const [empleos, setEmpleos] = useState<AntecedenteEmpleo[]>([]);
+  const [csvEmpleos, setCsvEmpleos] = useState('');
+  const [csvExamenes, setCsvExamenes] = useState('');
   // I
   const [actividadesExtra, setActividadesExtra] = useState('');
   // J
@@ -217,6 +269,17 @@ export default function NuevaEvaluacionOcupacional() {
     fechaUltimoDia: setFechaUltimoDia,
   };
 
+  // Límites que el propio navegador aplica al selector de fecha.
+  const HOY = hoyIso();
+  const FECHA_MINIMA = `${ANIO_MINIMO}-01-01`;
+
+  // Fechas imposibles o incoherentes. Se calculan en vivo para poder marcar el
+  // campo en rojo mientras se escribe, y se vuelven a exigir al guardar.
+  const erroresFechas = validarFechasEvaluacion({
+    fechaAtencion, fechaIngresoTrabajo, fechaReingreso, fechaUltimoDia,
+    fechaNacimiento: datosPersonales.fechaNacimiento ?? '',
+  });
+
   // Resumen de antecedentes que se imprime en el recuadro del formato.
   const resumenClinicos = resumirAntecedentes({
     clinicosQ, clinicos, quirurgicosQ, quirurgicos, alergiasQ, alergias,
@@ -240,7 +303,11 @@ export default function NuevaEvaluacionOcupacional() {
     if (exp.antecedentesReproductivos) setReproductivos({ ...emptyAntecedentesReproductivos(), ...exp.antecedentesReproductivos });
     if (exp.habitosToxicos?.length) setHabitos(exp.habitosToxicos);
     if (exp.estiloVida) setEstiloVida(exp.estiloVida);
-    if (exp.antecedentesEmpleos?.length) setEmpleos(exp.antecedentesEmpleos);
+    if (exp.antecedentesEmpleos?.length) {
+      const actual = exp.antecedentesEmpleos.find(e => e.esActual);
+      if (actual) setEmpleoActual({ ...actual, esActual: true });
+      setEmpleos(exp.antecedentesEmpleos.filter(e => !e.esActual));
+    }
   }, []);
 
   // ===== CARGA =====
@@ -303,7 +370,12 @@ export default function NuevaEvaluacionOcupacional() {
               setRiesgoActs(ev.factoresRiesgo.riesgoActividades ?? {});
               setMedidasActs(ev.factoresRiesgo.medidasActividades ?? []);
             }
-            if (ev.antecedentesEmpleos) setEmpleos(ev.antecedentesEmpleos);
+            if (ev.antecedentesEmpleos) {
+              const guardados: AntecedenteEmpleo[] = ev.antecedentesEmpleos;
+              const actual = guardados.find(e => e.esActual);
+              if (actual) setEmpleoActual({ ...actual, esActual: true });
+              setEmpleos(guardados.filter(e => !e.esActual));
+            }
             setActividadesExtra(ev.actividadesExtraLaborales || '');
             if (ev.examenesComplementarios) setExamenes(ev.examenesComplementarios);
             if (ev.diagnosticos) setDiagnosticos(ev.diagnosticos);
@@ -392,6 +464,36 @@ export default function NuevaEvaluacionOcupacional() {
     });
     return out;
   };
+  /**
+   * El trabajo actual se completa solo con lo que ya sabemos del cargo: el
+   * centro de trabajo es la propia institución, las actividades son las
+   * funciones analizadas del puesto y el tiempo sale de la fecha de ingreso.
+   * Solo rellena los campos vacíos, para no pisar lo que el médico ajuste.
+   */
+  useEffect(() => {
+    if (!trabajador) return;
+    setEmpleoActual(prev => {
+      // Se usan las funciones resumidas: la lista completa del cargo no cabe
+      // en la columna «actividades que desempeñaba» del formato.
+      const actividades = prev.actividades.trim()
+        || resumirActividades(perfilRiesgo?.actividades
+          ?? funcionesDeCargo(trabajador.puestoTrabajo || '', FUNCIONES_AUTOCOMPLETAR)).join('; ');
+      const meses = mesesEntre(fechaIngresoTrabajo, fechaAtencion);
+      const siguiente: AntecedenteEmpleo = {
+        ...prev,
+        esActual: true,
+        empresa: prev.empresa.trim() || EMP.institucion || '',
+        puesto: prev.puesto.trim() || trabajador.puestoTrabajo || '',
+        actividades,
+        // El tiempo se recalcula siempre: depende de las fechas de la Sección B.
+        tiempoMeses: meses || prev.tiempoMeses,
+      };
+      const igual = (Object.keys(siguiente) as (keyof AntecedenteEmpleo)[])
+        .every(k => siguiente[k] === prev[k]);
+      return igual ? prev : siguiente;
+    });
+  }, [trabajador, perfilRiesgo, fechaIngresoTrabajo, fechaAtencion, EMP.institucion]);
+
   /** Vuelve a dejar la Sección G tal como la define el perfil de riesgo del cargo. */
   const aplicarPerfilRiesgo = () => {
     if (!perfilRiesgo) return;
@@ -404,6 +506,66 @@ export default function NuevaEvaluacionOcupacional() {
     setRiesgoActs(dentro);
     setMedidasActs([]);
     toast.info('Sección G restablecida con el perfil del cargo.');
+  };
+
+  /**
+   * Carga por lotes de empleos anteriores desde el recuadro CSV. No toca el
+   * trabajo actual: solo añade al final de los anteriores.
+   * Formato: empresa;actividades;meses;incidente;accidente;enfermedad;especificar;observaciones
+   */
+  const importarEmpleosCsv = () => {
+    const { registros, advertencias } = convertirCsv<AntecedenteEmpleo>(csvEmpleos, (f: FilaCsv) => {
+      const empresa = campo(f, 0);
+      const actividades = campo(f, 1);
+      if (!empresa && !actividades) return 'sin empresa ni actividades.';
+      const incidente = siNo(campo(f, 3));
+      const accidente = siNo(campo(f, 4));
+      const enfermedad = siNo(campo(f, 5));
+      return {
+        ...emptyAntecedenteEmpleo(),
+        empresa, actividades,
+        tiempoMeses: soloNumero(campo(f, 2)),
+        incidente, accidente, enfermedadProfesional: enfermedad,
+        // Solo tiene sentido preguntarse por la calificación del IESS si hubo
+        // accidente o enfermedad profesional.
+        calificadoIess: accidente || enfermedad ? null : undefined,
+        especificar: campo(f, 6),
+        observaciones: campo(f, 7),
+        esActual: false,
+      };
+    });
+    if (!registros.length && !advertencias.length) { toast.warning('No hay nada que importar en el recuadro.'); return; }
+    if (registros.length) {
+      setEmpleos(prev => [...prev, ...registros]);
+      setCsvEmpleos('');
+      toast.success(`${registros.length} empleo(s) anterior(es) agregado(s).`);
+    }
+    advertencias.forEach(a => toast.warning(a));
+  };
+
+  /** Carga por lotes de exámenes: nombre;fecha;resultado;observaciones */
+  const importarExamenesCsv = () => {
+    const { registros, advertencias } = convertirCsv<ExamenComplementario>(csvExamenes, (f: FilaCsv) => {
+      const nombre = campo(f, 0);
+      if (!nombre) return 'falta el nombre del examen.';
+      const fechaTexto = campo(f, 1);
+      const fecha = normalizarFechaCsv(fechaTexto);
+      if (fechaTexto && !fecha) return `la fecha «${fechaTexto}» no es válida (usa aaaa-mm-dd o dd/mm/aaaa).`;
+      const observaciones = campo(f, 3);
+      return {
+        nombre, fecha,
+        // El formato imprime una sola columna de resultado: se une la
+        // observación al final para no perderla.
+        resultado: [campo(f, 2), observaciones].filter(Boolean).join(' — '),
+      };
+    });
+    if (!registros.length && !advertencias.length) { toast.warning('No hay nada que importar en el recuadro.'); return; }
+    if (registros.length) {
+      setExamenes(prev => [...prev.filter(e => e.nombre.trim()), ...registros]);
+      setCsvExamenes('');
+      toast.success(`${registros.length} examen(es) agregado(s).`);
+    }
+    advertencias.forEach(a => toast.warning(a));
   };
 
   const updClinico = (i: number, f: keyof AntecedenteClinico, v: any) => setClinicos(prev => prev.map((x, j) => j === i ? { ...x, [f]: v } : x));
@@ -419,9 +581,12 @@ export default function NuevaEvaluacionOcupacional() {
     if (!trabajadorId || !user || !trabajador) return;
     const errores: string[] = [];
     if (!motivoConsulta.trim()) errores.push('Indica el motivo de consulta (Sección B).');
-    fechasDelTipo.obligatorias.forEach(campo => {
-      if (!valorFecha[campo]) errores.push(`Completa «${ETIQUETA_CAMPO_FECHA[campo]}» (Sección B).`);
+    fechasDelTipo.obligatorias.forEach(c => {
+      if (!valorFecha[c]) errores.push(`Completa «${ETIQUETA_CAMPO_FECHA[c]}» (Sección B).`);
     });
+    // Fechas imposibles o incoherentes entre sí (año 0202, ingreso anterior al
+    // nacimiento, salida anterior al ingreso…).
+    errores.push(...erroresFechas);
     if (!signos.presionSistolica || !signos.presionDiastolica || !signos.frecuenciaCardiaca || !signos.peso || !signos.talla)
       errores.push('Completa los signos vitales mínimos: PA, FC, Peso y Talla (Sección E).');
     const dxValidos = diagnosticos.filter(d => d.descripcion.trim() !== '');
@@ -432,7 +597,11 @@ export default function NuevaEvaluacionOcupacional() {
     try {
       const hoy = new Date();
       const numeroArchivo = `${EMP.prefijoArchivo || 'HCO'}-${hoy.getFullYear()}${String(hoy.getMonth() + 1).padStart(2, '0')}${String(hoy.getDate()).padStart(2, '0')}`;
-      const empleosLimpios = empleos.filter(e => e.empresa.trim() || e.puesto.trim() || e.actividades.trim());
+      // El trabajo actual encabeza siempre la lista; detrás, los anteriores.
+      const anteriores = empleos
+        .filter(e => e.empresa.trim() || e.puesto.trim() || e.actividades.trim())
+        .map(e => ({ ...e, esActual: false }));
+      const empleosLimpios = [{ ...empleoActual, esActual: true }, ...anteriores];
 
       const evaluacionData: any = {
         trabajadorId,
@@ -594,7 +763,7 @@ export default function NuevaEvaluacionOcupacional() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1">Fecha de nacimiento</label>
-              <input type="date" value={datosPersonales.fechaNacimiento ?? ''} onChange={e => setDatosPersonales(prev => ({ ...prev, fechaNacimiento: e.target.value }))} className={INPUT} />
+              <input type="date" min={FECHA_MINIMA} max={HOY} value={datosPersonales.fechaNacimiento ?? ''} onChange={e => setDatosPersonales(prev => ({ ...prev, fechaNacimiento: e.target.value }))} className={INPUT} />
             </div>
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1">Grupo sanguíneo</label>
@@ -637,12 +806,18 @@ export default function NuevaEvaluacionOcupacional() {
                     {ETIQUETA_CAMPO_FECHA[campo]} {obligatoria && <span className="text-red-500">*</span>}
                   </label>
                   <input type="date" value={valorFecha[campo]} onChange={e => setFecha[campo](e.target.value)}
+                    min={FECHA_MINIMA} max={campo === 'fechaReingreso' ? undefined : HOY}
                     className={`${INPUT} ${falta ? 'border-red-300 bg-red-50' : ''}`} />
                   {ayuda && <p className="m-0 mt-1 text-[11px] text-slate-400">{ayuda}</p>}
                 </div>
               );
             })}
           </div>
+          {erroresFechas.length > 0 && (
+            <ul className="m-0 mt-1 pl-4 space-y-0.5 rounded-lg border border-red-200 bg-red-50 px-3 py-2">
+              {erroresFechas.map((e, i) => <li key={i} className="text-[11.5px] text-red-700">{e}</li>)}
+            </ul>
+          )}
           <div>
             <label className="block text-xs font-semibold text-slate-600 mb-1">Observación / motivo <span className="text-red-500">*</span></label>
             <textarea rows={2} value={motivoConsulta} onChange={e => setMotivoConsulta(e.target.value)} className={`${INPUT} ${!motivoConsulta.trim() ? 'border-red-300 bg-red-50' : ''}`} placeholder="Motivo o condición de la evaluación…" />
@@ -998,9 +1173,38 @@ export default function NuevaEvaluacionOcupacional() {
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 md:p-6">
           <div className="flex items-center justify-between mb-2 border-b pb-2">
             <h2 className="text-sm font-bold text-slate-800">H. ACTIVIDAD LABORAL / INCIDENTES / ACCIDENTES / ENFERMEDADES OCUPACIONALES</h2>
-            <button type="button" onClick={() => setEmpleos(prev => [...prev, emptyAntecedenteEmpleo()])} className="text-blue-600 text-xs font-bold hover:underline">+ Agregar</button>
+            <button type="button" onClick={() => setEmpleos(prev => [...prev, emptyAntecedenteEmpleo()])} className="text-blue-600 text-xs font-bold hover:underline">+ Agregar anterior</button>
           </div>
-          {empleos.length === 0 && <p className="text-xs text-slate-400 italic">Sin empleos anteriores ni novedades registradas.</p>}
+
+          {/* Trabajo actual: siempre presente y siempre el primero del recuadro. */}
+          <div className="border border-emerald-200 bg-emerald-50/60 rounded-lg p-3 space-y-2 mb-3">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-emerald-600 text-white">Trabajo actual</span>
+              <span className="text-[11px] text-emerald-800">Autocompletado con los datos del cargo; ajústalo si hace falta.</span>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
+              <input type="text" placeholder="Centro de trabajo" value={empleoActual.empresa} onChange={e => setEmpleoActual(p => ({ ...p, empresa: e.target.value }))} className={INPUT_XS} />
+              <input type="text" placeholder="Puesto" value={empleoActual.puesto} onChange={e => setEmpleoActual(p => ({ ...p, puesto: e.target.value }))} className={INPUT_XS} />
+              <input type="number" min={0} placeholder="Tiempo (meses)" value={empleoActual.tiempoMeses} onChange={e => setEmpleoActual(p => ({ ...p, tiempoMeses: e.target.value }))} className={INPUT_XS} />
+              <input type="date" value={empleoActual.fechaCalificacion ?? ''} onChange={e => setEmpleoActual(p => ({ ...p, fechaCalificacion: e.target.value }))} className={INPUT_XS} title="Fecha de calificación IESS" />
+            </div>
+            <textarea rows={2} placeholder="Actividades que desempeña" value={empleoActual.actividades} onChange={e => setEmpleoActual(p => ({ ...p, actividades: e.target.value }))} className={INPUT_XS} />
+            <div className="flex items-center gap-3 flex-wrap text-[11px]">
+              <label className="flex items-center gap-1"><input type="checkbox" checked={!!empleoActual.incidente} onChange={e => setEmpleoActual(p => ({ ...p, incidente: e.target.checked }))} /> Incidente</label>
+              <label className="flex items-center gap-1"><input type="checkbox" checked={!!empleoActual.accidente} onChange={e => setEmpleoActual(p => ({ ...p, accidente: e.target.checked }))} /> Accidente</label>
+              <label className="flex items-center gap-1"><input type="checkbox" checked={!!empleoActual.enfermedadProfesional} onChange={e => setEmpleoActual(p => ({ ...p, enfermedadProfesional: e.target.checked }))} /> Enfermedad profesional</label>
+              {(empleoActual.accidente || empleoActual.enfermedadProfesional) && (
+                <span className="flex items-center gap-1.5"><span className="font-semibold">Calificado IESS:</span><SiNo value={empleoActual.calificadoIess ?? null} onChange={v => setEmpleoActual(p => ({ ...p, calificadoIess: v }))} /></span>
+              )}
+            </div>
+            {(empleoActual.incidente || empleoActual.accidente || empleoActual.enfermedadProfesional) && (
+              <input type="text" placeholder="Especificar el incidente, accidente o enfermedad" value={empleoActual.especificar ?? ''} onChange={e => setEmpleoActual(p => ({ ...p, especificar: e.target.value }))} className={INPUT_XS} />
+            )}
+            <input type="text" placeholder="Observaciones o riesgos detectados" value={empleoActual.observaciones} onChange={e => setEmpleoActual(p => ({ ...p, observaciones: e.target.value }))} className={INPUT_XS} />
+          </div>
+
+          <p className="text-xs font-bold text-slate-600 mb-1.5">Empleos anteriores</p>
+          {empleos.length === 0 && <p className="text-xs text-slate-400 italic">Sin empleos anteriores registrados.</p>}
           <div className="space-y-3">
             {empleos.map((e, i) => (
               <div key={i} className="bg-slate-50 border border-slate-200 rounded-lg p-3 space-y-2">
@@ -1034,6 +1238,15 @@ export default function NuevaEvaluacionOcupacional() {
               </div>
             ))}
           </div>
+
+          <CargaCsv
+            titulo="Cargar empleos anteriores en lote"
+            formato="Empresa; actividades; tiempo en meses; incidente sí/no; accidente sí/no; enfermedad sí/no; especificaciones; observaciones"
+            ejemplo={'Metalúrgica del Sur; Soldadura y corte de piezas; 36; no; sí; no; corte en mano izquierda 2019; usaba EPP incompleto\nTransportes Andinos; Conducción de vehículo pesado; 24; sí; no; no; ; jornadas nocturnas'}
+            valor={csvEmpleos}
+            onCambiar={setCsvEmpleos}
+            onImportar={importarEmpleosCsv}
+          />
         </div>
 
         {/* I. ACTIVIDADES EXTRA LABORALES */}
@@ -1048,12 +1261,21 @@ export default function NuevaEvaluacionOcupacional() {
           {examenes.map((ex, i) => (
             <div key={i} className="flex gap-2 mb-2">
               <input type="text" placeholder="Nombre del examen" value={ex.nombre} onChange={e => { const u = [...examenes]; u[i] = { ...u[i], nombre: e.target.value }; setExamenes(u); }} className="w-1/3 px-2 py-1 border rounded text-sm" />
-              <input type="date" value={ex.fecha} onChange={e => { const u = [...examenes]; u[i] = { ...u[i], fecha: e.target.value }; setExamenes(u); }} className="w-1/6 px-2 py-1 border rounded text-sm" />
+              <input type="date" min={FECHA_MINIMA} max={HOY} value={ex.fecha} onChange={e => { const u = [...examenes]; u[i] = { ...u[i], fecha: e.target.value }; setExamenes(u); }} className="w-1/6 px-2 py-1 border rounded text-sm" />
               <input type="text" placeholder="Resultado" value={ex.resultado} onChange={e => { const u = [...examenes]; u[i] = { ...u[i], resultado: e.target.value }; setExamenes(u); }} className="flex-1 px-2 py-1 border rounded text-sm" />
               <button type="button" onClick={() => setExamenes(prev => prev.filter((_, j) => j !== i))} className="text-red-400 hover:text-red-600 font-bold px-2">×</button>
             </div>
           ))}
           <button type="button" onClick={() => setExamenes(prev => [...prev, { nombre: '', fecha: '', resultado: '' }])} className="text-blue-600 text-xs font-medium mt-2 hover:underline">+ Agregar fila</button>
+
+          <CargaCsv
+            titulo="Cargar exámenes en lote"
+            formato="Nombre del examen; fecha; resultado; observaciones"
+            ejemplo={'Biometría hemática; 2026-07-14; Dentro de parámetros normales; \nAudiometría; 14/07/2026; Hipoacusia leve bilateral; control en 6 meses'}
+            valor={csvExamenes}
+            onCambiar={setCsvExamenes}
+            onImportar={importarExamenesCsv}
+          />
         </div>
 
         {/* K. DIAGNÓSTICO */}
