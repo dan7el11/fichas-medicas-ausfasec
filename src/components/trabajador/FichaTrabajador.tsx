@@ -21,7 +21,8 @@ import { getOrdenes, eliminarOrden } from '../../services/examenesPlan';
 import { estadoPermiso, duracionPermiso, fmtFecha as fmtPF, toDate, actualizarPermiso, eliminarPermiso } from '../../services/permisos';
 import { horasEntre } from '../../utils/permisosHorario';
 import { tipoEvaluacionLabel } from '../../utils/medicalHelpers';
-import { MATRIZ_RIESGOS } from '../../utils/catalogosEvaluacion';
+import { MATRIZ_RIESGOS, esFactorAnalizable } from '../../utils/catalogosEvaluacion';
+import { resumirActividades } from '../../utils/resumenFuncion';
 import { MAX_ACTIVIDADES as N_ACTIVIDADES } from '../../constants/funcionesCargo';
 import { conFilasMinimas } from '../../utils/tablasPdf';
 import { dibujarPagina1Ocupacional } from './paginaUnoOcupacionalPdf';
@@ -405,6 +406,26 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
   // ----------------------------------------------------------------
   const hasFisico = (ev: any, code: string) => ev.examenFisicoHallazgos?.some((h: any) => h.codigo === code);
 
+  /**
+   * Abre el PDF en el visor flotante en lugar de descargarlo de golpe: así se
+   * revisa antes de guardarlo. El botón «Descargar» del visor conserva el
+   * nombre de archivo. Se libera la URL anterior para no acumular blobs.
+   */
+  const mostrarPdf = (documento: jsPDF, nombre: string) => {
+    const url = URL.createObjectURL(documento.output('blob'));
+    setPdfVisor(prev => {
+      if (prev?.url.startsWith('blob:')) URL.revokeObjectURL(prev.url);
+      return { url, nombre };
+    });
+  };
+
+  const cerrarVisorPdf = () => {
+    setPdfVisor(prev => {
+      if (prev?.url.startsWith('blob:')) URL.revokeObjectURL(prev.url);
+      return null;
+    });
+  };
+
   // ----------------------------------------------------------------
   // PDF SO-RE-38
   // ----------------------------------------------------------------
@@ -702,7 +723,7 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
 
     checkPage(25); secHeader('N. DATOS DEL PROFESIONAL                                                                             O. FIRMA DEL USUARIO');
     autoTable(pdf, { startY: y, margin: { left: M, right: M }, theme: 'grid', styles: { ...baseStyles, fontSize: 6.5, halign: 'center' }, headStyles: { ...headStyles, fontSize: 6, halign: 'center' }, head: [['FECHA\naaaa-mm-dd', 'HORA', 'NOMBRES Y APELLIDOS', 'CÓDIGO', 'FIRMA Y SELLO', 'FIRMA DEL USUARIO']], body: [[fmtF(ev.fecha), fmtHora(ev.fecha), (ev.medicoNombre || 'MÉDICO OCUPACIONAL').toUpperCase(), ev.medicoCedula || '-', '', '']], bodyStyles: { minCellHeight: 18, valign: 'bottom', halign: 'center' } });
-    pdf.save(`SO-RE-38_${trabajador.primerApellido}_${trabajador.primerNombre}_${fmtF(ev.fecha)}.pdf`);
+    mostrarPdf(pdf, `SO-RE-38_${trabajador.primerApellido}_${trabajador.primerNombre}_${fmtF(ev.fecha)}.pdf`);
   };
 
   // ----------------------------------------------------------------
@@ -900,7 +921,7 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
     secHeaderR('I. DATOS DEL PROFESIONAL                                                                             J. FIRMA DEL USUARIO');
     AT({ startY: y, margin: { left: M, right: M }, theme: 'grid', styles: { ...base, fontSize: 6.5, halign: 'center' }, headStyles: { ...head, fontSize: 6, halign: 'center' }, head: [['FECHA\naaaa-mm-dd', 'HORA', 'NOMBRES Y APELLIDOS', 'CÓDIGO', 'FIRMA Y SELLO', 'FIRMA DEL USUARIO']], body: [[fmtF(ev.fecha), fmtHora(ev.fecha), (ev.medicoNombre || 'MÉDICO OCUPACIONAL').toUpperCase(), ev.medicoCedula || '-', '', '']], bodyStyles: { minCellHeight: 20, valign: 'bottom', halign: 'center' } });
 
-    pdf.save(`SO-RE-40_RETIRO_${trabajador.primerApellido}_${trabajador.primerNombre}_${fmtF(ev.fecha)}.pdf`);
+    mostrarPdf(pdf, `SO-RE-40_RETIRO_${trabajador.primerApellido}_${trabajador.primerNombre}_${fmtF(ev.fecha)}.pdf`);
   };
 
   // ----------------------------------------------------------------
@@ -1056,7 +1077,7 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
     secHeaderRe('J. DATOS DEL PROFESIONAL                                                                             K. FIRMA DEL USUARIO');
     AT({ startY: y, margin: { left: M, right: M }, theme: 'grid', styles: { ...base, fontSize: 6.5, halign: 'center' }, headStyles: { ...head, fontSize: 6, halign: 'center' }, head: [['FECHA\naaaa-mm-dd', 'HORA', 'NOMBRES Y APELLIDOS', 'CÓDIGO', 'FIRMA Y SELLO', 'FIRMA DEL USUARIO']], body: [[fmtF(ev.fecha), fmtHora(ev.fecha), (ev.medicoNombre || 'MÉDICO OCUPACIONAL').toUpperCase(), ev.medicoCedula || '-', '', '']], bodyStyles: { minCellHeight: 16, valign: 'bottom', halign: 'center' } });
 
-    pdf.save(`SO-RE-39_REINTEGRO_${trabajador.primerApellido}_${trabajador.primerNombre}_${fmtF(ev.fecha)}.pdf`);
+    mostrarPdf(pdf, `SO-RE-39_REINTEGRO_${trabajador.primerApellido}_${trabajador.primerNombre}_${fmtF(ev.fecha)}.pdf`);
   };
 
   // ----------------------------------------------------------------
@@ -1418,7 +1439,7 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
     secHeaderP('P. DATOS DEL PROFESIONAL                                                                             Q. FIRMA DEL USUARIO');
     AT({ startY: y, margin: { left: M, right: M }, theme: 'grid', styles: { ...base, fontSize: 6.5, halign: 'center' }, headStyles: { ...head, fontSize: 6, halign: 'center' }, head: [['FECHA\naaaa-mm-dd', 'HORA', 'NOMBRES Y APELLIDOS', 'CÓDIGO', 'FIRMA Y SELLO', 'FIRMA DEL USUARIO']], body: [[fmtF(ev.fecha), fmtHora(ev.fecha), (ev.medicoNombre || 'MÉDICO OCUPACIONAL').toUpperCase(), ev.medicoCedula || '-', '', '']], bodyStyles: { minCellHeight: 18, valign: 'bottom', halign: 'center' } });
 
-    pdf.save(`SO-RE-41_PREOCUPACIONAL_${trabajador.primerApellido}_${trabajador.primerNombre}_${fmtF(ev.fecha)}.pdf`);
+    mostrarPdf(pdf, `SO-RE-41_PREOCUPACIONAL_${trabajador.primerApellido}_${trabajador.primerNombre}_${fmtF(ev.fecha)}.pdf`);
   };
 
   // ----------------------------------------------------------------
@@ -1478,10 +1499,13 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
     sec('G. FACTORES DE RIESGO DEL TRABAJO ACTUAL');
 
     const fr = ev.factoresRiesgo || {};
-    const acts: string[] = (fr.actividadesJornada && fr.actividadesJornada.length
+    const actsCompletas: string[] = (fr.actividadesJornada && fr.actividadesJornada.length
       ? fr.actividadesJornada
       : String(fr.actividades || '').split(/\s*[;\n]\s*/).filter(Boolean)
     ).slice(0, N_ACTIVIDADES);
+    // En la matriz van resumidas: el texto completo estiraría las filas hasta
+    // desbordar la única página que el formato reserva para este recuadro.
+    const acts: string[] = resumirActividades(actsCompletas);
     const marcadasDe = (riesgo: string, clave: string): number[] => {
       const mapa = fr.riesgoActividades || {};
       if (mapa[riesgo]) return mapa[riesgo];
@@ -1509,10 +1533,17 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
 
     // Filas de la matriz: categoría (rowSpan) | subcategoría (rowSpan) | factor | X por actividad
     const cuerpo: any[] = [];
+    // Las líneas «Otros ______» del formato se omiten: el perfil de riesgo por
+    // cargo ya está analizado, no hay factores adicionales que anotar, y
+    // quitarlas es lo que permite que la matriz quepa en una sola página.
     MATRIZ_RIESGOS.forEach((categoria) => {
-      const totalFilas = categoria.subgrupos.reduce((s, g) => s + g.items.length, 0);
+      const subgrupos = categoria.subgrupos
+        .map(g => ({ ...g, items: g.items.filter(esFactorAnalizable) }))
+        .filter(g => g.items.length > 0);
+      const totalFilas = subgrupos.reduce((s, g) => s + g.items.length, 0);
+      if (totalFilas === 0) return;
       let primeraDeCategoria = true;
-      categoria.subgrupos.forEach((grupo) => {
+      subgrupos.forEach((grupo) => {
         grupo.items.forEach((factor, idxItem) => {
           const fila: any[] = [];
           if (primeraDeCategoria) {
@@ -1564,13 +1595,64 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
     W = pdf.internal.pageSize.getWidth(); CW = W - M * 2; y = 7;
     cab('Página:    3 de 3');
     sec('H. ACTIVIDAD LABORAL / INCIDENTES / ACCIDENTES / ENFERMEDADES OCUPACIONALES');
+    // Recuadro «ANTECEDENTES DE EMPLEOS ANTERIORES Y/O TRABAJO ACTUAL» tal como
+    // está en el formato: tres bloques de encabezado (TRABAJO, accidentes y
+    // enfermedades, calificación del IESS) y los rótulos estrechos en vertical.
     const emps = ev.antecedentesEmpleos || [];
-    AT({ startY: y, theme: 'grid', styles: { ...base, fontSize: 5.5 }, headStyles: { ...head, fontSize: 5 }, head: [['CENTRO DE TRABAJO', 'ACTIVIDADES', 'ACT.', 'TIEMPO', 'INC.', 'ACC.', 'E.P.', 'CALIF. IESS', 'ESPECIFICAR / OBS.']],
+    const ANCHOS_H = [28, 40, 6, 6, 7, 7, 7, 8, 6, 6, 14, 30, 31]; // suman los 196 mm útiles
+    const rotuloH = (txt: string) => ({ content: '', textoRotado: txt, styles: { fillColor: cSec, fontStyle: 'bold' as const } });
+    AT({
+      startY: y, theme: 'grid',
+      styles: { ...base, fontSize: 5.4, cellPadding: 0.6, halign: 'center', valign: 'middle' },
+      columnStyles: Object.fromEntries(ANCHOS_H.map((w, i) => [i, { cellWidth: w }])),
+      head: [
+        [
+          { content: 'CENTRO DE TRABAJO', rowSpan: 2, styles: { ...head, fontSize: 5.2, valign: 'middle' } },
+          { content: 'ACTIVIDADES QUE DESEMPEÑABA', rowSpan: 2, styles: { ...head, fontSize: 5.2, valign: 'middle' } },
+          { content: 'TRABAJO', colSpan: 3, styles: { ...head, fontSize: 5.2 } },
+          { content: 'De los Accidentes de Trabajo y las Enfermedades Profesionales', colSpan: 3, styles: { ...head, fontSize: 4.6 } },
+          { content: 'CALIFICADO POR INSTITUTO ECUATORIANO DE SEGURIDAD SOCIAL', colSpan: 5, styles: { ...head, fontSize: 5.2 } },
+        ],
+        [
+          rotuloH('ANTERIOR'), rotuloH('ACTUAL'), rotuloH('TIEMPO DE TRABAJO'),
+          rotuloH('INCIDENTE'), rotuloH('ACCIDENTE'), rotuloH('ENFERMEDAD PROFESIONAL'),
+          { content: 'SI', styles: { ...head, fontSize: 5.2 } },
+          { content: 'NO', styles: { ...head, fontSize: 5.2 } },
+          { content: 'FECHA\naaaa/mm/dd', styles: { ...head, fontSize: 4.8 } },
+          { content: 'ESPECIFICAR', styles: { ...head, fontSize: 5.2 } },
+          { content: 'Observaciones', styles: { ...head, fontSize: 5.2 } },
+        ],
+      ],
+      headStyles: { minCellHeight: 16, valign: 'middle' },
       body: conFilasMinimas(
-        emps.map((e: any) => [e.empresa || '-', e.actividades || '-', e.esActual ? 'X' : '', e.tiempoMeses || '-', e.incidente ? 'X' : '', e.accidente ? 'X' : '', e.enfermedadProfesional ? 'X' : '', e.calificadoIess === true ? 'SÍ' : e.calificadoIess === false ? 'NO' : '-', `${e.especificar || ''} ${e.observaciones || ''}`.trim() || '-']),
-        9,
+        emps.map((e: any) => [
+          { content: e.empresa || '', styles: { halign: 'left' as const } },
+          { content: e.actividades || '', styles: { halign: 'left' as const, fontSize: 4.8 } },
+          e.esActual ? '' : 'X',
+          e.esActual ? 'X' : '',
+          e.tiempoMeses ? String(e.tiempoMeses) : '',
+          e.incidente ? 'X' : '', e.accidente ? 'X' : '', e.enfermedadProfesional ? 'X' : '',
+          e.calificadoIess === true ? 'X' : '', e.calificadoIess === false ? 'X' : '',
+          e.fechaCalificacion || '',
+          { content: e.especificar || '', styles: { halign: 'left' as const, fontSize: 4.8 } },
+          { content: e.observaciones || '', styles: { halign: 'left' as const, fontSize: 4.8 } },
+        ]),
+        ANCHOS_H.length,
       ),
-      columnStyles: { 2: { halign: 'center' }, 4: { halign: 'center' }, 5: { halign: 'center' }, 6: { halign: 'center' }, 7: { halign: 'center' } } });
+      didDrawCell: (data: any) => {
+        const raw = data.cell.raw as any;
+        if (data.section !== 'head' || !raw?.textoRotado) return;
+        pdf.setTextColor(0); pdf.setFont('helvetica', 'bold');
+        const texto = String(raw.textoRotado);
+        let cuerpo = 4.4;
+        pdf.setFontSize(cuerpo);
+        const disponible = data.cell.height - 1;
+        const ancho = pdf.getTextWidth(texto);
+        if (ancho > disponible) { cuerpo = Math.max(2.8, (cuerpo * disponible) / ancho); pdf.setFontSize(cuerpo); }
+        const cx = data.cell.x + data.cell.width / 2;
+        pdf.text(texto, cx + cuerpo * 0.14, data.cell.y + (data.cell.height + pdf.getTextWidth(texto)) / 2, { angle: 90 });
+      },
+    });
     y += 1;
 
     sec('I. ACTIVIDADES EXTRA LABORALES');
@@ -1612,7 +1694,7 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
     sec('O. DATOS DEL PROFESIONAL                                                            P. FIRMA O HUELLA DEL TRABAJADOR');
     AT({ startY: y, theme: 'grid', styles: { ...base, fontSize: 6.5, halign: 'center' }, headStyles: { ...head, fontSize: 6, halign: 'center' }, head: [['FECHA', 'HORA', 'NOMBRES Y APELLIDOS DEL PROFESIONAL', 'CÓDIGO MÉDICO', 'FIRMA Y SELLO', 'FIRMA / HUELLA DEL TRABAJADOR']], body: [[fmtF(ev.fecha), fmtHora(ev.fecha), (ev.medicoNombre || 'MÉDICO OCUPACIONAL').toUpperCase(), ev.medicoCedula || '-', '', '']], bodyStyles: { minCellHeight: 18, valign: 'bottom', halign: 'center' } });
 
-    pdf.save(`Evaluacion_Ocupacional_${tipoLabel}_${trabajador.primerApellido}_${trabajador.primerNombre}_${fmtF(ev.fecha)}.pdf`.replace(/\s+/g, '_'));
+    mostrarPdf(pdf, `Evaluacion_Ocupacional_${tipoLabel}_${trabajador.primerApellido}_${trabajador.primerNombre}_${fmtF(ev.fecha)}.pdf`.replace(/\s+/g, '_'));
   };
 
   // ----------------------------------------------------------------
@@ -2065,7 +2147,7 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
 
       {/* ── VISOR PDF FLOTANTE ── */}
       {pdfVisor && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4" onClick={() => setPdfVisor(null)}>
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4" onClick={cerrarVisorPdf}>
           <div className="bg-white rounded-xl shadow-2xl flex flex-col w-full max-w-4xl" style={{ height: '90vh' }} onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between px-5 py-3 border-b shrink-0">
               <span className="text-sm font-semibold text-slate-700 truncate">{pdfVisor.nombre}</span>
@@ -2074,7 +2156,7 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
                   className="text-xs px-3 py-1.5 bg-slate-100 text-slate-700 rounded-lg font-semibold hover:bg-slate-200">
                   ⬇ Descargar
                 </a>
-                <button onClick={() => setPdfVisor(null)} className="text-slate-400 hover:text-slate-700 text-2xl leading-none">&times;</button>
+                <button onClick={cerrarVisorPdf} className="text-slate-400 hover:text-slate-700 text-2xl leading-none">&times;</button>
               </div>
             </div>
             <iframe src={pdfVisor.url} className="flex-1 w-full rounded-b-xl" title={pdfVisor.nombre} />
