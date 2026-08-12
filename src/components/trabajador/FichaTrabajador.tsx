@@ -21,11 +21,9 @@ import { getOrdenes, eliminarOrden } from '../../services/examenesPlan';
 import { estadoPermiso, duracionPermiso, fmtFecha as fmtPF, toDate, actualizarPermiso, eliminarPermiso } from '../../services/permisos';
 import { horasEntre } from '../../utils/permisosHorario';
 import { tipoEvaluacionLabel } from '../../utils/medicalHelpers';
-import { MATRIZ_RIESGOS, esFactorAnalizable } from '../../utils/catalogosEvaluacion';
-import { actividadesCortas } from '../../utils/resumenFuncion';
-import { MAX_ACTIVIDADES as N_ACTIVIDADES } from '../../constants/funcionesCargo';
 import { conFilasMinimas } from '../../utils/tablasPdf';
 import { dibujarPagina1Ocupacional } from './paginaUnoOcupacionalPdf';
+import { dibujarMatrizRiesgos } from './paginaDosOcupacionalPdf';
 import { TIPOS_PERMISO } from '../../types/permiso';
 import type { TipoPermiso } from '../../types/permiso';
 import type { OrdenExamen } from '../../types/examenPlan';
@@ -1498,97 +1496,10 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
     cab('Página: 2 de 3', true);
     sec('G. FACTORES DE RIESGO DEL TRABAJO ACTUAL');
 
-    const fr = ev.factoresRiesgo || {};
-    const actsCompletas: string[] = (fr.actividadesJornada && fr.actividadesJornada.length
-      ? fr.actividadesJornada
-      : String(fr.actividades || '').split(/\s*[;\n]\s*/).filter(Boolean)
-    ).slice(0, N_ACTIVIDADES);
-    // En la matriz va la redacción corta revisada del análisis (o un recorte
-    // automático si no la hay): el texto completo estiraría las filas hasta
-    // desbordar la única página que el formato reserva para este recuadro.
-    const acts: string[] = actividadesCortas(actsCompletas, fr.actividadesResumen);
-    const marcadasDe = (riesgo: string, clave: string): number[] => {
-      const mapa = fr.riesgoActividades || {};
-      if (mapa[riesgo]) return mapa[riesgo];
-      // Compatibilidad: si solo hay arreglos por categoría, se marca la actividad 1.
-      const lista: string[] = (fr as any)[clave] || [];
-      return lista.includes(riesgo) ? [0] : [];
-    };
-
-    // Puesto de trabajo (una sola fila: rótulo + valor, como en la hoja).
-    AT({ startY: y, theme: 'grid', styles: { ...base, fontSize: 6.5, cellPadding: 0.8 },
-      body: [[{ content: 'PUESTO DE TRABAJO', styles: { fillColor: cSec, fontStyle: 'bold', cellWidth: 45, fontSize: 6 } }, { content: fr.puestoArea || trabajador.puestoTrabajo || '-' }]] });
-
-    // Anchos: se estrecha el bloque de factores para dar aire a las actividades.
-    const wCat = 17, wSub = 13, wFac = 42;
-    const wAct = (CW - wCat - wSub - wFac) / N_ACTIVIDADES;
-
-    // Encabezado: cada columna es UNA actividad de la jornada (número + texto).
-    const cabActividades: any[] = [
-      { content: 'ACTIVIDADES IMPORTANTES DENTRO DE LA JORNADA LABORAL', colSpan: 3, styles: { fillColor: cSec, fontStyle: 'bold', fontSize: 5.5, halign: 'left', valign: 'middle' } },
-      ...Array.from({ length: N_ACTIVIDADES }, (_, i) => ({
-        content: acts[i] ? `${i + 1}.  ${acts[i]}` : String(i + 1),
-        styles: { fillColor: cSec, fontStyle: 'bold' as const, halign: 'left' as const, valign: 'top' as const, fontSize: 4.2, cellPadding: 0.5, overflow: 'linebreak' as const },
-      })),
-    ];
-
-    // Filas de la matriz: categoría (rowSpan) | subcategoría (rowSpan) | factor | X por actividad
-    const cuerpo: any[] = [];
-    // Las líneas «Otros ______» del formato se omiten: el perfil de riesgo por
-    // cargo ya está analizado, no hay factores adicionales que anotar, y
-    // quitarlas es lo que permite que la matriz quepa en una sola página.
-    MATRIZ_RIESGOS.forEach((categoria) => {
-      const subgrupos = categoria.subgrupos
-        .map(g => ({ ...g, items: g.items.filter(esFactorAnalizable) }))
-        .filter(g => g.items.length > 0);
-      const totalFilas = subgrupos.reduce((s, g) => s + g.items.length, 0);
-      if (totalFilas === 0) return;
-      let primeraDeCategoria = true;
-      subgrupos.forEach((grupo) => {
-        grupo.items.forEach((factor, idxItem) => {
-          const fila: any[] = [];
-          if (primeraDeCategoria) {
-            fila.push({ content: categoria.categoria, rowSpan: totalFilas, styles: { fillColor: cTer, fontStyle: 'bold', valign: 'middle', halign: 'center', fontSize: 5.4, overflow: 'linebreak' } });
-            primeraDeCategoria = false;
-          }
-          if (idxItem === 0 && grupo.subcategoria) {
-            fila.push({ content: grupo.subcategoria, rowSpan: grupo.items.length, styles: { fillColor: '#f2f5f8', fontStyle: 'bold', valign: 'middle', halign: 'center', fontSize: 4.8, overflow: 'linebreak' } });
-          }
-          // Sin subcategoría: la celda del factor se extiende sobre esa columna.
-          const celdaFactor = grupo.subcategoria
-            ? { content: factor, styles: { fontSize: 4.6 } }
-            : { content: factor, colSpan: 2, styles: { fontSize: 4.6 } };
-          fila.push(celdaFactor);
-          const marcadas = marcadasDe(factor, categoria.clave);
-          for (let i = 0; i < N_ACTIVIDADES; i++) {
-            fila.push({ content: marcadas.includes(i) ? 'X' : '', styles: { halign: 'center' as const, fontStyle: 'bold' as const, fontSize: 5.6 } });
-          }
-          cuerpo.push(fila);
-        });
-      });
-    });
-
-    // Última fila: las medidas preventivas al pie de la columna de cada actividad.
-    const medidas: string[] = fr.medidasActividades || [];
-    cuerpo.push([
-      { content: 'MEDIDAS PREVENTIVAS', colSpan: 3, styles: { fillColor: cSec, fontStyle: 'bold' as const, fontSize: 5.2, halign: 'left' as const, valign: 'middle' as const, minCellHeight: 12 } },
-      ...Array.from({ length: N_ACTIVIDADES }, (_, i) => ({
-        content: acts[i] ? (medidas[i] || fr.medidasPreventivas || '') : '',
-        styles: { fontSize: 4.2, halign: 'left' as const, valign: 'top' as const, cellPadding: 0.5, overflow: 'linebreak' as const, minCellHeight: 12 },
-      })),
-    ]);
-
-    const colStyles: Record<number, any> = { 0: { cellWidth: wCat }, 1: { cellWidth: wSub }, 2: { cellWidth: wFac } };
-    for (let i = 0; i < N_ACTIVIDADES; i++) colStyles[3 + i] = { cellWidth: wAct };
-
-    // margin.bottom explícito: autotable usa 40 mm por defecto y partiría la matriz.
-    AT({
-      startY: y, theme: 'grid', margin: { left: M, right: M, top: 7, bottom: 5 },
-      styles: { lineColor: negro, lineWidth: 0.2, cellPadding: 0.12, textColor: negro, fontSize: 4.6, minCellHeight: 2.05, overflow: 'ellipsize', valign: 'middle' },
-      headStyles: { lineColor: negro, lineWidth: 0.2, cellPadding: 0.6, textColor: negro, fillColor: cSec, fontStyle: 'bold', fontSize: 6 },
-      columnStyles: colStyles,
-      head: [cabActividades],
-      body: cuerpo,
+    y = dibujarMatrizRiesgos(pdf, y, {
+      fr: ev.factoresRiesgo || {},
+      puestoTrabajo: trabajador.puestoTrabajo,
+      margen: M, anchoUtil: CW,
     });
 
     // ══════════ PÁGINA 3 (vertical) ══════════
@@ -1600,7 +1511,10 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
     // está en el formato: tres bloques de encabezado (TRABAJO, accidentes y
     // enfermedades, calificación del IESS) y los rótulos estrechos en vertical.
     const emps = ev.antecedentesEmpleos || [];
-    const ANCHOS_H = [28, 40, 6, 6, 7, 7, 7, 8, 6, 6, 14, 30, 31]; // suman los 196 mm útiles
+    // Suman los 196 mm útiles. La columna de actividades se lleva la parte
+    // ancha porque es la única con texto largo; especificar y observaciones
+    // suelen ir en una línea.
+    const ANCHOS_H = [26, 56, 6, 6, 7, 7, 7, 8, 6, 6, 14, 22, 25];
     const rotuloH = (txt: string) => ({ content: '', textoRotado: txt, styles: { fillColor: cSec, fontStyle: 'bold' as const } });
     AT({
       startY: y, theme: 'grid',
@@ -1628,7 +1542,7 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
       body: conFilasMinimas(
         emps.map((e: any) => [
           { content: e.empresa || '', styles: { halign: 'left' as const } },
-          { content: e.actividades || '', styles: { halign: 'left' as const, fontSize: 4.8 } },
+          { content: e.actividades || '', styles: { halign: 'left' as const, fontSize: 4.8, overflow: 'linebreak' as const } },
           e.esActual ? '' : 'X',
           e.esActual ? 'X' : '',
           e.tiempoMeses ? String(e.tiempoMeses) : '',

@@ -28,7 +28,7 @@ import {
 } from '../utils/catalogosEvaluacion';
 import { funcionesDeCargo, perfilDeCargo, MAX_ACTIVIDADES, FUNCIONES_AUTOCOMPLETAR } from '../constants/funcionesCargo';
 import { resumirAntecedentes } from '../utils/resumenAntecedentes';
-import { resumirActividades, actividadesCortas } from '../utils/resumenFuncion';
+import { resumirActividades, textosActividades, FUNCIONES_HISTORIA_LABORAL } from '../utils/resumenFuncion';
 import { medidaCompleta } from '../constants/medidasPreventivas';
 import { validarFechasEvaluacion, mesesEntre, hoyIso, ANIO_MINIMO } from '../utils/validacionFechas';
 import { convertirCsv, campo, siNo, soloNumero, normalizarFechaCsv, type FilaCsv } from '../utils/csvTexto';
@@ -476,12 +476,13 @@ export default function NuevaEvaluacionOcupacional() {
   useEffect(() => {
     if (!trabajador) return;
     setEmpleoActual(prev => {
-      // Se usan las funciones resumidas: la lista completa del cargo no cabe
-      // en la columna «actividades que desempeñaba» del formato.
+      // Solo las primeras funciones, completas: la lista entera del cargo
+      // estiraba la columna «actividades que desempeñaba» y empujaba el resto
+      // de la página sin aportar nada.
       const actividades = prev.actividades.trim()
         || (perfilRiesgo
-          ? actividadesCortas(perfilRiesgo.actividades, perfilRiesgo.actividadesResumen).join('; ')
-          : resumirActividades(funcionesDeCargo(trabajador.puestoTrabajo || '', FUNCIONES_AUTOCOMPLETAR)).join('; '));
+          ? textosActividades(perfilRiesgo.actividades, perfilRiesgo.actividadesResumen, FUNCIONES_HISTORIA_LABORAL).join('; ')
+          : resumirActividades(funcionesDeCargo(trabajador.puestoTrabajo || '', FUNCIONES_HISTORIA_LABORAL)).join('; '));
       const meses = mesesEntre(fechaIngresoTrabajo, fechaAtencion);
       const siguiente: AntecedenteEmpleo = {
         ...prev,
