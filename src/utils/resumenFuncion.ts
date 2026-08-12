@@ -37,29 +37,38 @@ export function resumirFuncion(texto: string, max = LARGO_ACTIVIDAD_MATRIZ): str
 export const resumirActividades = (actividades: string[], max = LARGO_ACTIVIDAD_MATRIZ): string[] =>
   (actividades ?? []).map(a => resumirFuncion(a, max));
 
+/** Cuántas funciones caben en el recuadro de historia laboral (Sección H). */
+export const FUNCIONES_HISTORIA_LABORAL = 5;
+
 /**
- * Texto corto de una actividad para los recuadros estrechos (matriz de la
- * página 2 e historia laboral).
+ * Texto de una actividad para los recuadros del formato.
  *
- * Prefiere la redacción corta revisada del análisis, que está escrita a mano y
- * se lee mejor que cualquier recorte automático. Como algunas de esas
- * redacciones siguen siendo largas, se les aplica el mismo tope por si acaso.
+ * Prefiere la redacción corta revisada del análisis y la devuelve TAL CUAL:
+ * es una frase completa, así que recortarla solo servía para mostrarla a
+ * medias. Cuando no hay redacción revisada (cargos fuera del análisis) sí se
+ * recorta la función original, porque puede ser larguísima.
  */
-export function textoCortoActividad(
+export function textoActividad(
   completas: string[] | undefined,
   resumidas: string[] | undefined,
   indice: number,
-  max = LARGO_ACTIVIDAD_MATRIZ,
 ): string {
-  const revisada = (resumidas ?? [])[indice];
+  const revisada = (resumidas ?? [])[indice]?.trim();
+  if (revisada) return revisada.replace(/\s+/g, ' ');
   const original = (completas ?? [])[indice];
-  return resumirFuncion(revisada?.trim() || original || '', max);
+  return original ? resumirFuncion(original) : '';
 }
 
-/** Aplica `textoCortoActividad` a toda la lista. */
-export const actividadesCortas = (
+/**
+ * Lista de textos de actividad. `limite` recorta el NÚMERO de actividades,
+ * nunca su contenido: es lo que evita que el recuadro de historia laboral
+ * crezca sin motivo.
+ */
+export const textosActividades = (
   completas: string[] | undefined,
   resumidas: string[] | undefined,
-  max = LARGO_ACTIVIDAD_MATRIZ,
-): string[] =>
-  (completas ?? []).map((_, i) => textoCortoActividad(completas, resumidas, i, max));
+  limite?: number,
+): string[] => {
+  const todas = (completas ?? []).map((_, i) => textoActividad(completas, resumidas, i)).filter(Boolean);
+  return limite != null ? todas.slice(0, limite) : todas;
+};

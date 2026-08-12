@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { resumirFuncion, resumirActividades, textoCortoActividad, actividadesCortas, LARGO_ACTIVIDAD_MATRIZ } from './resumenFuncion';
+import {
+  resumirFuncion, resumirActividades, textoActividad, textosActividades,
+  LARGO_ACTIVIDAD_MATRIZ, FUNCIONES_HISTORIA_LABORAL,
+} from './resumenFuncion';
 import { PERFILES_RIESGO_CARGO } from '../constants/perfilRiesgoCargo';
 
 describe('resumirFuncion', () => {
@@ -61,43 +64,57 @@ describe('resumirActividades', () => {
   });
 });
 
-describe('textoCortoActividad', () => {
+describe('textoActividad', () => {
   const completas = ['Elaborar comunicaciones internas y externas, relacionadas con los procesos del departamento comercial'];
   const resumidas = ['Elaborar comunicaciones internas y externas'];
 
-  it('prefiere la redacción corta revisada del análisis', () => {
-    expect(textoCortoActividad(completas, resumidas, 0)).toBe('Elaborar comunicaciones internas y externas');
+  it('devuelve la redacción revisada tal cual, sin recortarla', () => {
+    expect(textoActividad(completas, resumidas, 0)).toBe('Elaborar comunicaciones internas y externas');
   });
 
-  it('cae en el recorte automático si no hay redacción revisada', () => {
-    const r = textoCortoActividad(completas, undefined, 0);
-    expect(r.endsWith('…')).toBe(true);
+  it('no recorta una redacción revisada larga: es una frase completa', () => {
+    const larga = ['Coordinar y gestionar la recepción, envío de GLP en cilindros de forma oportuna a los distribuidores del Austro, incluidos los operativos sociales designados por el Estado'];
+    expect(textoActividad(larga, larga, 0)).toBe(larga[0]);
+    expect(textoActividad(larga, larga, 0)).not.toContain('…');
   });
 
-  it('ignora una redacción revisada vacía', () => {
-    expect(textoCortoActividad(completas, ['   '], 0).endsWith('…')).toBe(true);
+  it('cae en el recorte automático solo si no hay redacción revisada', () => {
+    expect(textoActividad(completas, undefined, 0).endsWith('…')).toBe(true);
+    expect(textoActividad(completas, ['   '], 0).endsWith('…')).toBe(true);
   });
 
-  it('acota también la redacción revisada si viene larga', () => {
-    const larga = ['x'.repeat(200)];
-    expect(textoCortoActividad(larga, larga, 0).length).toBeLessThanOrEqual(LARGO_ACTIVIDAD_MATRIZ + 1);
+  it('normaliza los espacios de sobra de la redacción revisada', () => {
+    expect(textoActividad(['x'], ['Elaborar   informes'], 0)).toBe('Elaborar informes');
   });
 
   it('devuelve vacío cuando no hay actividad en ese índice', () => {
-    expect(textoCortoActividad(completas, resumidas, 5)).toBe('');
-    expect(textoCortoActividad(undefined, undefined, 0)).toBe('');
+    expect(textoActividad(completas, resumidas, 5)).toBe('');
+    expect(textoActividad(undefined, undefined, 0)).toBe('');
   });
 });
 
-describe('actividadesCortas', () => {
-  it('todas las actividades del catálogo caben en la columna de la matriz', () => {
+describe('textosActividades', () => {
+  it('devuelve una entrada por actividad, sin puntos suspensivos', () => {
     PERFILES_RIESGO_CARGO.forEach(p => {
-      const cortas = actividadesCortas(p.actividades, p.actividadesResumen);
-      expect(cortas, p.cargo).toHaveLength(p.actividades.length);
-      cortas.forEach(a => {
+      const textos = textosActividades(p.actividades, p.actividadesResumen);
+      expect(textos, p.cargo).toHaveLength(p.actividades.length);
+      textos.forEach(a => {
         expect(a.trim(), p.cargo).not.toBe('');
-        expect(a.length, `${p.cargo}: ${a}`).toBeLessThanOrEqual(LARGO_ACTIVIDAD_MATRIZ + 1);
+        expect(a, `${p.cargo}: ${a}`).not.toContain('…');
       });
     });
+  });
+
+  it('el límite recorta el número de actividades, no su texto', () => {
+    const p = PERFILES_RIESGO_CARGO.find(x => x.actividades.length > FUNCIONES_HISTORIA_LABORAL)!;
+    const textos = textosActividades(p.actividades, p.actividadesResumen, FUNCIONES_HISTORIA_LABORAL);
+    expect(textos).toHaveLength(FUNCIONES_HISTORIA_LABORAL);
+    expect(textos[0]).toBe(p.actividadesResumen![0]);
+  });
+
+  it('sin límite las devuelve todas; con lista vacía, ninguna', () => {
+    expect(textosActividades(['a', 'b'], ['a', 'b'])).toHaveLength(2);
+    expect(textosActividades([], [])).toEqual([]);
+    expect(textosActividades(undefined, undefined)).toEqual([]);
   });
 });
