@@ -201,9 +201,12 @@ export default function CambioCargoModal(p: CambioCargoModalProps) {
               <div className="flex items-start gap-2 px-3 py-2 bg-amber-50 border-b border-amber-200">
                 <AlertTriangle size={14} className="text-amber-600 shrink-0 mt-0.5" />
                 <p className="m-0 text-[11.5px] text-amber-800">
-                  Una evaluación es un registro clínico con fecha: rehacer su Sección G reescribe lo que se
-                  valoró ese día. Marca solo las que deban reflejar el cargo nuevo. Queda anotado quién y
-                  cuándo lo hizo. Las evaluaciones que hagas de aquí en adelante ya toman el cargo nuevo solas.
+                  Un traslado no cambia el pasado: las evaluaciones anteriores describían bien el puesto de
+                  entonces, y por eso ninguna viene marcada. Márcalas solo si alguna debe reflejar el cargo
+                  nuevo. Queda anotado quién y cuándo lo hizo, y el estado anterior se guarda para poder
+                  revertirlo. Las evaluaciones que hagas de aquí en adelante ya toman el cargo nuevo solas.
+                  Si el cargo estaba <strong>mal registrado</strong> desde el principio, eso es una corrección:
+                  hazla desde «Editar datos», que rehace todas.
                 </p>
               </div>
               <div style={{ maxHeight: 190, overflowY: 'auto' }}>

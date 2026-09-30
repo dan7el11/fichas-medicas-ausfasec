@@ -24,10 +24,16 @@ export interface PeticionCambioCargo {
   nombreTrabajador: string;
   /**
    * Evaluaciones cuyo perfil de riesgo se refresca con el cargo nuevo.
-   * Vacío = no se toca ninguna, que es lo razonable por defecto: una
-   * evaluación es un registro clínico con fecha.
+   * Vacío = no se toca ninguna, que es lo razonable en un traslado: una
+   * evaluación es un registro clínico con fecha y describía bien el puesto de
+   * entonces. En una corrección sí se pasan todas.
    */
-  evaluacionesAActualizar?: { id: string; factoresRiesgo?: any }[];
+  evaluacionesAActualizar?: { id: string; factoresRiesgo?: any; recomendaciones?: string[]; recomendacionesOtras?: string }[];
+  /**
+   * true si el cargo estaba mal registrado (corrección) en vez de haber
+   * cambiado de verdad (traslado). Solo afecta a cómo se anota y se audita.
+   */
+  esCorreccion?: boolean;
 }
 
 export interface ResultadoCambioCargo {
@@ -61,18 +67,26 @@ export async function cambiarCargo(p: PeticionCambioCargo): Promise<ResultadoCam
           factoresRiesgo: factoresRiesgoDesdePerfil(perfilNuevo, ev.factoresRiesgo ?? {}),
           recomendaciones: recomendaciones.recomendaciones,
           recomendacionesOtras: recomendaciones.recomendacionesOtras,
-          // Rastro de que la Sección G se rehízo y con qué cargo.
+          // Rastro de que la Sección G se rehízo, con qué cargo y desde qué
+          // estado: guardar el bloque anterior deja la corrección reversible,
+          // que es lo mínimo al reescribir un registro clínico.
           perfilCargoActualizado: {
             cargoAnterior: p.cargoAnterior,
             cargoNuevo: p.cargoNuevo,
+            esCorreccion: !!p.esCorreccion,
             fecha: new Date(),
             usuarioId: p.usuarioId,
+            anterior: {
+              factoresRiesgo: ev.factoresRiesgo ?? null,
+              recomendaciones: ev.recomendaciones ?? [],
+              recomendacionesOtras: ev.recomendacionesOtras ?? '',
+            },
           },
           updatedAt: new Date(),
           updatedBy: p.usuarioId,
         });
         await registrarAuditoria('editar', 'evaluacion', ev.id,
-          `Actualizó el perfil de riesgo de una evaluación de ${p.nombreTrabajador} por cambio de cargo: «${p.cargoAnterior}» → «${p.cargoNuevo}»`);
+          `${p.esCorreccion ? 'Corrigió' : 'Actualizó'} el perfil de riesgo de una evaluación de ${p.nombreTrabajador}: «${p.cargoAnterior}» → «${p.cargoNuevo}»`);
         actualizadas++;
       } catch (err) {
         console.error('No se pudo actualizar la evaluación', ev.id, err);
@@ -88,6 +102,7 @@ export async function cambiarCargo(p: PeticionCambioCargo): Promise<ResultadoCam
     departamentoNuevo: p.departamentoNuevo || '',
     motivo: p.motivo || '',
     evaluacionesActualizadas: actualizadas,
+    esCorreccion: !!p.esCorreccion,
     fecha: new Date(),
     usuarioId: p.usuarioId,
   };
@@ -102,7 +117,7 @@ export async function cambiarCargo(p: PeticionCambioCargo): Promise<ResultadoCam
   });
 
   await registrarAuditoria('editar', 'trabajador', p.trabajadorId,
-    `Cambió el cargo de ${p.nombreTrabajador}: «${p.cargoAnterior}» → «${p.cargoNuevo}»`
+    `${p.esCorreccion ? 'Corrigió el cargo mal registrado de' : 'Cambió el cargo de'} ${p.nombreTrabajador}: «${p.cargoAnterior}» → «${p.cargoNuevo}»`
     + (actualizadas ? ` (actualizó ${actualizadas} evaluación(es))` : ''));
 
   return { evaluacionesActualizadas: actualizadas, fallidas };

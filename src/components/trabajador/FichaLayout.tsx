@@ -481,6 +481,14 @@ function HistorialCargos({ trabajador }: { trabajador: any }) {
             <span style={{ color: '#98a0ab' }}>{h.cargoAnterior || '—'}</span>
             <ArrowRight size={12} style={{ color: '#cabfb4' }} />
             <span className="font-semibold">{h.cargoNuevo}</span>
+            {/* Una corrección y un traslado no significan lo mismo: la
+                corrección rehízo el pasado, el traslado lo respetó. */}
+            <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded"
+              style={h.esCorreccion
+                ? { background: '#f8eddc', color: '#9a5b12' }
+                : { background: '#eaf0f9', color: '#2a4d8f' }}>
+              {h.esCorreccion ? 'Corrección' : 'Traslado'}
+            </span>
             <span className="text-[11.5px]" style={{ fontFamily: MONO, color: '#98a0ab' }}>{fmtF(h.fecha)}</span>
           </div>
           {(h.motivo || h.evaluacionesActualizadas) && (

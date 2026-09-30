@@ -1,4 +1,4 @@
 // Versión visible de la aplicación. Súbela en cada entrega importante para
 // poder verificar qué versión está desplegada (se muestra en el login y en el
 // menú de usuario).
-export const APP_VERSION = 'v4.9 · cambio de cargo con actualización del perfil de riesgo';
+export const APP_VERSION = 'v4.10 · corrección de cargo que rehace el perfil de las evaluaciones';

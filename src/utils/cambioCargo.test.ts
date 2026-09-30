@@ -103,6 +103,19 @@ describe('factoresRiesgoDesdePerfil', () => {
     expect(fr.tiempoTrabajoMeses).toBe('36');
   });
 
+  it('solo reescribe los campos que dependen del cargo', () => {
+    // Es la garantía de que corregir un cargo no toca nada más de la Sección G.
+    const previos = {
+      tiempoTrabajoMeses: '36',
+      observacionPropia: 'anotación del médico',
+      medidasPreventivas: 'texto anterior',
+    };
+    const fr = factoresRiesgoDesdePerfil(perfil({ riesgoActividades: { Ruido: [0] } }), previos);
+    const reescritos = Object.keys(previos).filter(k => fr[k] !== (previos as any)[k]);
+    expect(reescritos).toEqual(['medidasPreventivas']);
+    expect(fr.observacionPropia).toBe('anotación del médico');
+  });
+
   it('deja el respaldo en texto plano para los formatos antiguos', () => {
     const fr = factoresRiesgoDesdePerfil(perfil({ medidasActividades: [['Audiometría anual'], []] }));
     expect(fr.actividades).toBe('Actividad A; Actividad B');

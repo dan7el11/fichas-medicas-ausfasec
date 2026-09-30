@@ -159,6 +159,13 @@ export interface CambioCargo {
   motivo?: string;
   /** Nº de evaluaciones cuyo perfil se actualizó junto con el cambio. */
   evaluacionesActualizadas?: number;
+  /**
+   * true cuando el cargo estaba mal registrado y se corrigió, en vez de ser un
+   * traslado real. Un traslado deja las evaluaciones anteriores como estaban
+   * (describían bien el puesto de entonces); una corrección sí las rehace,
+   * porque se registraron bajo un cargo equivocado.
+   */
+  esCorreccion?: boolean;
   fecha: any;
   usuarioId: string;
 }
