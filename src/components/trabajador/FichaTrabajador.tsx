@@ -24,6 +24,8 @@ import { tipoEvaluacionLabel } from '../../utils/medicalHelpers';
 import { conFilasMinimas } from '../../utils/tablasPdf';
 import { dibujarPagina1Ocupacional } from './paginaUnoOcupacionalPdf';
 import { dibujarMatrizRiesgos } from './paginaDosOcupacionalPdf';
+import CambioCargoModal from './CambioCargoModal';
+import BuscadorCargo from '../BuscadorCargo';
 import { TIPOS_PERMISO } from '../../types/permiso';
 import type { TipoPermiso } from '../../types/permiso';
 import type { OrdenExamen } from '../../types/examenPlan';
@@ -192,6 +194,7 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
 
   // Modal editar trabajador
   const [modalEditar, setModalEditar] = useState(false);
+  const [modalCargo, setModalCargo] = useState(false);
   const [guardandoEdicion, setGuardandoEdicion] = useState(false);
   const [datosEdicion, setDatosEdicion] = useState({
     primerNombre: '', segundoNombre: '', primerApellido: '', segundoApellido: '',
@@ -202,6 +205,11 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
   // ----------------------------------------------------------------
   // CARGA DE DATOS
   // ----------------------------------------------------------------
+  // Contador para releer la ficha tras un cambio que afecta a varias
+  // colecciones a la vez (p. ej. un cambio de cargo con evaluaciones).
+  const [recarga, setRecarga] = useState(0);
+  const recargar = () => setRecarga(n => n + 1);
+
   useEffect(() => {
     if (!trabajadorId) return;
     let cancelled = false;
@@ -250,7 +258,7 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
       }
     })();
     return () => { cancelled = true; };
-  }, [trabajadorId]);
+  }, [trabajadorId, recarga]);
 
   // El formato unificado (HCU-form.123/2025) ya contiene la aptitud médica y
   // las recomendaciones, así que no se abre ningún certificado al terminar una
@@ -1701,6 +1709,7 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
         onEditarEval={editarEvaluacion}
         onPdfEval={pdfEvaluacion}
         onEditarDatos={abrirModalEditar}
+        onCambiarCargo={() => setModalCargo(true)}
         onNuevaPeriodica={() => navigate(`/evaluar/${trabajadorId}`)}
         onNuevaRetiro={() => navigate(`/evaluar-retiro/${trabajadorId}`)}
         onNuevaPreocupacional={() => navigate(`/evaluar-preocupacional/${trabajadorId}`)}
@@ -2016,12 +2025,23 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
                 ))}
                 <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-slate-700 mb-1">Puesto de trabajo <span className="text-red-500">*</span></label>
-                  <input
-                    type="text"
-                    value={datosEdicion.puestoTrabajo}
-                    onChange={e => setDatosEdicion(prev => ({ ...prev, puestoTrabajo: e.target.value }))}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                  <BuscadorCargo
+                    valorActual={datosEdicion.puestoTrabajo}
+                    onTextoLibre={(t) => setDatosEdicion(prev => ({ ...prev, puestoTrabajo: t }))}
+                    onSeleccionar={(c) => setDatosEdicion(prev => ({
+                      ...prev, puestoTrabajo: c.cargo, departamento: prev.departamento.trim() || c.departamento,
+                    }))}
                   />
+                  {/* Un cambio de cargo no es un dato más: mueve el perfil de
+                      riesgo, así que tiene su propio flujo con el contraste. */}
+                  <p className="m-0 mt-1.5 text-[11.5px] text-slate-500">
+                    ¿Cambió de puesto?{' '}
+                    <button type="button" onClick={() => { setModalEditar(false); setModalCargo(true); }}
+                      className="font-semibold text-blue-600 bg-transparent border-none p-0 cursor-pointer underline">
+                      Usa el cambio de cargo
+                    </button>{' '}
+                    para revisar qué pasa con su perfil de riesgo y dejarlo en el historial.
+                  </p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Sexo</label>
@@ -2045,6 +2065,18 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
           </div>
         </div>
       )}
+      {/* ── CAMBIO DE CARGO ── */}
+      {modalCargo && trabajador && (
+        <CambioCargoModal
+          trabajador={trabajador}
+          nombreCompleto={nombreCompleto}
+          evaluaciones={evaluaciones}
+          usuarioId={user?.uid || ''}
+          onCerrar={() => setModalCargo(false)}
+          onCambiado={() => { setModalCargo(false); recargar(); }}
+        />
+      )}
+
       {/* ── CERTIFICADO DE APTITUD (SO-RE-20) ── */}
       {certEval && trabajador && (
         <CertificadoAptitudModal

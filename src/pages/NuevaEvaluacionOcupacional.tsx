@@ -24,12 +24,13 @@ import {
   OPCIONES_RECOMENDACIONES, REGIONES_EXAMEN_FISICO, MATRIZ_RIESGOS,
   GRUPOS_PRIORITARIOS, GRUPOS_SANGUINEOS, LATERALIDADES, TIPOS_EVALUACION_OCUP,
   emptyAntecedenteEmpleo, emptyAntecedentesGineco, emptyAntecedentesReproductivos, emptyDatosPersonales,
-  emptyAntecedenteClinico, emptyAntecedenteQuirurgico, emptyAlergia,
+  emptyAntecedenteClinico, emptyAntecedenteQuirurgico, emptyAlergia, categoriasDesdeMatriz,
 } from '../utils/catalogosEvaluacion';
 import { funcionesDeCargo, perfilDeCargo, MAX_ACTIVIDADES, FUNCIONES_AUTOCOMPLETAR } from '../constants/funcionesCargo';
 import { resumirAntecedentes } from '../utils/resumenAntecedentes';
 import { resumirActividades, textosActividades, FUNCIONES_HISTORIA_LABORAL } from '../utils/resumenFuncion';
 import { medidaCompleta } from '../constants/medidasPreventivas';
+import { recomendacionesDesdeMedidas, medidasDePerfil } from '../utils/cambioCargo';
 import { validarFechasEvaluacion, mesesEntre, hoyIso, ANIO_MINIMO } from '../utils/validacionFechas';
 import { convertirCsv, campo, siNo, soloNumero, normalizarFechaCsv, type FilaCsv } from '../utils/csvTexto';
 import { CAMPOS_FECHA_POR_TIPO, ETIQUETA_CAMPO_FECHA, AYUDA_CAMPO_FECHA, type CampoFechaEvaluacion } from '../utils/catalogosEvaluacion';
@@ -423,6 +424,10 @@ export default function NuevaEvaluacionOcupacional() {
             setRiesgoActs(dentro);
             // Las seis medidas preventivas analizadas para cada actividad.
             setMedidasActs((perfil.medidasActividades ?? []).slice(0, MAX_ACTIVIDADES).map(m => m.join('; ')));
+            // Recomendaciones sugeridas a partir de esas medidas (Sección M).
+            const sugeridas = recomendacionesDesdeMedidas(medidasDePerfil(perfil));
+            setRecomendaciones(sugeridas.recomendaciones);
+            setRecomendacionesOtras(sugeridas.recomendacionesOtras);
             setPerfilRiesgo(perfil);
             perfilAplicado = true;
           }
@@ -458,15 +463,6 @@ export default function NuevaEvaluacionOcupacional() {
   };
 
   /** Arreglos por categoría derivados de la matriz (compatibilidad con el resto del sistema). */
-  const categoriasDesdeMatriz = (mapa: Record<string, number[]>): Pick<FactorRiesgoPuesto, 'fisicos' | 'mecanicos' | 'quimicos' | 'biologicos' | 'ergonomicos' | 'psicosociales'> => {
-    const out = { fisicos: [] as string[], mecanicos: [] as string[], quimicos: [] as string[], biologicos: [] as string[], ergonomicos: [] as string[], psicosociales: [] as string[] };
-    MATRIZ_RIESGOS.forEach(cat => {
-      cat.subgrupos.forEach(g => g.items.forEach(item => {
-        if ((mapa[item] ?? []).length) out[cat.clave].push(item);
-      }));
-    });
-    return out;
-  };
   /**
    * El trabajo actual se completa solo con lo que ya sabemos del cargo: el
    * centro de trabajo es la propia institución, las actividades son las
@@ -510,7 +506,12 @@ export default function NuevaEvaluacionOcupacional() {
     });
     setRiesgoActs(dentro);
     setMedidasActs((perfilRiesgo.medidasActividades ?? []).slice(0, MAX_ACTIVIDADES).map(m => m.join('; ')));
-    toast.info('Sección G restablecida con el perfil del cargo.');
+    // Las recomendaciones se desprenden de las medidas, así que se rehacen con
+    // ellas: si no, quedarían describiendo la exposición anterior.
+    const sugeridas = recomendacionesDesdeMedidas(medidasDePerfil(perfilRiesgo));
+    setRecomendaciones(sugeridas.recomendaciones);
+    setRecomendacionesOtras(sugeridas.recomendacionesOtras);
+    toast.info('Secciones G y M restablecidas con el perfil del cargo.');
   };
 
   /**
@@ -1329,7 +1330,12 @@ export default function NuevaEvaluacionOcupacional() {
 
         {/* M. RECOMENDACIONES */}
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 md:p-6">
-          <h2 className="text-sm font-bold text-slate-800 mb-3 border-b pb-2">M. RECOMENDACIONES Y/O TRATAMIENTO</h2>
+          <h2 className="text-sm font-bold text-slate-800 mb-1 border-b pb-2">M. RECOMENDACIONES Y/O TRATAMIENTO</h2>
+          {perfilRiesgo && (
+            <p className="text-[11.5px] text-slate-500 mb-3">
+              Sugeridas a partir de las medidas preventivas del cargo «{perfilRiesgo.cargo}». Ajústalas a este trabajador.
+            </p>
+          )}
           <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mb-3">
             {OPCIONES_RECOMENDACIONES.map(op => (
               <label key={op} className="flex items-center gap-2 text-xs bg-slate-50 p-2 rounded cursor-pointer hover:bg-slate-100">

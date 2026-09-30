@@ -308,6 +308,25 @@ export const MATRIZ_RIESGOS: CategoriaRiesgo[] = [
 export const esFactorAnalizable = (factor: string): boolean =>
   !/^otros\b/i.test((factor ?? '').trim());
 
+/**
+ * Arreglos de factores por categoría a partir de la matriz riesgo × actividad.
+ *
+ * El formato unificado guarda la matriz (`riesgoActividades`), pero los
+ * informes y los formatos antiguos leen listas por categoría; se derivan de la
+ * matriz para que no queden inconsistentes.
+ */
+export function categoriasDesdeMatriz(mapa: Record<string, number[]>): Record<string, string[]> {
+  const out: Record<string, string[]> = {
+    fisicos: [], mecanicos: [], quimicos: [], biologicos: [], ergonomicos: [], psicosociales: [],
+  };
+  MATRIZ_RIESGOS.forEach(cat => {
+    cat.subgrupos.forEach(g => g.items.forEach(item => {
+      if ((mapa?.[item] ?? []).length) out[cat.clave].push(item);
+    }));
+  });
+  return out;
+}
+
 /** Grupo de atención prioritaria (Sección A del formato unificado). */
 export const GRUPOS_PRIORITARIOS = ['Embarazada', 'Persona con discapacidad', 'Enfermedad catastrófica', 'Adulto mayor'];
 
