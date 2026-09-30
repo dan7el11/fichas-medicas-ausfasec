@@ -24,6 +24,9 @@ import { tipoEvaluacionLabel } from '../../utils/medicalHelpers';
 import { conFilasMinimas } from '../../utils/tablasPdf';
 import { dibujarPagina1Ocupacional } from './paginaUnoOcupacionalPdf';
 import { dibujarMatrizRiesgos } from './paginaDosOcupacionalPdf';
+import CambioCargoModal from './CambioCargoModal';
+import BuscadorCargo from '../BuscadorCargo';
+import { cambiarCargo } from '../../services/cambioCargo';
 import { TIPOS_PERMISO } from '../../types/permiso';
 import type { TipoPermiso } from '../../types/permiso';
 import type { OrdenExamen } from '../../types/examenPlan';
@@ -192,6 +195,9 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
 
   // Modal editar trabajador
   const [modalEditar, setModalEditar] = useState(false);
+  const [modalCargo, setModalCargo] = useState(false);
+  /** Confirmación explícita para corregir el cargo desde «Editar datos». */
+  const [confirmaCorreccion, setConfirmaCorreccion] = useState(false);
   const [guardandoEdicion, setGuardandoEdicion] = useState(false);
   const [datosEdicion, setDatosEdicion] = useState({
     primerNombre: '', segundoNombre: '', primerApellido: '', segundoApellido: '',
@@ -202,6 +208,11 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
   // ----------------------------------------------------------------
   // CARGA DE DATOS
   // ----------------------------------------------------------------
+  // Contador para releer la ficha tras un cambio que afecta a varias
+  // colecciones a la vez (p. ej. un cambio de cargo con evaluaciones).
+  const [recarga, setRecarga] = useState(0);
+  const recargar = () => setRecarga(n => n + 1);
+
   useEffect(() => {
     if (!trabajadorId) return;
     let cancelled = false;
@@ -250,7 +261,7 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
       }
     })();
     return () => { cancelled = true; };
-  }, [trabajadorId]);
+  }, [trabajadorId, recarga]);
 
   // El formato unificado (HCU-form.123/2025) ya contiene la aptitud médica y
   // las recomendaciones, así que no se abre ningún certificado al terminar una
@@ -282,23 +293,62 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
       correo: (trabajador as any).correo || '',
       fechaIngreso: (trabajador as any).fechaIngreso || '',
     });
+    setConfirmaCorreccion(false);
     setModalEditar(true);
   };
+
+  /** ¿Se tocó el puesto en «Editar datos»? Eso se trata como corrección. */
+  const cargoCorregido = !!trabajador
+    && datosEdicion.puestoTrabajo.trim() !== ''
+    && datosEdicion.puestoTrabajo.trim() !== (trabajador.puestoTrabajo || '').trim();
 
   const guardarEdicion = async () => {
     if (!datosEdicion.primerNombre.trim() || !datosEdicion.primerApellido.trim() || !datosEdicion.puestoTrabajo.trim()) {
       toast.warning('Nombre, apellido y puesto de trabajo son obligatorios.');
       return;
     }
+    // Cambiar el cargo por aquí se entiende como CORRECCIÓN de un registro
+    // equivocado, no como un traslado: por eso sí rehace el perfil de riesgo
+    // de las evaluaciones anteriores, que se registraron con el cargo errado.
+    if (cargoCorregido && !confirmaCorreccion) {
+      toast.warning('Confirma la corrección del cargo antes de guardar.');
+      return;
+    }
+
     setGuardandoEdicion(true);
     try {
+      if (cargoCorregido) {
+        await cambiarCargo({
+          trabajadorId,
+          cargoAnterior: trabajador?.puestoTrabajo || '',
+          cargoNuevo: datosEdicion.puestoTrabajo.trim(),
+          departamentoAnterior: (trabajador as any)?.departamento || '',
+          departamentoNuevo: datosEdicion.departamento.trim() || undefined,
+          motivo: 'Corrección del cargo registrado',
+          usuarioId: user?.uid || '',
+          nombreTrabajador: `${datosEdicion.primerApellido} ${datosEdicion.primerNombre}`.trim(),
+          esCorreccion: true,
+          // En una corrección se rehacen TODAS: ninguna describía el puesto real.
+          evaluacionesAActualizar: evaluaciones.map(e => ({
+            id: e.id!,
+            factoresRiesgo: (e as any).factoresRiesgo,
+            recomendaciones: (e as any).recomendaciones,
+            recomendacionesOtras: (e as any).recomendacionesOtras,
+          })),
+        });
+      }
+      // El resto de los datos de la ficha, siempre.
       await updateDoc(doc(db, 'trabajadores', trabajadorId), { ...datosEdicion, updatedAt: new Date(), updatedBy: user?.uid || '' });
       await registrarAuditoria('editar', 'trabajador', trabajadorId, `Editó la ficha de ${datosEdicion.primerApellido} ${datosEdicion.primerNombre}`);
-      setTrabajador(prev => prev ? { ...prev, ...datosEdicion } as any : prev);
       setModalEditar(false);
-      toast.success('Datos del trabajador actualizados.');
-    } catch {
-      toast.error('No se pudo guardar. Intenta nuevamente.');
+      toast.success(cargoCorregido
+        ? `Datos actualizados y perfil de riesgo corregido en ${evaluaciones.length} evaluación(es).`
+        : 'Datos del trabajador actualizados.');
+      // Se relee la ficha: el cambio tocó también las evaluaciones.
+      if (cargoCorregido) recargar(); else setTrabajador(prev => prev ? { ...prev, ...datosEdicion } as any : prev);
+    } catch (err) {
+      console.error(err);
+      toast.error(err instanceof Error ? err.message : 'No se pudo guardar. Intenta nuevamente.');
     } finally {
       setGuardandoEdicion(false);
     }
@@ -1701,6 +1751,7 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
         onEditarEval={editarEvaluacion}
         onPdfEval={pdfEvaluacion}
         onEditarDatos={abrirModalEditar}
+        onCambiarCargo={() => setModalCargo(true)}
         onNuevaPeriodica={() => navigate(`/evaluar/${trabajadorId}`)}
         onNuevaRetiro={() => navigate(`/evaluar-retiro/${trabajadorId}`)}
         onNuevaPreocupacional={() => navigate(`/evaluar-preocupacional/${trabajadorId}`)}
@@ -2016,12 +2067,55 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
                 ))}
                 <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-slate-700 mb-1">Puesto de trabajo <span className="text-red-500">*</span></label>
-                  <input
-                    type="text"
-                    value={datosEdicion.puestoTrabajo}
-                    onChange={e => setDatosEdicion(prev => ({ ...prev, puestoTrabajo: e.target.value }))}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                  <BuscadorCargo
+                    valorActual={datosEdicion.puestoTrabajo}
+                    onTextoLibre={(t) => setDatosEdicion(prev => ({ ...prev, puestoTrabajo: t }))}
+                    onSeleccionar={(c) => setDatosEdicion(prev => ({
+                      ...prev, puestoTrabajo: c.cargo, departamento: prev.departamento.trim() || c.departamento,
+                    }))}
                   />
+                  {/* Tocar el cargo aquí se entiende como corregir un registro
+                      equivocado, y eso sí reescribe las evaluaciones anteriores.
+                      El traslado real tiene su propio flujo, que las respeta. */}
+                  {!cargoCorregido ? (
+                    <p className="m-0 mt-1.5 text-[11.5px] text-slate-500">
+                      ¿Se trasladó de puesto?{' '}
+                      <button type="button" onClick={() => { setModalEditar(false); setModalCargo(true); }}
+                        className="font-semibold text-blue-600 bg-transparent border-none p-0 cursor-pointer underline">
+                        Usa el cambio de cargo
+                      </button>{' '}
+                      para dejarlo en el historial sin alterar las evaluaciones ya hechas.
+                    </p>
+                  ) : (
+                    <div className="mt-2 rounded-lg border border-amber-300 bg-amber-50 p-3">
+                      <div className="flex items-start gap-2">
+                        <span className="text-amber-600 text-base leading-none">⚠</span>
+                        <div className="text-[11.5px] text-amber-900 space-y-1.5">
+                          <p className="m-0 font-bold">
+                            Vas a corregir el cargo de «{trabajador?.puestoTrabajo || '—'}» a «{datosEdicion.puestoTrabajo}».
+                          </p>
+                          <p className="m-0">
+                            Cambiarlo por aquí se toma como <strong>corrección de un registro equivocado</strong>:
+                            se rehará el perfil de riesgo (Sección G) y las recomendaciones (Sección M) de
+                            las <strong>{evaluaciones.length} evaluación(es)</strong> ya guardadas. El resto de cada
+                            evaluación —signos vitales, examen físico, antecedentes, diagnósticos y aptitud— no se toca,
+                            y el estado anterior queda guardado para poder revertirlo.
+                          </p>
+                          <p className="m-0">
+                            Si en realidad <strong>se trasladó de puesto</strong>, cancela y usa{' '}
+                            <button type="button" onClick={() => { setModalEditar(false); setModalCargo(true); }}
+                              className="font-bold text-amber-900 bg-transparent border-none p-0 cursor-pointer underline">
+                              Cambiar cargo
+                            </button>: las evaluaciones anteriores describían bien el puesto de entonces y deben quedarse como están.
+                          </p>
+                          <label className="flex items-start gap-2 pt-1 cursor-pointer font-semibold">
+                            <input type="checkbox" checked={confirmaCorreccion} onChange={e => setConfirmaCorreccion(e.target.checked)} className="mt-0.5" />
+                            <span>Entiendo que es una corrección y que se actualizarán las evaluaciones anteriores.</span>
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Sexo</label>
@@ -2038,13 +2132,26 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
             </div>
             <div className="flex justify-end gap-3 p-6 border-t">
               <button onClick={() => setModalEditar(false)} className="px-4 py-2 text-sm font-medium bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200">Cancelar</button>
-              <button onClick={guardarEdicion} disabled={guardandoEdicion} className="px-5 py-2 text-sm font-semibold bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
-                {guardandoEdicion ? 'Guardando...' : 'Guardar cambios'}
+              <button onClick={guardarEdicion} disabled={guardandoEdicion || (cargoCorregido && !confirmaCorreccion)}
+                className="px-5 py-2 text-sm font-semibold bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
+                {guardandoEdicion ? 'Guardando...' : cargoCorregido ? 'Corregir cargo y guardar' : 'Guardar cambios'}
               </button>
             </div>
           </div>
         </div>
       )}
+      {/* ── CAMBIO DE CARGO ── */}
+      {modalCargo && trabajador && (
+        <CambioCargoModal
+          trabajador={trabajador}
+          nombreCompleto={nombreCompleto}
+          evaluaciones={evaluaciones}
+          usuarioId={user?.uid || ''}
+          onCerrar={() => setModalCargo(false)}
+          onCambiado={() => { setModalCargo(false); recargar(); }}
+        />
+      )}
+
       {/* ── CERTIFICADO DE APTITUD (SO-RE-20) ── */}
       {certEval && trabajador && (
         <CertificadoAptitudModal

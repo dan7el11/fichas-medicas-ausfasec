@@ -12,7 +12,7 @@ import { useState } from 'react';
 import {
   ArrowLeft, ClipboardList, Activity, Stethoscope, CalendarDays, HeartPulse,
   ChevronDown, ChevronRight, Search, Plus, FileText, Upload, Pencil, X, Check, ArrowRight,
-  LayoutDashboard, FlaskConical, UserRound, Accessibility,
+  LayoutDashboard, FlaskConical, UserRound, Accessibility, Briefcase,
 } from 'lucide-react';
 import { estadoPermiso, duracionPermiso, fmtFecha as fmtPF, toDate } from '../../services/permisos';
 import { tipoEvaluacionLabel } from '../../utils/medicalHelpers';
@@ -78,6 +78,8 @@ export interface FichaLayoutProps {
   /** Genera el PDF de esa evaluación en su formato. */
   onPdfEval?: (ev: any) => void;
   onEditarDatos: () => void;
+  /** Abre el cambio de cargo con su efecto en el perfil de riesgo. */
+  onCambiarCargo?: () => void;
   onNuevaPeriodica: () => void;
   onNuevaRetiro: () => void;
   onNuevaPreocupacional?: () => void;
@@ -152,6 +154,12 @@ export default function FichaLayout(props: FichaLayoutProps) {
             <div className="flex items-center gap-2 flex-wrap flex-shrink-0">
               {apt && <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-[12px] font-bold" style={{ background: apt.bg, color: apt.fg }}><span className="w-1.5 h-1.5 rounded-full" style={{ background: apt.bar }} />{apt.label}</span>}
               <button onClick={props.onEditarDatos} className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white border rounded-[9px] text-[13px] font-semibold cursor-pointer whitespace-nowrap" style={{ color: '#46423d', borderColor: '#d8d2c9' }}><Pencil size={14} /> Editar datos</button>
+              {props.onCambiarCargo && (
+                <button onClick={props.onCambiarCargo} title="Cambiar de cargo y actualizar el perfil de riesgo"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white border rounded-[9px] text-[13px] font-semibold cursor-pointer whitespace-nowrap" style={{ color: '#46423d', borderColor: '#d8d2c9' }}>
+                  <Briefcase size={14} /> Cambiar cargo
+                </button>
+              )}
               {/* Formato unificado: una sola opción. El menú permite elegir la
                   etiqueta (ingreso/periódico/reintegro/retiro) como atajo, pero
                   todos abren el mismo formulario de Evaluación Médica Ocupacional. */}
@@ -268,6 +276,7 @@ function Resumen(p: FichaLayoutProps & { futuros: number; setTab: (t: Tab) => vo
       <SecCard icon={<HeartPulse size={17} />} color={C_SIGNOS} title="Seguimiento de signos" action={<Link onClick={() => p.setTab('signos')}>Ver detalle</Link>}>
         <SignosGrid evaluaciones={p.evaluaciones} trabajador={p.trabajador} />
       </SecCard>
+      <HistorialCargos trabajador={p.trabajador} />
       <AntecedentesCard evaluaciones={p.evaluaciones} onVerEval={p.onOpenEval} />
       {/* Las evaluaciones recientes se listan aquí con sus acciones, para no
           tener que cambiar de pestaña ni de pantalla. */}
@@ -452,6 +461,45 @@ function Permisos(p: FichaLayoutProps) {
           </div>
         );
       })}
+    </SecCard>
+  );
+}
+
+// ── Historial de cargos ──────────────────────────────────────────────────────
+// Solo aparece si el trabajador ha cambiado de puesto alguna vez: es el rastro
+// de cómo fue variando su exposición, y explica por qué evaluaciones de
+// distintas fechas pueden tener perfiles de riesgo distintos.
+function HistorialCargos({ trabajador }: { trabajador: any }) {
+  const historial: any[] = [...(trabajador.historialCargos ?? [])].sort(
+    (a, b) => (toDate(b.fecha)?.getTime() ?? 0) - (toDate(a.fecha)?.getTime() ?? 0));
+  if (historial.length === 0) return null;
+  return (
+    <SecCard icon={<Briefcase size={17} />} color="#9a5b12" title="Historial de cargos" n={historial.length} pad={false} alturaMaxima={220}>
+      {historial.map((h, i) => (
+        <div key={i} className="p-[11px_18px]" style={{ borderTop: i > 0 ? '1px solid #eef0f3' : 'none' }}>
+          <div className="flex items-center gap-2 flex-wrap text-[12.5px]">
+            <span style={{ color: '#98a0ab' }}>{h.cargoAnterior || '—'}</span>
+            <ArrowRight size={12} style={{ color: '#cabfb4' }} />
+            <span className="font-semibold">{h.cargoNuevo}</span>
+            {/* Una corrección y un traslado no significan lo mismo: la
+                corrección rehízo el pasado, el traslado lo respetó. */}
+            <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded"
+              style={h.esCorreccion
+                ? { background: '#f8eddc', color: '#9a5b12' }
+                : { background: '#eaf0f9', color: '#2a4d8f' }}>
+              {h.esCorreccion ? 'Corrección' : 'Traslado'}
+            </span>
+            <span className="text-[11.5px]" style={{ fontFamily: MONO, color: '#98a0ab' }}>{fmtF(h.fecha)}</span>
+          </div>
+          {(h.motivo || h.evaluacionesActualizadas) && (
+            <div className="text-[11.5px] mt-0.5" style={{ color: '#98a0ab' }}>
+              {h.motivo}
+              {h.motivo && h.evaluacionesActualizadas ? ' · ' : ''}
+              {h.evaluacionesActualizadas ? `${h.evaluacionesActualizadas} evaluación(es) actualizada(s)` : ''}
+            </div>
+          )}
+        </div>
+      ))}
     </SecCard>
   );
 }

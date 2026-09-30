@@ -1,3 +1,5 @@
+import type { CambioCargo } from '../utils/cambioCargo';
+
 export interface Usuario {
   uid: string;
   email: string;
@@ -25,6 +27,10 @@ export interface Trabajador {
   sexo: 'M' | 'F';
   puestoTrabajo: string;
   departamento?: string;
+  /** Código del cargo en el catálogo institucional, si se eligió de la lista. */
+  codigoCargo?: string;
+  /** Cambios de puesto, en orden de registro (ver utils/cambioCargo). */
+  historialCargos?: CambioCargo[];
   evaluaciones: string[];
   createdAt: Date;
   updatedAt: Date;
