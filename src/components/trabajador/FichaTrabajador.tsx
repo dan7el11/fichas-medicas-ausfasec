@@ -21,18 +21,20 @@ import { getOrdenes, eliminarOrden } from '../../services/examenesPlan';
 import { estadoPermiso, duracionPermiso, fmtFecha as fmtPF, toDate, actualizarPermiso, eliminarPermiso } from '../../services/permisos';
 import { horasEntre } from '../../utils/permisosHorario';
 import { tipoEvaluacionLabel } from '../../utils/medicalHelpers';
-import { conFilasMinimas, FILAS_MINIMAS_HISTORIA_LABORAL } from '../../utils/tablasPdf';
 import { dibujarPagina1Ocupacional } from './paginaUnoOcupacionalPdf';
 import { dibujarMatrizRiesgos } from './paginaDosOcupacionalPdf';
+import { dibujarPagina3Ocupacional } from './paginaTresOcupacionalPdf';
+import { crearCromo } from './cromoOcupacionalPdf';
 import CambioCargoModal from './CambioCargoModal';
 import BuscadorCargo from '../BuscadorCargo';
 import { cambiarCargo } from '../../services/cambioCargo';
 import { descargarFichaExcel } from './fichaOcupacionalExcel';
+import { descargarBlob, esFalloDeCarga } from '../../utils/descargarArchivo';
 import { TIPOS_PERMISO } from '../../types/permiso';
 import type { TipoPermiso } from '../../types/permiso';
 import type { OrdenExamen } from '../../types/examenPlan';
 import type { PermisoMedico } from '../../types/permiso';
-import { Activity, ArrowRight } from 'lucide-react';
+import { Activity, ArrowRight, FileText } from 'lucide-react';
 import SeguimientoSignos from './SeguimientoSignos';
 import FichaLayout, { SecCard } from './FichaLayout';
 import CertificadoAptitudModal from './CertificadoAptitud';
@@ -190,7 +192,11 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
   const [editPermiso, setEditPermiso] = useState<PermisoMedico | null>(null);
   const [editPatch, setEditPatch] = useState<{ desde: string; dias: number; unidad: 'dias' | 'horas'; horaDesde: string; horaHasta: string; motivo: string; tipo: TipoPermiso }>({ desde: '', dias: 1, unidad: 'dias', horaDesde: '08:00', horaHasta: '10:00', motivo: '', tipo: 'reposo_interno' });
   const [guardandoPermiso, setGuardandoPermiso] = useState(false);
-  const [pdfVisor, setPdfVisor] = useState<{ url: string; nombre: string } | null>(null);
+  const [pdfVisor, setPdfVisor] = useState<{ url: string; nombre: string; blob?: Blob } | null>(null);
+  // ¿El iframe llegó a pintar el PDF? Hay navegadores (Safari de iOS, Chrome
+  // de Android, Firefox con su visor desactivado) que no lo muestran dentro de
+  // la página. Si no carga, se ofrecen la pestaña nueva y la descarga.
+  const [visorListo, setVisorListo] = useState(false);
 
   const [pendingCertId, setPendingCertId] = useState<string | null>(null);
 
@@ -464,14 +470,17 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
    * nombre de archivo. Se libera la URL anterior para no acumular blobs.
    */
   const mostrarPdf = (documento: jsPDF, nombre: string) => {
-    const url = URL.createObjectURL(documento.output('blob'));
+    const blob = documento.output('blob');
+    const url = URL.createObjectURL(blob);
+    setVisorListo(false);
     setPdfVisor(prev => {
       if (prev?.url.startsWith('blob:')) URL.revokeObjectURL(prev.url);
-      return { url, nombre };
+      return { url, nombre, blob };
     });
   };
 
   const cerrarVisorPdf = () => {
+    setVisorListo(false);
     setPdfVisor(prev => {
       if (prev?.url.startsWith('blob:')) URL.revokeObjectURL(prev.url);
       return null;
@@ -1503,166 +1512,31 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
     if (!ev || !trabajador) return;
 
     const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-    const negro: [number, number, number] = [0, 0, 0];
-    const cPri = '#ccccff', cSec = '#ccffcc', cTer = '#ccffff';
-    const base = { lineColor: negro, lineWidth: 0.25, fontSize: 6.5, cellPadding: 1.2, textColor: negro };
-    const head = { fillColor: cSec, textColor: negro, fontStyle: 'bold' as const, fontSize: 6.5, lineColor: negro, lineWidth: 0.25, cellPadding: 1.2 };
-
-    // Contexto de página actual (cambia en la horizontal).
-    let M = 7, W = pdf.internal.pageSize.getWidth(), CW = W - M * 2, y = 7;
-    const AT = (opts: any) => { autoTable(pdf, { margin: { left: M, right: M }, ...opts }); y = (pdf as any).lastAutoTable.finalY; };
-    const check = (n: number) => { if (y + n > pdf.internal.pageSize.getHeight() - 8) { pdf.addPage(); y = 7; } };
-    const sec = (texto: string, bg = cPri) => { check(9); pdf.setFillColor(bg); pdf.setDrawColor(0); pdf.rect(M, y, CW, 5, 'FD'); pdf.setFontSize(7); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(0); pdf.text(texto, M + 1.5, y + 3.5); y += 5; };
-    const libre = (texto: string, minH = 6) => { pdf.setDrawColor(0); pdf.setFontSize(7); pdf.setFont('helvetica', 'normal'); pdf.setTextColor(0); const l = pdf.splitTextToSize(texto || '-', CW - 3); const h = Math.max(minH, l.length * 3 + 2); check(h + 2); pdf.rect(M, y, CW, h, 'S'); pdf.text(l, M + 1.5, y + 3); y += h; };
-    // `compacto` reduce el encabezado en la página 2 (horizontal), donde la
-    // matriz necesita todo el alto disponible.
-    const cab = (pagina: string, compacto = false) => {
-      const ty = y;
-      if (compacto) {
-        AT({ startY: y, theme: 'grid', styles: { ...base, halign: 'center', fontSize: 8, cellPadding: 0.7 }, columnStyles: { 0: { cellWidth: 42 }, 2: { cellWidth: 46 } }, body: [
-          [{ content: '', rowSpan: 2 }, { content: 'HISTORIA CLÍNICA OCUPACIONAL: EVALUACIÓN MÉDICA OCUPACIONAL', styles: { fontStyle: 'bold', fontSize: 8.5 } }, { content: 'Código: HCU-form.123/2025', styles: { fontSize: 6, halign: 'left' } }],
-          [{ content: 'MACROPROCESO:  PLANIFICACIÓN, SEGURIDAD Y AMBIENTE', styles: { fontSize: 5.6, fontStyle: 'bold' } }, { content: `Revisión: 1     ${pagina}`, styles: { fontSize: 6, halign: 'left' } }],
-        ] });
-        try { pdf.addImage(logoPdf.data, logoPdf.format, M + 1, ty + 0.8, 38, 9); } catch { /* sin logo */ }
-      } else {
-        AT({ startY: y, theme: 'grid', styles: { ...base, halign: 'center', fontSize: 8 }, columnStyles: { 0: { cellWidth: 42 }, 2: { cellWidth: 33 } }, body: [
-          [{ content: '', rowSpan: 3, styles: { fontSize: 10, valign: 'middle' } }, { content: 'HISTORIA CLÍNICA OCUPACIONAL:\nEVALUACIÓN MÉDICA OCUPACIONAL', rowSpan: 2, styles: { fontStyle: 'bold', fontSize: 9, valign: 'middle' } }, { content: 'Código:  HCU-form.123/2025', styles: { fontSize: 7, halign: 'left' } }],
-          [{ content: 'Revisión:  1', styles: { fontSize: 7, halign: 'left' } }],
-          [{ content: 'MACROPROCESO:  PLANIFICACIÓN, SEGURIDAD Y AMBIENTE', styles: { fontSize: 6, fontStyle: 'bold' } }, { content: pagina, styles: { fontSize: 7, halign: 'left' } }],
-        ] });
-        try { pdf.addImage(logoPdf.data, logoPdf.format, M + 1, ty + 1, 40, 12); } catch { /* sin logo */ }
-      }
-      y += 2;
-    };
-
+    const cromo = crearCromo(pdf, logoPdf);
     const tipoLabel = tipoEvaluacionLabel(ev).toUpperCase();
 
     // ══════════ PÁGINA 1 (vertical) ══════════
     // Réplica de la hoja oficial, con sus mismos cortes de columna.
-    y = dibujarPagina1Ocupacional(pdf, { ev, trabajador, empresa, logoPdf, fmtFecha: fmtF });
+    cromo.y = dibujarPagina1Ocupacional(pdf, { ev, trabajador, empresa, logoPdf, fmtFecha: fmtF });
 
     // ══════════ PÁGINA 2 (HORIZONTAL) — Matriz de factores de riesgo ══════════
-    // Réplica de la hoja oficial: una sola matriz donde las FILAS son los
-    // factores de riesgo (agrupados por categoría y subcategoría) y las
-    // COLUMNAS 1..7 son las actividades importantes de la jornada laboral.
+    // Una sola matriz donde las FILAS son los factores de riesgo (agrupados por
+    // categoría y subcategoría) y las COLUMNAS 1..7 las actividades importantes
+    // de la jornada laboral.
     pdf.addPage('a4', 'landscape');
-    W = pdf.internal.pageSize.getWidth(); CW = W - M * 2; y = 7;
-    cab('Página: 2 de 3', true);
-    sec('G. FACTORES DE RIESGO DEL TRABAJO ACTUAL');
-
-    y = dibujarMatrizRiesgos(pdf, y, {
+    cromo.reiniciar();
+    cromo.cab('Página: 2 de 3', true);
+    cromo.sec('G. FACTORES DE RIESGO DEL TRABAJO ACTUAL');
+    cromo.y = dibujarMatrizRiesgos(pdf, cromo.y, {
       fr: ev.factoresRiesgo || {},
       puestoTrabajo: trabajador.puestoTrabajo,
-      margen: M, anchoUtil: CW,
+      margen: cromo.M, anchoUtil: cromo.CW,
     });
 
-    // ══════════ PÁGINA 3 (vertical) ══════════
+    // ══════════ PÁGINA 3 (vertical) — Secciones H a P ══════════
     pdf.addPage('a4', 'portrait');
-    W = pdf.internal.pageSize.getWidth(); CW = W - M * 2; y = 7;
-    cab('Página:    3 de 3');
-    sec('H. ACTIVIDAD LABORAL / INCIDENTES / ACCIDENTES / ENFERMEDADES OCUPACIONALES');
-    // Recuadro «ANTECEDENTES DE EMPLEOS ANTERIORES Y/O TRABAJO ACTUAL» tal como
-    // está en el formato: tres bloques de encabezado (TRABAJO, accidentes y
-    // enfermedades, calificación del IESS) y los rótulos estrechos en vertical.
-    const emps = ev.antecedentesEmpleos || [];
-    // Suman los 196 mm útiles. La columna de actividades se lleva la parte
-    // ancha porque es la única con texto largo; especificar y observaciones
-    // suelen ir en una línea.
-    const ANCHOS_H = [26, 56, 6, 6, 7, 7, 7, 8, 6, 6, 14, 22, 25];
-    const rotuloH = (txt: string) => ({ content: '', textoRotado: txt, styles: { fillColor: cSec, fontStyle: 'bold' as const } });
-    AT({
-      startY: y, theme: 'grid',
-      styles: { ...base, fontSize: 5.4, cellPadding: 0.6, halign: 'center', valign: 'middle' },
-      columnStyles: Object.fromEntries(ANCHOS_H.map((w, i) => [i, { cellWidth: w }])),
-      head: [
-        [
-          { content: 'CENTRO DE TRABAJO', rowSpan: 2, styles: { ...head, fontSize: 5.2, valign: 'middle' } },
-          { content: 'ACTIVIDADES QUE DESEMPEÑABA', rowSpan: 2, styles: { ...head, fontSize: 5.2, valign: 'middle' } },
-          { content: 'TRABAJO', colSpan: 3, styles: { ...head, fontSize: 5.2 } },
-          { content: 'De los Accidentes de Trabajo y las Enfermedades Profesionales', colSpan: 3, styles: { ...head, fontSize: 4.6 } },
-          { content: 'CALIFICADO POR INSTITUTO ECUATORIANO DE SEGURIDAD SOCIAL', colSpan: 5, styles: { ...head, fontSize: 5.2 } },
-        ],
-        [
-          rotuloH('ANTERIOR'), rotuloH('ACTUAL'), rotuloH('TIEMPO DE TRABAJO'),
-          rotuloH('INCIDENTE'), rotuloH('ACCIDENTE'), rotuloH('ENFERMEDAD PROFESIONAL'),
-          { content: 'SI', styles: { ...head, fontSize: 5.2 } },
-          { content: 'NO', styles: { ...head, fontSize: 5.2 } },
-          { content: 'FECHA\naaaa/mm/dd', styles: { ...head, fontSize: 4.8 } },
-          { content: 'ESPECIFICAR', styles: { ...head, fontSize: 5.2 } },
-          { content: 'Observaciones', styles: { ...head, fontSize: 5.2 } },
-        ],
-      ],
-      headStyles: { minCellHeight: 16, valign: 'middle' },
-      body: conFilasMinimas(
-        emps.map((e: any) => [
-          { content: e.empresa || '', styles: { halign: 'left' as const } },
-          { content: e.actividades || '', styles: { halign: 'left' as const, fontSize: 4.8, overflow: 'linebreak' as const } },
-          e.esActual ? '' : 'X',
-          e.esActual ? 'X' : '',
-          e.tiempoMeses ? String(e.tiempoMeses) : '',
-          e.incidente ? 'X' : '', e.accidente ? 'X' : '', e.enfermedadProfesional ? 'X' : '',
-          e.calificadoIess === true ? 'X' : '', e.calificadoIess === false ? 'X' : '',
-          e.fechaCalificacion || '',
-          { content: e.especificar || '', styles: { halign: 'left' as const, fontSize: 4.8 } },
-          { content: e.observaciones || '', styles: { halign: 'left' as const, fontSize: 4.8 } },
-        ]),
-        ANCHOS_H.length,
-        FILAS_MINIMAS_HISTORIA_LABORAL,
-      ),
-      didDrawCell: (data: any) => {
-        const raw = data.cell.raw as any;
-        if (data.section !== 'head' || !raw?.textoRotado) return;
-        pdf.setTextColor(0); pdf.setFont('helvetica', 'bold');
-        const texto = String(raw.textoRotado);
-        let cuerpo = 4.4;
-        pdf.setFontSize(cuerpo);
-        const disponible = data.cell.height - 1;
-        const ancho = pdf.getTextWidth(texto);
-        if (ancho > disponible) { cuerpo = Math.max(2.8, (cuerpo * disponible) / ancho); pdf.setFontSize(cuerpo); }
-        const cx = data.cell.x + data.cell.width / 2;
-        pdf.text(texto, cx + cuerpo * 0.14, data.cell.y + (data.cell.height + pdf.getTextWidth(texto)) / 2, { angle: 90 });
-      },
-    });
-    y += 1;
-
-    sec('I. ACTIVIDADES EXTRA LABORALES');
-    libre(ev.actividadesExtraLaborales || 'Ninguna relevante reportada.', 6);
-    y += 1;
-
-    sec('J. RESULTADOS DE EXÁMENES GENERALES Y ESPECÍFICOS');
-    const exs = (ev.examenesComplementarios || []).filter((e: any) => e.nombre?.trim());
-    AT({ startY: y, theme: 'grid', styles: { ...base, fontSize: 6.5 }, headStyles: { ...head, fontSize: 6 }, head: [['NOMBRE DEL EXAMEN', 'FECHA', 'RESULTADOS']],
-      body: conFilasMinimas(exs.map((e: any) => [e.nombre, e.fecha || '-', e.resultado || '-']), 3) });
-    y += 1;
-
-    sec('K. DIAGNÓSTICO                    PRE = PRESUNTIVO     DEF = DEFINITIVO');
-    const dxs = (ev.diagnosticos || []).filter((d: any) => d.descripcion?.trim());
-    if (dxs.length) AT({ startY: y, theme: 'grid', styles: { ...base, fontSize: 6.5, halign: 'center' }, headStyles: { ...head, fontSize: 6, halign: 'center' }, head: [['CIE-10', 'DESCRIPCIÓN', 'PRE', 'DEF']], body: dxs.map((d: any) => [d.cie || '-', { content: d.descripcion, styles: { halign: 'left' } }, d.tipo === 'presuntivo' ? 'X' : '', d.tipo === 'definitivo' ? 'X' : '']), columnStyles: { 0: { cellWidth: 18 }, 2: { cellWidth: 12 }, 3: { cellWidth: 12 } } });
-    else libre('PACIENTE SANO.', 5);
-    y += 1;
-
-    sec('L. APTITUD MÉDICA PARA EL TRABAJO');
-    AT({ startY: y, theme: 'grid', styles: { ...base, halign: 'center', fontSize: 7 }, headStyles: { ...head, halign: 'center' }, head: [['APTO', 'APTO EN OBSERVACIÓN', 'APTO CON LIMITACIONES', 'NO APTO']], body: [[(!ev.aptitudMedica || ev.aptitudMedica === 'apto') ? 'X' : '', ev.aptitudMedica === 'aptoObservacion' ? 'X' : '', ev.aptitudMedica === 'aptoLimitaciones' ? 'X' : '', ev.aptitudMedica === 'noApto' ? 'X' : '']] });
-    libre('Observaciones: ' + (ev.aptitudObservacion || '-'), 6);
-    y += 1;
-
-    sec('M. RECOMENDACIONES Y/O TRATAMIENTO');
-    libre((Array.isArray(ev.recomendaciones) ? ev.recomendaciones.join('; ') + (ev.recomendacionesOtras ? `; ${ev.recomendacionesOtras}` : '') : ev.recomendaciones || 'Ninguna particular.'), 7);
-    y += 1;
-
-    if (String(ev.tipoEvaluacion || '').includes('retiro')) {
-      sec('N. RETIRO (evaluación)');
-      AT({ startY: y, theme: 'grid', styles: { ...base, fontSize: 6.5 }, body: [
-        [{ content: 'Se realiza la evaluación', styles: { fontStyle: 'bold', cellWidth: 100 } }, { content: 'SI', styles: { halign: 'center', fontStyle: 'bold', cellWidth: 10 } }, { content: ev.retiroEvaluacionRealizada === true ? 'X' : '', styles: { halign: 'center', cellWidth: 10 } }, { content: 'NO', styles: { halign: 'center', fontStyle: 'bold', cellWidth: 10 } }, { content: ev.retiroEvaluacionRealizada === false ? 'X' : '', styles: { halign: 'center' } }],
-        [{ content: 'La condición de salud está relacionada con el trabajo', styles: { fontStyle: 'bold' } }, { content: 'SI', styles: { halign: 'center', fontStyle: 'bold' } }, { content: ev.retiroRelacionadaTrabajo === true ? 'X' : '', styles: { halign: 'center' } }, { content: 'NO', styles: { halign: 'center', fontStyle: 'bold' } }, { content: ev.retiroRelacionadaTrabajo === false ? 'X' : '', styles: { halign: 'center' } }],
-      ] });
-      libre('Observación: ' + (ev.retiroObservacion || '-'), 6);
-      y += 1;
-    }
-
-    check(24);
-    sec('O. DATOS DEL PROFESIONAL                                                            P. FIRMA O HUELLA DEL TRABAJADOR');
-    AT({ startY: y, theme: 'grid', styles: { ...base, fontSize: 6.5, halign: 'center' }, headStyles: { ...head, fontSize: 6, halign: 'center' }, head: [['FECHA', 'HORA', 'NOMBRES Y APELLIDOS DEL PROFESIONAL', 'CÓDIGO MÉDICO', 'FIRMA Y SELLO', 'FIRMA / HUELLA DEL TRABAJADOR']], body: [[fmtF(ev.fecha), fmtHora(ev.fecha), (ev.medicoNombre || 'MÉDICO OCUPACIONAL').toUpperCase(), ev.medicoCedula || '-', '', '']], bodyStyles: { minCellHeight: 18, valign: 'bottom', halign: 'center' } });
+    cromo.reiniciar();
+    dibujarPagina3Ocupacional(pdf, cromo, { ev, trabajador, fmtFecha: fmtF, fmtHora });
 
     mostrarPdf(pdf, `Evaluacion_Ocupacional_${tipoLabel}_${trabajador.primerApellido}_${trabajador.primerNombre}_${fmtF(ev.fecha)}.pdf`.replace(/\s+/g, '_'));
   };
@@ -1725,33 +1599,53 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
     else navigate(`/evaluar/${trabajadorId}?editId=${ev.id}`);
   };
   /**
+   * Avisa de un fallo al generar un documento. Antes el PDF se generaba sin
+   * red de seguridad: si algo fallaba, la excepción se perdía y al usuario no
+   * le pasaba nada al pulsar el botón, sin visor y sin mensaje.
+   */
+  const avisarFallo = (err: unknown, que: string) => {
+    console.error(err);
+    if (esFalloDeCarga(err)) toast.error('La aplicación se actualizó. Recarga la página y vuelve a intentarlo.');
+    else toast.error(`No se pudo generar ${que}: ${err instanceof Error ? err.message : 'error inesperado'}`);
+  };
+
+  /**
    * Descarga la ficha en Excel. No toca el PDF: es otra salida del mismo
    * contenido, pensada para editarla en una hoja de cálculo.
    */
   const excelEvaluacion = async (ev: any) => {
+    toast.info('Generando el Excel…');
     try {
       await descargarFichaExcel(
         { ev, trabajador, empresa },
         `Ficha_Ocupacional_${trabajador?.primerApellido ?? ''}_${trabajador?.primerNombre ?? ''}_${fmtF(ev.fecha)}`.replace(/\s+/g, '_'),
       );
+      toast.success('Excel descargado.');
     } catch (err) {
-      console.error(err);
-      toast.error('No se pudo generar el Excel.');
+      avisarFallo(err, 'el Excel');
     }
   };
 
   /** Plantilla en blanco del formato, para llenar a mano. */
   const excelPlantilla = async () => {
+    toast.info('Generando la plantilla…');
     try {
       await descargarFichaExcel({ empresa }, 'Ficha_Evaluacion_Medica_Ocupacional_plantilla');
       toast.success('Plantilla descargada.');
     } catch (err) {
-      console.error(err);
-      toast.error('No se pudo generar la plantilla.');
+      avisarFallo(err, 'la plantilla');
     }
   };
 
   const pdfEvaluacion = (ev: any) => {
+    try {
+      generarPdfDeEvaluacion(ev);
+    } catch (err) {
+      avisarFallo(err, 'el PDF');
+    }
+  };
+
+  const generarPdfDeEvaluacion = (ev: any) => {
     if (ev.formato === 'ocupacional-unificado') generarPDFOcupacional(ev);
     else if (ev.tipo === 'RETIRO') generarPDFRetiro(ev);
     else if (String(ev.tipoEvaluacion || '').includes('preocupacional')) generarPDFPreocupacional(ev);
@@ -1798,7 +1692,7 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
         subiendoCert={subiendoCert}
         onVerOrden={setOrdenDetalle}
         onDeleteOrden={eliminarOrdenExamen}
-        onVerPdf={(url, nombre) => setPdfVisor({ url, nombre })}
+        onVerPdf={(url, nombre) => { setVisorListo(false); setPdfVisor({ url, nombre }); }}
         ergonomia={
           <div className="mt-4">
             <SecCard
@@ -2209,18 +2103,55 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
             <div className="flex items-center justify-between px-5 py-3 border-b shrink-0">
               <span className="text-sm font-semibold text-slate-700 truncate">{pdfVisor.nombre}</span>
               <div className="flex items-center gap-2 shrink-0">
-                <a href={pdfVisor.url} download={pdfVisor.nombre} target="_blank" rel="noopener noreferrer"
+                <button onClick={() => window.open(pdfVisor.url, '_blank', 'noopener')}
+                  className="text-xs px-3 py-1.5 bg-slate-100 text-slate-700 rounded-lg font-semibold hover:bg-slate-200">
+                  ↗ Abrir aparte
+                </button>
+                <button onClick={() => (pdfVisor.blob ? descargarBlob(pdfVisor.blob, pdfVisor.nombre) : window.open(pdfVisor.url, '_blank', 'noopener'))}
                   className="text-xs px-3 py-1.5 bg-slate-100 text-slate-700 rounded-lg font-semibold hover:bg-slate-200">
                   ⬇ Descargar
-                </a>
+                </button>
                 <button onClick={cerrarVisorPdf} className="text-slate-400 hover:text-slate-700 text-2xl leading-none">&times;</button>
               </div>
             </div>
-            <iframe src={pdfVisor.url} className="flex-1 w-full rounded-b-xl" title={pdfVisor.nombre} />
+            <div className="flex-1 min-h-0 relative">
+              <iframe src={pdfVisor.url} onLoad={() => setVisorListo(true)}
+                className="absolute inset-0 w-full h-full rounded-b-xl" title={pdfVisor.nombre} />
+              {!visorListo && <VisorRespaldo />}
+            </div>
           </div>
         </div>
       )}
     </>
+  );
+}
+
+/**
+ * Tapa el iframe mientras el PDF carga y, si no acaba de cargar, explica qué
+ * hacer. Varios navegadores (Safari de iOS, Chrome de Android, Firefox con el
+ * visor de PDF desactivado) no pintan un PDF dentro de la página y dejaban el
+ * recuadro en blanco sin ninguna pista.
+ */
+function VisorRespaldo() {
+  const [tardando, setTardando] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setTardando(true), 1500);
+    return () => clearTimeout(t);
+  }, []);
+  return (
+    <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-white rounded-b-xl text-center px-8">
+      {tardando ? (
+        <>
+          <FileText size={32} className="text-slate-300" />
+          <p className="text-sm font-semibold text-slate-700">Tu navegador no muestra el PDF aquí dentro.</p>
+          <p className="text-xs text-slate-500 max-w-sm">
+            El documento está listo. Usa <strong>Abrir aparte</strong> o <strong>Descargar</strong>, arriba a la derecha.
+          </p>
+        </>
+      ) : (
+        <p className="text-xs text-slate-400">Preparando el documento…</p>
+      )}
+    </div>
   );
 }
 
