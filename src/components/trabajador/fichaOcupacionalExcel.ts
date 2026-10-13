@@ -18,7 +18,7 @@ import { tipoEvaluacionClave } from '../../utils/medicalHelpers';
 import { MAX_ACTIVIDADES } from '../../constants/funcionesCargo';
 import { FILAS_MINIMAS_HISTORIA_LABORAL, FILAS_MINIMAS_PAGINA3 } from '../../utils/tablasPdf';
 import { partesFecha, edadDesde } from './paginaUnoOcupacionalPdf';
-import { descargarBlob, conExtension } from '../../utils/descargarArchivo';
+import { conExtension } from '../../utils/entregarArchivo';
 
 const LILA = 'FFCCCCFF';   // franja de sección
 const VERDE = 'FFCCFFCC';  // encabezado de campo
@@ -639,10 +639,18 @@ export async function construirFichaExcel(d: DatosFichaExcel): Promise<Workbook>
   return wb;
 }
 
-/** Genera el .xlsx y lo descarga. */
-export async function descargarFichaExcel(d: DatosFichaExcel, nombreArchivo: string): Promise<void> {
+/** Tipo MIME de un libro de Excel. */
+export const MIME_XLSX = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+
+/**
+ * Genera el .xlsx y devuelve el archivo con su nombre. Entregarlo es cosa de
+ * quien llama: en la app instalada no vale descargarlo, hay que compartirlo.
+ */
+export async function generarFichaExcel(d: DatosFichaExcel, nombreArchivo: string): Promise<{ blob: Blob; nombre: string }> {
   const wb = await construirFichaExcel(d);
   const buffer = await wb.xlsx.writeBuffer();
-  const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-  descargarBlob(blob, conExtension(nombreArchivo, '.xlsx'));
+  return {
+    blob: new Blob([buffer], { type: MIME_XLSX }),
+    nombre: conExtension(nombreArchivo, '.xlsx'),
+  };
 }

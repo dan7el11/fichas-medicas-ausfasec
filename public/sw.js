@@ -4,7 +4,7 @@
 //  - NUNCA intercepta peticiones a otros orígenes (Firebase, Google APIs):
 //    los datos y fotos siguen yendo directo a Firestore/Storage, que ya
 //    manejan su propia sincronización y cola offline.
-const CACHE = 'fichas-medicas-v2';
+const CACHE = 'fichas-medicas-v3';
 
 self.addEventListener('install', () => {
   self.skipWaiting();
@@ -22,6 +22,17 @@ self.addEventListener('fetch', (event) => {
   const req = event.request;
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
+
+  // SOLO http/https. Un `blob:` de los que genera la app (el PDF del visor, la
+  // ficha en Excel) parece del mismo origen —`new URL('blob:https://sitio/id')`
+  // devuelve `https://sitio` como origen— así que el filtro de abajo no lo
+  // dejaba pasar. Al abrirlo en el iframe, en otra pestaña o al descargarlo
+  // cuenta como navegación, y este worker intentaba `fetch()` de un blob que
+  // no puede leer: el blob vive en el contexto de la página, no aquí. Fallaba,
+  // caía en el respaldo offline y devolvía index.html. El visor recibía HTML
+  // en lugar del PDF y la descarga del Excel no llegaba a empezar nunca.
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') return;
+
   if (url.origin !== self.location.origin) return; // Firebase y externos: no tocar
 
   // Navegación (abrir la app): red primero, respaldo offline

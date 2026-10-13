@@ -16,6 +16,7 @@ import { useConfirm } from '../ConfirmDialog';
 import { useAuth } from '../../contexts/AuthContext';
 import { useEmpresa } from '../../contexts/EmpresaContext';
 import { LOGO_EMPRESA } from '../../assets/logoEmpresa';
+import { APP_VERSION } from '../../version';
 import { cargarLogoParaPdf } from '../../utils/logoPdf';
 import { getOrdenes, eliminarOrden } from '../../services/examenesPlan';
 import { estadoPermiso, duracionPermiso, fmtFecha as fmtPF, toDate, actualizarPermiso, eliminarPermiso } from '../../services/permisos';
@@ -28,13 +29,13 @@ import { crearCromo } from './cromoOcupacionalPdf';
 import CambioCargoModal from './CambioCargoModal';
 import BuscadorCargo from '../BuscadorCargo';
 import { cambiarCargo } from '../../services/cambioCargo';
-import { descargarFichaExcel } from './fichaOcupacionalExcel';
-import { descargarBlob, esFalloDeCarga } from '../../utils/descargarArchivo';
+import { generarFichaExcel } from './fichaOcupacionalExcel';
+import { entregarArchivo, compartirArchivo, esAppInstalada, puedeCompartirArchivo, esFalloDeCarga, infoEntorno } from '../../utils/entregarArchivo';
 import { TIPOS_PERMISO } from '../../types/permiso';
 import type { TipoPermiso } from '../../types/permiso';
 import type { OrdenExamen } from '../../types/examenPlan';
 import type { PermisoMedico } from '../../types/permiso';
-import { Activity, ArrowRight, FileText } from 'lucide-react';
+import { Activity, ArrowRight, FileText, FileSpreadsheet } from 'lucide-react';
 import SeguimientoSignos from './SeguimientoSignos';
 import FichaLayout, { SecCard } from './FichaLayout';
 import CertificadoAptitudModal from './CertificadoAptitud';
@@ -193,6 +194,10 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
   const [editPatch, setEditPatch] = useState<{ desde: string; dias: number; unidad: 'dias' | 'horas'; horaDesde: string; horaHasta: string; motivo: string; tipo: TipoPermiso }>({ desde: '', dias: 1, unidad: 'dias', horaDesde: '08:00', horaHasta: '10:00', motivo: '', tipo: 'reposo_interno' });
   const [guardandoPermiso, setGuardandoPermiso] = useState(false);
   const [pdfVisor, setPdfVisor] = useState<{ url: string; nombre: string; blob?: Blob } | null>(null);
+  // Archivo generado que no se pudo entregar solo. En la app instalada no hay
+  // descargas, y compartir exige salir de un toque del usuario: si se perdió
+  // mientras se generaba el documento, se ofrece un botón para tocarlo otra vez.
+  const [archivoListo, setArchivoListo] = useState<{ blob: Blob; nombre: string } | null>(null);
   // ¿El iframe llegó a pintar el PDF? Hay navegadores (Safari de iOS, Chrome
   // de Android, Firefox con su visor desactivado) que no lo muestran dentro de
   // la página. Si no carga, se ofrecen la pestaña nueva y la descarga.
@@ -1610,17 +1615,28 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
   };
 
   /**
-   * Descarga la ficha en Excel. No toca el PDF: es otra salida del mismo
+   * Saca el archivo al mundo por el camino que funcione en este aparato. Si no
+   * hay ninguno automático (la app instalada, sin descargas), lo deja a un
+   * toque de distancia en lugar de perderlo.
+   */
+  const entregar = async (blob: Blob, nombre: string) => {
+    const r = await entregarArchivo(blob, nombre);
+    if (r === 'descargado') toast.success(`${nombre} descargado.`);
+    else if (r === 'sin-salida') setArchivoListo({ blob, nombre });
+  };
+
+  /**
+   * Genera la ficha en Excel. No toca el PDF: es otra salida del mismo
    * contenido, pensada para editarla en una hoja de cálculo.
    */
   const excelEvaluacion = async (ev: any) => {
     toast.info('Generando el Excel…');
     try {
-      await descargarFichaExcel(
+      const { blob, nombre } = await generarFichaExcel(
         { ev, trabajador, empresa },
         `Ficha_Ocupacional_${trabajador?.primerApellido ?? ''}_${trabajador?.primerNombre ?? ''}_${fmtF(ev.fecha)}`.replace(/\s+/g, '_'),
       );
-      toast.success('Excel descargado.');
+      await entregar(blob, nombre);
     } catch (err) {
       avisarFallo(err, 'el Excel');
     }
@@ -1630,8 +1646,8 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
   const excelPlantilla = async () => {
     toast.info('Generando la plantilla…');
     try {
-      await descargarFichaExcel({ empresa }, 'Ficha_Evaluacion_Medica_Ocupacional_plantilla');
-      toast.success('Plantilla descargada.');
+      const { blob, nombre } = await generarFichaExcel({ empresa }, 'Ficha_Evaluacion_Medica_Ocupacional_plantilla');
+      await entregar(blob, nombre);
     } catch (err) {
       avisarFallo(err, 'la plantilla');
     }
@@ -2097,27 +2113,68 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
       )}
 
       {/* ── VISOR PDF FLOTANTE ── */}
+      {/*
+        La app instalada no descarga archivos y compartir tiene que salir de un
+        toque del usuario. Si el documento se generó pero no hubo forma de
+        entregarlo sola, se queda aquí a un toque, en lugar de perderse.
+      */}
+      {archivoListo && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-4" onClick={() => setArchivoListo(null)}>
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-6 text-center" onClick={e => e.stopPropagation()}>
+            <FileSpreadsheet size={30} className="mx-auto text-emerald-600" />
+            <p className="mt-3 text-sm font-semibold text-slate-800">Archivo listo</p>
+            <p className="mt-1 text-xs text-slate-500 break-all">{archivoListo.nombre}</p>
+            <div className="mt-5 flex flex-col gap-2">
+              <button
+                onClick={async () => {
+                  const r = await compartirArchivo(archivoListo.blob, archivoListo.nombre);
+                  if (r === 'compartido') setArchivoListo(null);
+                  else if (r === 'sin-salida') toast.error('Este aparato no deja guardar el archivo desde la app instalada. Ábrela en el navegador.');
+                }}
+                className="px-4 py-2 rounded-lg text-white text-sm font-semibold" style={{ background: '#1f7a4d' }}>
+                Guardar o compartir
+              </button>
+              <button onClick={() => setArchivoListo(null)} className="px-4 py-2 text-xs text-slate-500 font-semibold">
+                Cerrar
+              </button>
+            </div>
+            <div className="mt-2">
+              <Diagnostico />
+            </div>
+          </div>
+        </div>
+      )}
+
       {pdfVisor && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4" onClick={cerrarVisorPdf}>
           <div className="bg-white rounded-xl shadow-2xl flex flex-col w-full max-w-4xl" style={{ height: '90vh' }} onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between px-5 py-3 border-b shrink-0">
               <span className="text-sm font-semibold text-slate-700 truncate">{pdfVisor.nombre}</span>
               <div className="flex items-center gap-2 shrink-0">
-                <button onClick={() => window.open(pdfVisor.url, '_blank', 'noopener')}
-                  className="text-xs px-3 py-1.5 bg-slate-100 text-slate-700 rounded-lg font-semibold hover:bg-slate-200">
-                  ↗ Abrir aparte
-                </button>
-                <button onClick={() => (pdfVisor.blob ? descargarBlob(pdfVisor.blob, pdfVisor.nombre) : window.open(pdfVisor.url, '_blank', 'noopener'))}
-                  className="text-xs px-3 py-1.5 bg-slate-100 text-slate-700 rounded-lg font-semibold hover:bg-slate-200">
-                  ⬇ Descargar
-                </button>
+                {!esAppInstalada() && (
+                  <button onClick={() => window.open(pdfVisor.url, '_blank')}
+                    className="text-xs px-3 py-1.5 bg-slate-100 text-slate-700 rounded-lg font-semibold hover:bg-slate-200">
+                    ↗ Abrir aparte
+                  </button>
+                )}
+                {pdfVisor.blob && esAppInstalada() && puedeCompartirArchivo(pdfVisor.blob, pdfVisor.nombre) ? (
+                  <button onClick={() => compartirArchivo(pdfVisor.blob!, pdfVisor.nombre)}
+                    className="text-xs px-3 py-1.5 rounded-lg font-semibold text-white" style={{ background: '#1f7a4d' }}>
+                    ⬆ Guardar o compartir
+                  </button>
+                ) : (
+                  <button onClick={() => (pdfVisor.blob ? entregar(pdfVisor.blob, pdfVisor.nombre) : window.open(pdfVisor.url, '_blank'))}
+                    className="text-xs px-3 py-1.5 bg-slate-100 text-slate-700 rounded-lg font-semibold hover:bg-slate-200">
+                    ⬇ Descargar
+                  </button>
+                )}
                 <button onClick={cerrarVisorPdf} className="text-slate-400 hover:text-slate-700 text-2xl leading-none">&times;</button>
               </div>
             </div>
             <div className="flex-1 min-h-0 relative">
               <iframe src={pdfVisor.url} onLoad={() => setVisorListo(true)}
                 className="absolute inset-0 w-full h-full rounded-b-xl" title={pdfVisor.nombre} />
-              {!visorListo && <VisorRespaldo />}
+              {!visorListo && <VisorRespaldo instalada={esAppInstalada()} />}
             </div>
           </div>
         </div>
@@ -2132,7 +2189,7 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
  * visor de PDF desactivado) no pintan un PDF dentro de la página y dejaban el
  * recuadro en blanco sin ninguna pista.
  */
-function VisorRespaldo() {
+function VisorRespaldo({ instalada }: { instalada: boolean }) {
   const [tardando, setTardando] = useState(false);
   useEffect(() => {
     const t = setTimeout(() => setTardando(true), 1500);
@@ -2143,15 +2200,39 @@ function VisorRespaldo() {
       {tardando ? (
         <>
           <FileText size={32} className="text-slate-300" />
-          <p className="text-sm font-semibold text-slate-700">Tu navegador no muestra el PDF aquí dentro.</p>
-          <p className="text-xs text-slate-500 max-w-sm">
-            El documento está listo. Usa <strong>Abrir aparte</strong> o <strong>Descargar</strong>, arriba a la derecha.
+          <p className="text-sm font-semibold text-slate-700">
+            {instalada ? 'La app instalada no muestra PDF aquí dentro.' : 'Tu navegador no muestra el PDF aquí dentro.'}
           </p>
+          <p className="text-xs text-slate-500 max-w-sm">
+            El documento está listo. Usa <strong>{instalada ? 'Guardar o compartir' : 'Abrir aparte'}</strong>, arriba a la derecha.
+          </p>
+          <Diagnostico />
         </>
       ) : (
         <p className="text-xs text-slate-400">Preparando el documento…</p>
       )}
     </div>
+  );
+}
+
+/**
+ * Línea con lo que sabe hacer este aparato, escondida tras un enlace. Sólo
+ * sale donde algo ya falló, para poder reportarlo sin tener que adivinar en
+ * qué navegador o en qué modo está el usuario.
+ */
+function Diagnostico() {
+  const [abierto, setAbierto] = useState(false);
+  if (!abierto) {
+    return (
+      <button onClick={() => setAbierto(true)} className="text-[10px] text-slate-400 underline">
+        Ver datos técnicos
+      </button>
+    );
+  }
+  return (
+    <p className="text-[9px] text-slate-400 break-all leading-snug max-w-sm select-all">
+      {APP_VERSION} · {infoEntorno()}
+    </p>
   );
 }
 
