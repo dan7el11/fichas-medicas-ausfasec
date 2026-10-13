@@ -25,6 +25,7 @@ import {
   GRUPOS_PRIORITARIOS, GRUPOS_SANGUINEOS, LATERALIDADES, TIPOS_EVALUACION_OCUP,
   emptyAntecedenteEmpleo, emptyAntecedentesGineco, emptyAntecedentesReproductivos, emptyDatosPersonales,
   emptyAntecedenteClinico, emptyAntecedenteQuirurgico, emptyAlergia, categoriasDesdeMatriz,
+  MOTIVO_POR_TIPO, esMotivoPropuesto,
 } from '../utils/catalogosEvaluacion';
 import { funcionesDeCargo, perfilDeCargo, MAX_ACTIVIDADES, FUNCIONES_AUTOCOMPLETAR } from '../constants/funcionesCargo';
 import { resumirAntecedentes } from '../utils/resumenAntecedentes';
@@ -38,7 +39,7 @@ import type {
   Trabajador, SignosVitales, HabitoToxico, EstiloVida, ExamenFisicoHallazgo, ExamenComplementario,
   Diagnostico, Usuario, FactorRiesgoPuesto, DatosPersonalesSO41, CondicionEspecial,
   AntecedentesGineco, AntecedentesReproductivos, AntecedenteEmpleo, ExpedienteAntecedentes,
-  AntecedenteClinico, AntecedenteQuirurgico, Alergia,
+  AntecedenteClinico, AntecedenteQuirurgico, Alergia, MedicamentoAntecedente,
 } from '../types';
 
 const emptyCondicion = (): CondicionEspecial => ({
@@ -203,8 +204,14 @@ export default function NuevaEvaluacionOcupacional() {
   const [quirurgicos, setQuirurgicos] = useState<AntecedenteQuirurgico[]>([]);
   const [alergiasQ, setAlergiasQ] = useState<boolean | null>(null);
   const [alergias, setAlergias] = useState<Alergia[]>([]);
-  /** Texto heredado de evaluaciones antiguas que no tienen el detalle. */
+  /** Texto del recuadro: lo genera el detalle, o lo redacta el médico. */
   const [clinicosTextoManual, setClinicosTextoManual] = useState('');
+  /**
+   * true cuando el texto del recuadro se escribió o se ajustó a mano. Mientras
+   * lo esté, el detalle de arriba deja de reescribirlo: lo que quedó redactado
+   * manda, y se recupera con «Regenerar del detalle».
+   */
+  const [textoClinicosEditado, setTextoClinicosEditado] = useState(false);
   const [familiaresTexto, setFamiliaresTexto] = useState('');
   const [condicion, setCondicion] = useState<CondicionEspecial>(emptyCondicion());
   const [gineco, setGineco] = useState<AntecedentesGineco>(emptyAntecedentesGineco());
@@ -286,7 +293,13 @@ export default function NuevaEvaluacionOcupacional() {
   const resumenClinicos = resumirAntecedentes({
     clinicosQ, clinicos, quirurgicosQ, quirurgicos, alergiasQ, alergias,
   });
-  const clinicosTexto = resumenClinicos || clinicosTextoManual;
+  const clinicosTexto = textoClinicosEditado ? clinicosTextoManual : (resumenClinicos || clinicosTextoManual);
+
+  /** Vuelve a armar el recuadro con las respuestas del detalle. */
+  const regenerarTextoClinicos = () => {
+    setClinicosTextoManual(resumenClinicos);
+    setTextoClinicosEditado(false);
+  };
 
   // Aplica un expediente de antecedentes al formulario (autocompletado).
   const aplicarExpediente = useCallback((exp: ExpedienteAntecedentes | null, tallaFallback?: string) => {
@@ -345,7 +358,11 @@ export default function NuevaEvaluacionOcupacional() {
             setMotivoConsulta(ev.motivoConsulta || '');
             if (ev.datosPersonales) setDatosPersonales({ ...emptyDatosPersonales(), ...ev.datosPersonales });
             if (ev.condicionEspecial) setCondicion({ ...emptyCondicion(), ...ev.condicionEspecial });
-            setClinicosTextoManual(ev.antecedentesClinicosTexto || ev.antecedentesClinicosQuirurgicos || '');
+            const textoGuardado = ev.antecedentesClinicosTexto || ev.antecedentesClinicosQuirurgicos || '';
+            setClinicosTextoManual(textoGuardado);
+            // Una evaluación guardada se reabre con el texto que se firmó, no
+            // con uno recalculado.
+            setTextoClinicosEditado(!!textoGuardado);
             setClinicosQ(ev.antecedentesClinicosQ ?? null);
             setClinicos(ev.antecedentesClinicosLista ?? []);
             setQuirurgicosQ(ev.antecedentesQuirurgicosQ ?? null);
@@ -495,6 +512,17 @@ export default function NuevaEvaluacionOcupacional() {
     });
   }, [trabajador, perfilRiesgo, fechaIngresoTrabajo, fechaAtencion, EMP.institucion]);
 
+  /**
+   * Propone el motivo de consulta según el tipo de evaluación. Solo escribe si
+   * el campo está vacío o si lo que hay es otra propuesta del sistema: lo que
+   * el médico haya redactado no se toca.
+   */
+  useEffect(() => {
+    const propuesto = MOTIVO_POR_TIPO[tipoEvaluacion];
+    if (!propuesto) return;
+    setMotivoConsulta(prev => (prev.trim() === '' || esMotivoPropuesto(prev)) ? propuesto : prev);
+  }, [tipoEvaluacion]);
+
   /** Vuelve a dejar la Sección G tal como la define el perfil de riesgo del cargo. */
   const aplicarPerfilRiesgo = () => {
     if (!perfilRiesgo) return;
@@ -574,6 +602,38 @@ export default function NuevaEvaluacionOcupacional() {
     advertencias.forEach(a => toast.warning(a));
   };
 
+  /**
+   * Fármacos de un antecedente para el formulario. Los registros antiguos
+   * traían un solo fármaco en campos sueltos: se muestran como la primera
+   * fila de la lista, y siempre hay al menos una para poder escribir.
+   */
+  const medsDe = (ac: AntecedenteClinico): MedicamentoAntecedente[] => {
+    if (ac.medicamentos?.length) return ac.medicamentos;
+    const heredado = { nombre: ac.medicacionNombre || '', dosis: ac.medicacionDosis || '', frecuencia: ac.medicacionFrecuencia || '' };
+    return [heredado];
+  };
+  const updMedicamento = (i: number, k: number, campo: keyof MedicamentoAntecedente, valor: string) =>
+    setClinicos(prev => prev.map((x, j) => {
+      if (j !== i) return x;
+      const meds = medsDe(x).map((m, idx) => idx === k ? { ...m, [campo]: valor } : m);
+      return {
+        ...x, medicamentos: meds,
+        medicacionNombre: meds[0]?.nombre ?? '', medicacionDosis: meds[0]?.dosis ?? '', medicacionFrecuencia: meds[0]?.frecuencia ?? '',
+      };
+    }));
+  const agregarMedicamento = (i: number) =>
+    setClinicos(prev => prev.map((x, j) => j === i
+      ? { ...x, medicamentos: [...medsDe(x), { nombre: '', dosis: '', frecuencia: '' }] } : x));
+  const quitarMedicamento = (i: number, k: number) =>
+    setClinicos(prev => prev.map((x, j) => {
+      if (j !== i) return x;
+      const meds = medsDe(x).filter((_, idx) => idx !== k);
+      const restantes = meds.length ? meds : [{ nombre: '', dosis: '', frecuencia: '' }];
+      return {
+        ...x, medicamentos: restantes,
+        medicacionNombre: restantes[0].nombre, medicacionDosis: restantes[0].dosis, medicacionFrecuencia: restantes[0].frecuencia,
+      };
+    }));
   const updClinico = (i: number, f: keyof AntecedenteClinico, v: any) => setClinicos(prev => prev.map((x, j) => j === i ? { ...x, [f]: v } : x));
   const updQuirurgico = (i: number, f: keyof AntecedenteQuirurgico, v: any) => setQuirurgicos(prev => prev.map((x, j) => j === i ? { ...x, [f]: v } : x));
   const updAlergia = (i: number, f: keyof Alergia, v: any) => setAlergias(prev => prev.map((x, j) => j === i ? { ...x, [f]: v } : x));
@@ -707,9 +767,9 @@ export default function NuevaEvaluacionOcupacional() {
         await fusionarYGuardarAntecedentes(trabajadorId, nuevosAntec, { evaluacionId: evaluacionId ?? undefined, medicoId: user.uid });
       } catch (err) { console.warn('No se pudo actualizar el expediente de antecedentes:', err); }
 
-      // El formato unificado ya incluye la aptitud y las recomendaciones, así
-      // que no se emite un certificado aparte al terminar.
-      navigate(`/trabajador/${trabajadorId}`);
+      // Al terminar se abre el Certificado de Aptitud (SO-RE-20) ya
+      // autocompletado con esta evaluación, para emitirlo sin volver a teclear.
+      navigate(evaluacionId ? `/trabajador/${trabajadorId}?certificado=${evaluacionId}` : `/trabajador/${trabajadorId}`);
     } catch (error) {
       console.error('Error al guardar:', error);
       toast.error('Hubo un error al procesar la evaluación.');
@@ -869,13 +929,28 @@ export default function NuevaEvaluacionOcupacional() {
                           <input type="checkbox" checked={ac.tomaMedicacion} onChange={e => updClinico(i, 'tomaMedicacion', e.target.checked)} /> ¿Toma medicación?
                         </label>
                         {ac.tomaMedicacion && (
-                          <div className="grid grid-cols-1 sm:grid-cols-4 gap-2 ml-5">
-                            <input type="text" value={ac.medicacionNombre} onChange={e => updClinico(i, 'medicacionNombre', e.target.value)} className={INPUT_XS} placeholder="Medicamento" />
-                            <input type="text" value={ac.medicacionDosis} onChange={e => updClinico(i, 'medicacionDosis', e.target.value)} className={INPUT_XS} placeholder="Dosis" />
-                            <input type="text" value={ac.medicacionFrecuencia} onChange={e => updClinico(i, 'medicacionFrecuencia', e.target.value)} className={INPUT_XS} placeholder="Frecuencia" />
-                            <select value={ac.adherencia ?? ''} onChange={e => updClinico(i, 'adherencia', e.target.value)} className={INPUT_XS + ' bg-white'}>
-                              <option value="">Adherencia…</option><option value="buena">Buena</option><option value="irregular">Irregular</option><option value="mala">Mala</option>
-                            </select>
+                          <div className="ml-5 space-y-1.5">
+                            {/* Una misma condición puede llevar varios fármacos:
+                                en HTA es habitual una combinación de dos. */}
+                            {medsDe(ac).map((m, k) => (
+                              <div key={k} className="flex items-center gap-1.5">
+                                <input type="text" value={m.nombre} onChange={e => updMedicamento(i, k, 'nombre', e.target.value)} className={INPUT_XS} placeholder={`Medicamento ${k + 1}`} />
+                                <input type="text" value={m.dosis} onChange={e => updMedicamento(i, k, 'dosis', e.target.value)} className={INPUT_XS} placeholder="Dosis" />
+                                <input type="text" value={m.frecuencia} onChange={e => updMedicamento(i, k, 'frecuencia', e.target.value)} className={INPUT_XS} placeholder="Frecuencia" />
+                                <button type="button" title="Quitar medicamento" disabled={medsDe(ac).length === 1}
+                                  onClick={() => quitarMedicamento(i, k)}
+                                  className="text-red-400 hover:text-red-600 px-1 bg-transparent border-none cursor-pointer disabled:opacity-30"><X size={14} /></button>
+                              </div>
+                            ))}
+                            <div className="flex items-center gap-3 flex-wrap">
+                              <button type="button" onClick={() => agregarMedicamento(i)} className="text-[11.5px] font-bold text-blue-600 bg-transparent border-none p-0 cursor-pointer">+ Otro medicamento</button>
+                              <label className="flex items-center gap-1.5 text-xs text-slate-600">
+                                Adherencia:
+                                <select value={ac.adherencia ?? ''} onChange={e => updClinico(i, 'adherencia', e.target.value)} className={INPUT_XS + ' bg-white w-auto'}>
+                                  <option value="">—</option><option value="buena">Buena</option><option value="irregular">Irregular</option><option value="mala">Mala</option>
+                                </select>
+                              </label>
+                            </div>
                           </div>
                         )}
                       </div>
@@ -978,14 +1053,30 @@ export default function NuevaEvaluacionOcupacional() {
               )}
             </div>
 
-            {/* Vista previa del recuadro que se imprime en el PDF */}
+            {/* El recuadro que se imprime, editable: se arma solo con el
+                detalle de arriba, pero el médico puede redactarlo a su manera
+                y volver a generarlo cuando quiera. */}
             <div className="border border-slate-300 rounded-lg overflow-hidden">
-              <div className="bg-slate-100 px-3 py-1.5 text-[11px] font-bold uppercase text-slate-500">
-                Recuadro del formato · Antecedentes clínicos y quirúrgicos
+              <div className="bg-slate-100 px-3 py-1.5 flex items-center justify-between gap-2 flex-wrap">
+                <span className="text-[11px] font-bold uppercase text-slate-500">
+                  Recuadro del formato · Antecedentes clínicos y quirúrgicos
+                </span>
+                <div className="flex items-center gap-2">
+                  {textoClinicosEditado && (
+                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-700">editado a mano</span>
+                  )}
+                  {(textoClinicosEditado || resumenClinicos) && (
+                    <button type="button" onClick={regenerarTextoClinicos}
+                      className="text-[11px] font-semibold text-blue-600 bg-transparent border-none p-0 cursor-pointer">
+                      ↻ Regenerar del detalle
+                    </button>
+                  )}
+                </div>
               </div>
-              <p className={`m-0 px-3 py-2.5 text-xs ${clinicosTexto ? 'text-slate-700' : 'text-slate-400 italic'}`}>
-                {clinicosTexto || 'Responde los bloques de arriba: aquí verás la línea que se imprimirá.'}
-              </p>
+              <textarea rows={3} value={clinicosTexto}
+                onChange={e => { setClinicosTextoManual(e.target.value); setTextoClinicosEditado(true); }}
+                className="w-full px-3 py-2.5 text-xs border-none outline-none resize-y"
+                placeholder="Responde los bloques de arriba y aquí se armará la línea que se imprime; también puedes escribirla tú." />
             </div>
           </div>
           <div>

@@ -4,6 +4,15 @@
 export const FILAS_MINIMAS_PAGINA3 = 7;
 
 /**
+ * Filas del recuadro de antecedentes laborales (Sección H).
+ *
+ * Menos que el resto: la primera fila es el trabajo actual, con sus funciones,
+ * y ocupa varias líneas. Con siete filas el recuadro se iba de alto y empujaba
+ * el resto de la página sin que hubiera datos que lo justifiquen.
+ */
+export const FILAS_MINIMAS_HISTORIA_LABORAL = 4;
+
+/**
  * Completa una tabla hasta un número fijo de filas, rellenando desde arriba
  * con los datos y dejando vacías las restantes.
  *

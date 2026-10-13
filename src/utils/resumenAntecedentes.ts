@@ -27,6 +27,26 @@ export function fraseTiempo(desdeCuando?: string): string {
   return `desde hace ${t}`;
 }
 
+/** «Losartán 50 mg cada día» a partir de un fármaco del tratamiento. */
+export const fraseMedicamento = (m: { nombre?: string; dosis?: string; frecuencia?: string }): string =>
+  [limpio(m?.nombre), limpio(m?.dosis), limpio(m?.frecuencia)].filter(Boolean).join(' ');
+
+/**
+ * Fármacos de un antecedente, en una lista.
+ *
+ * Lee la lista nueva y, si está vacía, los campos de un solo fármaco con los
+ * que se guardaba antes, para que los antecedentes ya registrados sigan
+ * leyéndose igual.
+ */
+export function medicamentosDe(a: AntecedenteClinico): string[] {
+  const lista = (a.medicamentos ?? []).map(fraseMedicamento).filter(Boolean);
+  if (lista.length) return lista;
+  const unico = fraseMedicamento({
+    nombre: a.medicacionNombre, dosis: a.medicacionDosis, frecuencia: a.medicacionFrecuencia,
+  });
+  return unico ? [unico] : [];
+}
+
 /** «HTA desde hace 6 años, en tratamiento con Losartán 50 mg cada día, con buena adherencia» */
 export function fraseClinico(a: AntecedenteClinico): string {
   const partes: string[] = [];
@@ -36,9 +56,12 @@ export function fraseClinico(a: AntecedenteClinico): string {
   partes.push(tiempo ? `${enfermedad} ${tiempo}` : enfermedad);
 
   if (a.tomaMedicacion) {
-    const med = [limpio(a.medicacionNombre), limpio(a.medicacionDosis), limpio(a.medicacionFrecuencia)]
-      .filter(Boolean).join(' ');
-    partes.push(med ? `en tratamiento con ${med}` : 'en tratamiento farmacológico');
+    const meds = medicamentosDe(a);
+    // Varios fármacos se enumeran con «y» al final, como se diría en voz alta.
+    const listado = meds.length > 1
+      ? `${meds.slice(0, -1).join(', ')} y ${meds[meds.length - 1]}`
+      : meds[0] ?? '';
+    partes.push(listado ? `en tratamiento con ${listado}` : 'en tratamiento farmacológico');
     const adh = limpio((a as any).adherencia);
     if (adh) partes.push(`con ${adh} adherencia`);
   } else {
