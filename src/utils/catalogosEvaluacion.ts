@@ -339,6 +339,22 @@ export const TIPOS_EVALUACION_OCUP = [
 ] as const;
 export type TipoEvaluacionOcup = typeof TIPOS_EVALUACION_OCUP[number]['valor'];
 
+/**
+ * Motivo de consulta que se propone según el tipo de evaluación, para no
+ * teclear siempre la misma frase. Es un punto de partida editable: el médico
+ * lo completa con lo que corresponda al caso.
+ */
+export const MOTIVO_POR_TIPO: Record<string, string> = {
+  preocupacional: 'Evaluación médica preocupacional previa al ingreso, para determinar la aptitud frente a los riesgos del puesto.',
+  periodica: 'Evaluación médica ocupacional periódica de vigilancia de la salud, para actualización de la ficha ocupacional.',
+  reintegro: 'Evaluación médica de reintegro laboral tras ausencia, para determinar la aptitud de retorno al puesto.',
+  retiro: 'Evaluación médica de retiro por terminación de la relación laboral, para constatar el estado de salud a la salida.',
+};
+
+/** ¿Es un motivo propuesto por el sistema y no escrito por el médico? */
+export const esMotivoPropuesto = (texto: string): boolean =>
+  Object.values(MOTIVO_POR_TIPO).includes((texto ?? '').trim());
+
 /** Una de las cuatro fechas de la cabecera del formato (Sección B). */
 export type CampoFechaEvaluacion = 'fechaAtencion' | 'fechaIngresoTrabajo' | 'fechaReingreso' | 'fechaUltimoDia';
 

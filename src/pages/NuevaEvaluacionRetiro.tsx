@@ -325,6 +325,7 @@ export default function NuevaEvaluacionRetiro() {
         createdAt: new Date(),
         createdBy: user.uid,
       };
+      let idCertificado = editEvalId;
       if (editEvalId) {
         await updateDoc(doc(db, 'evaluaciones', editEvalId), { ...payload, updatedAt: new Date(), updatedBy: user.uid });
         await registrarAuditoria('editar', 'evaluacion', editEvalId, `Editó la evaluación de retiro de ${trabajador?.primerApellido ?? ''} ${trabajador?.primerNombre ?? ''}`.trim());
@@ -337,12 +338,11 @@ export default function NuevaEvaluacionRetiro() {
           updatedBy: user.uid,
         });
         await registrarAuditoria('crear', 'evaluacion', ref.id, `Evaluación de retiro de ${trabajador?.primerApellido ?? ''} ${trabajador?.primerNombre ?? ''}`.trim());
+        idCertificado = ref.id;
       }
       toast.success(editEvalId ? 'Evaluación actualizada correctamente.' : 'Evaluación de retiro guardada correctamente.');
-      // Ya no se ofrece el Certificado de Aptitud al terminar: la aptitud y las
-      // recomendaciones forman parte del propio formato. Sigue disponible bajo
-      // demanda desde el detalle de las evaluaciones de formatos antiguos.
-      navigate(`/trabajador/${trabajadorId}`);
+      // Al terminar se abre el Certificado de Aptitud autocompletado.
+      navigate(idCertificado ? `/trabajador/${trabajadorId}?certificado=${idCertificado}` : `/trabajador/${trabajadorId}`);
     } catch (err) {
       console.error(err);
       toast.error('No se pudo guardar. Intenta nuevamente.');

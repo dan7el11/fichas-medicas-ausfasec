@@ -9,6 +9,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { db } from '../../services/firebase';
 import { registrarAuditoria } from '../../services/auditoria';
+import { tipoEvaluacionClave } from '../../utils/medicalHelpers';
 import type { CertificadoAptitud, LimitacionCertificado } from '../../types';
 
 type LogoPdf = { data: string; format: string };
@@ -34,10 +35,15 @@ export function certificadoDesdeEvaluacion(ev: any): CertificadoAptitud {
     // Ya tiene certificado guardado: se edita sobre él.
     return { limitaciones: [], ...ev.certificadoAptitud };
   }
-  const esRetiro = ev.tipo === 'RETIRO';
-  const tipoEvaluacion: CertificadoAptitud['tipoEvaluacion'] = esRetiro ? 'RETIRO'
-    : String(ev.tipoEvaluacion || '').toLowerCase().includes('preocupacional') ? 'INGRESO'
-    : String(ev.tipoEvaluacion || '').toLowerCase().includes('reintegro') ? 'REINTEGRO'
+  // El tipo se resuelve con el mismo criterio que el resto del sistema: el
+  // formato unificado lo guarda en `tipoEvaluacion` ('retiro', 'preocupacional'…)
+  // y los antiguos en `tipo` ('RETIRO'), así que mirar solo uno fallaba.
+  const clave = tipoEvaluacionClave(ev);
+  const esRetiro = clave === 'retiro';
+  const tipoEvaluacion: CertificadoAptitud['tipoEvaluacion'] =
+    clave === 'retiro' ? 'RETIRO'
+    : clave === 'preocupacional' ? 'INGRESO'
+    : clave === 'reintegro' ? 'REINTEGRO'
     : 'PERIÓDICO';
   const dxs: any[] = Array.isArray(ev.diagnosticos) ? ev.diagnosticos : [];
   const recTexto = (Array.isArray(ev.recomendaciones) ? ev.recomendaciones.join('\n') : (ev.recomendaciones || ''))
@@ -50,11 +56,11 @@ export function certificadoDesdeEvaluacion(ev: any): CertificadoAptitud {
     limitaciones: ev.aptitudLimitaciones
       ? [{ actividad: ev.aptitudLimitaciones, severidad: 'MODERADA' }]
       : [],
-    retiroRealizada: esRetiro ? (ev.evaluacionRealizada ?? true) : null,
+    retiroRealizada: esRetiro ? (ev.retiroEvaluacionRealizada ?? ev.evaluacionRealizada ?? true) : null,
     retiroCondicionDiagnostico: esRetiro
       ? (dxs.some(d => d.tipo === 'definitivo') ? 'definitiva' : dxs.length > 0 ? 'presuntiva' : 'noAplica')
       : 'noAplica',
-    retiroRelacionadaTrabajo: esRetiro ? 'no' : 'noAplica',
+    retiroRelacionadaTrabajo: esRetiro ? (ev.retiroRelacionadaTrabajo === true ? 'si' : 'no') : 'noAplica',
     recomendaciones: recTexto.trim(),
   };
 }

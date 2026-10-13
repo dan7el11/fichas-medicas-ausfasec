@@ -21,7 +21,7 @@ import { getOrdenes, eliminarOrden } from '../../services/examenesPlan';
 import { estadoPermiso, duracionPermiso, fmtFecha as fmtPF, toDate, actualizarPermiso, eliminarPermiso } from '../../services/permisos';
 import { horasEntre } from '../../utils/permisosHorario';
 import { tipoEvaluacionLabel } from '../../utils/medicalHelpers';
-import { conFilasMinimas } from '../../utils/tablasPdf';
+import { conFilasMinimas, FILAS_MINIMAS_HISTORIA_LABORAL } from '../../utils/tablasPdf';
 import { dibujarPagina1Ocupacional } from './paginaUnoOcupacionalPdf';
 import { dibujarMatrizRiesgos } from './paginaDosOcupacionalPdf';
 import CambioCargoModal from './CambioCargoModal';
@@ -263,16 +263,19 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
     return () => { cancelled = true; };
   }, [trabajadorId, recarga]);
 
-  // El formato unificado (HCU-form.123/2025) ya contiene la aptitud médica y
-  // las recomendaciones, así que no se abre ningún certificado al terminar una
-  // evaluación. El parámetro `?certificado=` de enlaces antiguos se descarta.
+  // Al volver de guardar una evaluación con ?certificado=<id>, se abre el
+  // Certificado de Aptitud autocompletado con ella.
   useEffect(() => {
-    if (!searchParams.get('certificado')) return;
+    const certId = searchParams.get('certificado');
+    if (!certId || evaluaciones.length === 0) return;
+    const ev = evaluaciones.find(e => e.id === certId);
+    if (ev) setCertEval(ev);
+    // Se limpia el parámetro para que no se reabra al refrescar.
     const next = new URLSearchParams(searchParams);
     next.delete('certificado');
     setSearchParams(next, { replace: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams]);
+  }, [evaluaciones]);
 
   // ----------------------------------------------------------------
   // MODAL EDITAR
@@ -1603,6 +1606,7 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
           { content: e.observaciones || '', styles: { halign: 'left' as const, fontSize: 4.8 } },
         ]),
         ANCHOS_H.length,
+        FILAS_MINIMAS_HISTORIA_LABORAL,
       ),
       didDrawCell: (data: any) => {
         const raw = data.cell.raw as any;
@@ -1947,15 +1951,11 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
                   onClick={() => pdfEvaluacion(evDrawer)}
                   className="px-3 py-1.5 bg-red-600 text-white text-xs font-semibold rounded-lg hover:bg-red-700"
                 >📄 PDF</button>
-                {/* El certificado SO-RE-20 solo aplica a las evaluaciones de
-                    los formatos antiguos: el unificado ya lo incorpora. */}
-                {(evDrawer as any).formato !== 'ocupacional-unificado' && (
-                  <button
-                    onClick={() => { setCertEval(evDrawer); setEvDrawer(null); }}
-                    title="Certificado de Aptitud Médico Laboral (SO-RE-20)"
-                    className="px-3 py-1.5 bg-teal-600 text-white text-xs font-semibold rounded-lg hover:bg-teal-700"
-                  >📜 Certificado{(evDrawer as any).certificadoAptitud ? ' ✓' : ''}</button>
-                )}
+                <button
+                  onClick={() => { setCertEval(evDrawer); setEvDrawer(null); }}
+                  title="Certificado de Aptitud Médico Laboral (SO-RE-20)"
+                  className="px-3 py-1.5 bg-teal-600 text-white text-xs font-semibold rounded-lg hover:bg-teal-700"
+                >📜 Certificado{(evDrawer as any).certificadoAptitud ? ' ✓' : ''}</button>
                 <button onClick={() => setEvDrawer(null)} className="ml-2 text-slate-400 hover:text-slate-700 text-2xl leading-none">&times;</button>
               </div>
             </div>

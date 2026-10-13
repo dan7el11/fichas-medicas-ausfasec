@@ -114,10 +114,26 @@ export interface AntecedenteFamiliar {
   parentesco: string;
 }
 
+/** Un fármaco del tratamiento de un antecedente clínico. */
+export interface MedicamentoAntecedente {
+  nombre: string;
+  dosis: string;
+  frecuencia: string;
+}
+
 export interface AntecedenteClinico {
   enfermedad: string;
   desdeCuando: string;
   tomaMedicacion: boolean;
+  /**
+   * Fármacos del tratamiento. Una misma condición suele llevar más de uno (en
+   * HTA es habitual una combinación de dos).
+   */
+  medicamentos?: MedicamentoAntecedente[];
+  /**
+   * Campos de un solo fármaco, como se guardaba antes. Se conservan para leer
+   * los antecedentes ya registrados; lo nuevo va en `medicamentos`.
+   */
   medicacionNombre: string;
   medicacionDosis: string;
   medicacionFrecuencia: string;

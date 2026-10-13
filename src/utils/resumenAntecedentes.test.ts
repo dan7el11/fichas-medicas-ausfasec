@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   fraseTiempo, fraseClinico, fraseQuirurgico, fraseAlergia,
-  resumirAntecedentes, TEXTO_SIN_ANTECEDENTES,
+  resumirAntecedentes, TEXTO_SIN_ANTECEDENTES, medicamentosDe, fraseMedicamento,
 } from './resumenAntecedentes';
 import type { AntecedenteClinico, AntecedenteQuirurgico, Alergia } from '../types';
 
@@ -60,6 +60,65 @@ describe('fraseClinico', () => {
   });
   it('descarta el antecedente sin enfermedad', () => {
     expect(fraseClinico(clinico({ desdeCuando: '2 años' }))).toBe('');
+  });
+
+  it('enumera varios fármacos, como en la HTA con terapia combinada', () => {
+    const f = fraseClinico(clinico({
+      enfermedad: 'HTA', desdeCuando: '6 años', tomaMedicacion: true,
+      medicamentos: [
+        { nombre: 'Losartán', dosis: '50 mg', frecuencia: 'cada día' },
+        { nombre: 'Amlodipino', dosis: '5 mg', frecuencia: 'cada noche' },
+      ],
+    }));
+    expect(f).toContain('en tratamiento con Losartán 50 mg cada día y Amlodipino 5 mg cada noche');
+  });
+
+  it('con tres fármacos usa comas y una «y» al final', () => {
+    const f = fraseClinico(clinico({
+      enfermedad: 'DM2', tomaMedicacion: true,
+      medicamentos: [{ nombre: 'Metformina' }, { nombre: 'Empagliflozina' }, { nombre: 'Insulina' }] as any,
+    }));
+    expect(f).toContain('Metformina, Empagliflozina y Insulina');
+  });
+
+  it('descarta los renglones de medicamento que quedaron vacíos', () => {
+    const f = fraseClinico(clinico({
+      enfermedad: 'HTA', tomaMedicacion: true,
+      medicamentos: [{ nombre: 'Losartán', dosis: '', frecuencia: '' }, { nombre: '', dosis: '', frecuencia: '' }],
+    }));
+    expect(f).toContain('en tratamiento con Losartán');
+    expect(f).not.toContain(' y ');
+  });
+});
+
+describe('medicamentosDe', () => {
+  it('lee la lista nueva', () => {
+    expect(medicamentosDe(clinico({ medicamentos: [{ nombre: 'Losartán', dosis: '50 mg', frecuencia: '' }] })))
+      .toEqual(['Losartán 50 mg']);
+  });
+
+  it('cae en los campos de un solo fármaco de los registros antiguos', () => {
+    expect(medicamentosDe(clinico({ medicacionNombre: 'Enalapril', medicacionDosis: '10 mg', medicacionFrecuencia: 'c/12 h' })))
+      .toEqual(['Enalapril 10 mg c/12 h']);
+  });
+
+  it('la lista nueva manda sobre los campos antiguos', () => {
+    expect(medicamentosDe(clinico({
+      medicamentos: [{ nombre: 'Losartán', dosis: '', frecuencia: '' }],
+      medicacionNombre: 'Enalapril',
+    }))).toEqual(['Losartán']);
+  });
+
+  it('sin medicación devuelve lista vacía', () => {
+    expect(medicamentosDe(clinico())).toEqual([]);
+  });
+});
+
+describe('fraseMedicamento', () => {
+  it('une nombre, dosis y frecuencia y tolera huecos', () => {
+    expect(fraseMedicamento({ nombre: 'Losartán', dosis: '50 mg', frecuencia: 'cada día' })).toBe('Losartán 50 mg cada día');
+    expect(fraseMedicamento({ nombre: 'Losartán' })).toBe('Losartán');
+    expect(fraseMedicamento({})).toBe('');
   });
 });
 
