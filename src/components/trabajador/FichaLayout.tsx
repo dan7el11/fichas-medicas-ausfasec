@@ -12,7 +12,7 @@ import { useState } from 'react';
 import {
   ArrowLeft, ClipboardList, Activity, Stethoscope, CalendarDays, HeartPulse,
   ChevronDown, ChevronRight, Search, Plus, FileText, Upload, Pencil, X, Check, ArrowRight,
-  LayoutDashboard, FlaskConical, UserRound, Accessibility, Briefcase,
+  LayoutDashboard, FlaskConical, UserRound, Accessibility, Briefcase, FileSpreadsheet,
 } from 'lucide-react';
 import { estadoPermiso, duracionPermiso, fmtFecha as fmtPF, toDate } from '../../services/permisos';
 import { tipoEvaluacionLabel } from '../../utils/medicalHelpers';
@@ -77,6 +77,10 @@ export interface FichaLayoutProps {
   onEditarEval?: (ev: any) => void;
   /** Genera el PDF de esa evaluación en su formato. */
   onPdfEval?: (ev: any) => void;
+  /** Descarga esa evaluación como ficha editable en Excel. */
+  onExcelEval?: (ev: any) => void;
+  /** Descarga la plantilla en blanco del formato en Excel. */
+  onExcelPlantilla?: () => void;
   onEditarDatos: () => void;
   /** Abre el cambio de cargo con su efecto en el perfil de riesgo. */
   onCambiarCargo?: () => void;
@@ -307,7 +311,14 @@ function Resumen(p: FichaLayoutProps & { futuros: number; setTab: (t: Tab) => vo
 function Evaluaciones(p: FichaLayoutProps) {
   const list = p.evaluaciones.filter((e) => !p.busquedaEval || `${e.tipo} ${e.aptitudMedica} ${fmtF(e.fecha)} ${e.motivoConsulta ?? ''}`.toLowerCase().includes(p.busquedaEval.toLowerCase()));
   return (
-    <SecCard icon={<ClipboardList size={17} />} color={C_EVAL} title="Evaluaciones" n={p.evaluaciones.length} pad={false}>
+    <SecCard icon={<ClipboardList size={17} />} color={C_EVAL} title="Evaluaciones" n={p.evaluaciones.length} pad={false}
+      action={p.onExcelPlantilla && (
+        <button onClick={p.onExcelPlantilla} title="Descargar la plantilla del formato en Excel"
+          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[12px] font-semibold cursor-pointer border-none"
+          style={{ background: '#e7f3ec', color: '#1f7a4d' }}>
+          <FileSpreadsheet size={13} /> Plantilla Excel
+        </button>
+      )}>
       <div className="p-[12px_18px] border-b" style={{ borderColor: '#e4e6ea' }}>
         <div className="flex items-center gap-2 p-[8px_12px] rounded-[9px] border" style={{ borderColor: '#d8d2c9', background: '#f6f7f9' }}>
           <Search size={15} style={{ color: '#98a0ab' }} />
@@ -349,6 +360,7 @@ function FilaEvaluacion({ ev, border, p }: { ev: any; border: boolean; p: FichaL
         <button onClick={() => p.onOpenEval(ev)} className={btn} style={{ background: '#eaf0f9', color: C_EVAL }}>Ver</button>
         {p.onEditarEval && <button onClick={() => p.onEditarEval!(ev)} className={btn} style={{ background: '#f8eddc', color: '#9a5b12' }}>Editar</button>}
         {p.onPdfEval && <button onClick={() => p.onPdfEval!(ev)} title="Descargar el PDF" className={btn} style={{ background: '#f9e6e8', color: '#a3142a' }}><FileText size={12} /></button>}
+        {p.onExcelEval && <button onClick={() => p.onExcelEval!(ev)} title="Descargar la ficha en Excel editable" className={btn} style={{ background: '#e7f3ec', color: '#1f7a4d' }}><FileSpreadsheet size={12} /></button>}
         <ChevronRight size={16} style={{ color: '#cabfb4' }} />
       </div>
     </div>
