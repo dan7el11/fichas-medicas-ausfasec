@@ -1633,7 +1633,9 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
     toast.info('Generando el Excel…');
     try {
       const { blob, nombre } = await generarFichaExcel(
-        { ev, trabajador, empresa },
+        // Mismo logo y mismos formateadores que el PDF: el Excel se dibuja con
+        // sus mismos dibujantes y tiene que salir igual.
+        { ev, trabajador, empresa, logoPdf, fmtFecha: fmtF, fmtHora },
         `Ficha_Ocupacional_${trabajador?.primerApellido ?? ''}_${trabajador?.primerNombre ?? ''}_${fmtF(ev.fecha)}`.replace(/\s+/g, '_'),
       );
       await entregar(blob, nombre);
@@ -1646,7 +1648,7 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
   const excelPlantilla = async () => {
     toast.info('Generando la plantilla…');
     try {
-      const { blob, nombre } = await generarFichaExcel({ empresa }, 'Ficha_Evaluacion_Medica_Ocupacional_plantilla');
+      const { blob, nombre } = await generarFichaExcel({ empresa, logoPdf }, 'Ficha_Evaluacion_Medica_Ocupacional_plantilla');
       await entregar(blob, nombre);
     } catch (err) {
       avisarFallo(err, 'la plantilla');
