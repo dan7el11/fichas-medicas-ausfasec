@@ -1,4 +1,4 @@
 // Versión visible de la aplicación. Súbela en cada entrega importante para
 // poder verificar qué versión está desplegada (se muestra en el login y en el
 // menú de usuario).
-export const APP_VERSION = 'v4.12 · ficha editable en Excel';
+export const APP_VERSION = 'v4.13 · visor de PDF y descarga de Excel';

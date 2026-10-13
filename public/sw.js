@@ -4,7 +4,7 @@
 //  - NUNCA intercepta peticiones a otros orígenes (Firebase, Google APIs):
 //    los datos y fotos siguen yendo directo a Firestore/Storage, que ya
 //    manejan su propia sincronización y cola offline.
-const CACHE = 'fichas-medicas-v1';
+const CACHE = 'fichas-medicas-v2';
 
 self.addEventListener('install', () => {
   self.skipWaiting();
