@@ -27,6 +27,7 @@ import { dibujarMatrizRiesgos } from './paginaDosOcupacionalPdf';
 import CambioCargoModal from './CambioCargoModal';
 import BuscadorCargo from '../BuscadorCargo';
 import { cambiarCargo } from '../../services/cambioCargo';
+import { descargarFichaExcel } from './fichaOcupacionalExcel';
 import { TIPOS_PERMISO } from '../../types/permiso';
 import type { TipoPermiso } from '../../types/permiso';
 import type { OrdenExamen } from '../../types/examenPlan';
@@ -1723,6 +1724,33 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
     else if (String(ev.tipoEvaluacion || '').includes('reintegro')) navigate(`/evaluar-reintegro/${trabajadorId}?editId=${ev.id}`);
     else navigate(`/evaluar/${trabajadorId}?editId=${ev.id}`);
   };
+  /**
+   * Descarga la ficha en Excel. No toca el PDF: es otra salida del mismo
+   * contenido, pensada para editarla en una hoja de cálculo.
+   */
+  const excelEvaluacion = async (ev: any) => {
+    try {
+      await descargarFichaExcel(
+        { ev, trabajador, empresa },
+        `Ficha_Ocupacional_${trabajador?.primerApellido ?? ''}_${trabajador?.primerNombre ?? ''}_${fmtF(ev.fecha)}`.replace(/\s+/g, '_'),
+      );
+    } catch (err) {
+      console.error(err);
+      toast.error('No se pudo generar el Excel.');
+    }
+  };
+
+  /** Plantilla en blanco del formato, para llenar a mano. */
+  const excelPlantilla = async () => {
+    try {
+      await descargarFichaExcel({ empresa }, 'Ficha_Evaluacion_Medica_Ocupacional_plantilla');
+      toast.success('Plantilla descargada.');
+    } catch (err) {
+      console.error(err);
+      toast.error('No se pudo generar la plantilla.');
+    }
+  };
+
   const pdfEvaluacion = (ev: any) => {
     if (ev.formato === 'ocupacional-unificado') generarPDFOcupacional(ev);
     else if (ev.tipo === 'RETIRO') generarPDFRetiro(ev);
@@ -1754,6 +1782,8 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
         onOpenEval={setEvDrawer}
         onEditarEval={editarEvaluacion}
         onPdfEval={pdfEvaluacion}
+        onExcelEval={excelEvaluacion}
+        onExcelPlantilla={excelPlantilla}
         onEditarDatos={abrirModalEditar}
         onCambiarCargo={() => setModalCargo(true)}
         onNuevaPeriodica={() => navigate(`/evaluar/${trabajadorId}`)}
@@ -1951,6 +1981,11 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
                   onClick={() => pdfEvaluacion(evDrawer)}
                   className="px-3 py-1.5 bg-red-600 text-white text-xs font-semibold rounded-lg hover:bg-red-700"
                 >📄 PDF</button>
+                <button
+                  onClick={() => excelEvaluacion(evDrawer)}
+                  title="Descargar la ficha en Excel editable"
+                  className="px-3 py-1.5 bg-emerald-700 text-white text-xs font-semibold rounded-lg hover:bg-emerald-800"
+                >📊 Excel</button>
                 <button
                   onClick={() => { setCertEval(evDrawer); setEvDrawer(null); }}
                   title="Certificado de Aptitud Médico Laboral (SO-RE-20)"
