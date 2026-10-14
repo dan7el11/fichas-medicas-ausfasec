@@ -13,6 +13,7 @@ import {
   ArrowLeft, ClipboardList, Activity, Stethoscope, CalendarDays, HeartPulse,
   ChevronDown, ChevronRight, Search, Plus, FileText, Upload, Pencil, X, Check, ArrowRight,
   LayoutDashboard, FlaskConical, UserRound, Accessibility, Briefcase, FileSpreadsheet,
+  Trash2,
 } from 'lucide-react';
 import { estadoPermiso, duracionPermiso, fmtFecha as fmtPF, toDate } from '../../services/permisos';
 import { tipoEvaluacionLabel } from '../../utils/medicalHelpers';
@@ -81,6 +82,8 @@ export interface FichaLayoutProps {
   onExcelEval?: (ev: any) => void;
   /** Descarga la plantilla en blanco del formato en Excel. */
   onExcelPlantilla?: () => void;
+  /** Eliminar una evaluación (pide confirmación; queda copia en la bitácora). */
+  onEliminarEval?: (ev: any) => void;
   onEditarDatos: () => void;
   /** Abre el cambio de cargo con su efecto en el perfil de riesgo. */
   onCambiarCargo?: () => void;
@@ -361,6 +364,7 @@ function FilaEvaluacion({ ev, border, p }: { ev: any; border: boolean; p: FichaL
         {p.onEditarEval && <button onClick={() => p.onEditarEval!(ev)} className={btn} style={{ background: '#f8eddc', color: '#9a5b12' }}>Editar</button>}
         {p.onPdfEval && <button onClick={() => p.onPdfEval!(ev)} title="Descargar el PDF" className={btn} style={{ background: '#f9e6e8', color: '#a3142a' }}><FileText size={12} /></button>}
         {p.onExcelEval && <button onClick={() => p.onExcelEval!(ev)} title="Descargar la ficha en Excel editable" className={btn} style={{ background: '#e7f3ec', color: '#1f7a4d' }}><FileSpreadsheet size={12} /></button>}
+        {p.onEliminarEval && <button onClick={() => p.onEliminarEval!(ev)} title="Eliminar la evaluación" className={btn} style={{ background: '#fbecec', color: '#b42318' }}><Trash2 size={12} /></button>}
         <ChevronRight size={16} style={{ color: '#cabfb4' }} />
       </div>
     </div>

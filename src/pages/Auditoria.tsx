@@ -2,10 +2,13 @@
 // eliminó registros y cuándo, con filtros y exportación. Ruta: /auditoria
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { History, ShieldCheck, Download, Search } from 'lucide-react';
+import { History, ShieldCheck, Download, Search, RotateCcw } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import TopBar from '../components/dashboard/TopBar';
 import { listarAuditoria } from '../services/auditoria';
+import { esEliminacionRestaurable, restaurarEvaluacion } from '../services/evaluaciones';
+import { useToast } from '../components/Toast';
+import { useConfirm } from '../components/ConfirmDialog';
 import { toDate } from '../services/atenciones';
 import type { RegistroAuditoria } from '../types/auditoria';
 import { COLORS, FONTS } from '../theme';
@@ -33,13 +36,49 @@ export default function Auditoria() {
   const [fAccion, setFAccion] = useState('Todas');
   const userInitials = user?.email?.slice(0, 2).toUpperCase() ?? 'AD';
 
-  useEffect(() => {
-    (async () => {
-      setCargando(true);
-      setRegistros(await listarAuditoria(500));
-      setCargando(false);
-    })();
-  }, []);
+  const toast = useToast();
+  const confirm = useConfirm();
+  const [restaurando, setRestaurando] = useState<string | null>(null);
+
+  const cargar = async () => {
+    setCargando(true);
+    setRegistros(await listarAuditoria(500));
+    setCargando(false);
+  };
+  useEffect(() => { cargar(); }, []);
+
+  // Evaluaciones eliminadas que ya se restauraron: la bitácora no se puede
+  // modificar, así que se sabe por la entrada «Restauró» que vino después.
+  // Se compara por fecha: si una evaluación restaurada se vuelve a eliminar,
+  // esa segunda eliminación todavía se puede restaurar.
+  const restauraciones = useMemo(() => {
+    const m = new Map<string, number[]>();
+    registros
+      .filter(r => r.accion === 'crear' && r.entidad === 'evaluacion' && r.descripcion.startsWith('Restauró'))
+      .forEach(r => m.set(r.entidadId, [...(m.get(r.entidadId) ?? []), toDate(r.fecha)?.getTime() ?? 0]));
+    return m;
+  }, [registros]);
+  const yaRestaurada = (r: RegistroAuditoria) =>
+    (restauraciones.get(r.entidadId) ?? []).some(t => t > (toDate(r.fecha)?.getTime() ?? 0));
+
+  const restaurar = async (r: RegistroAuditoria) => {
+    const ok = await confirm({
+      title: 'Restaurar evaluación',
+      message: `Se volverá a crear la evaluación tal como estaba al eliminarse: ${r.descripcion.replace(/^Eliminó la /, '')}.`,
+      confirmLabel: 'Restaurar',
+    });
+    if (!ok) return;
+    setRestaurando(r.id ?? null);
+    try {
+      await restaurarEvaluacion(r);
+      toast.success('Evaluación restaurada. Vuelve a aparecer en la ficha del trabajador.');
+      await cargar();
+    } catch (err) {
+      toast.error(`No se pudo restaurar: ${err instanceof Error ? err.message : 'error inesperado'}`);
+    } finally {
+      setRestaurando(null);
+    }
+  };
 
   const entidades = useMemo(() => ['Todas', ...Array.from(new Set(registros.map((r) => r.entidad)))], [registros]);
 
@@ -144,7 +183,20 @@ export default function Auditoria() {
                           <span className="inline-flex px-2 py-0.5 rounded-full text-[11px] font-bold" style={{ color: tono.fg, background: tono.bg }}>{tono.label}</span>
                           <span className="ml-1.5 text-[11px] text-slate-400">{ENTIDAD_LABEL[r.entidad] ?? r.entidad}</span>
                         </td>
-                        <td className="px-4 py-3 text-slate-700">{r.descripcion}</td>
+                        <td className="px-4 py-3 text-slate-700">
+                          {r.descripcion}
+                          {esEliminacionRestaurable(r) && (yaRestaurada(r) ? (
+                            <span className="ml-2 text-[11px] font-semibold text-slate-400">· Restaurada</span>
+                          ) : (
+                            <button
+                              onClick={() => restaurar(r)}
+                              disabled={restaurando === r.id}
+                              className="ml-2 inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-bold border border-slate-300 text-slate-700 hover:bg-slate-100 disabled:opacity-50"
+                            >
+                              <RotateCcw size={11} /> {restaurando === r.id ? 'Restaurando…' : 'Restaurar'}
+                            </button>
+                          ))}
+                        </td>
                       </tr>
                     );
                   })}

@@ -28,6 +28,33 @@ export async function registrarAuditoria(
   }
 }
 
+/**
+ * Registra una eliminación junto con una copia del documento eliminado.
+ *
+ * A diferencia de `registrarAuditoria`, ésta SÍ lanza si no puede escribir:
+ * se llama ANTES de borrar, y si la copia no quedó guardada no se debe borrar
+ * nada. Devuelve el id de la entrada.
+ */
+export async function registrarEliminacionConCopia(
+  entidad: string,
+  entidadId: string,
+  descripcion: string,
+  copia: Record<string, any>,
+): Promise<string> {
+  const u = auth.currentUser;
+  const ref = await addDoc(collection(db, 'auditoria'), {
+    fecha: Timestamp.now(),
+    usuarioId: u?.uid ?? '',
+    usuarioEmail: u?.email ?? '',
+    accion: 'eliminar',
+    entidad,
+    entidadId,
+    descripcion,
+    copia,
+  });
+  return ref.id;
+}
+
 /** Trae las últimas N entradas de la bitácora (más recientes primero). */
 export async function listarAuditoria(max = 500): Promise<RegistroAuditoria[]> {
   try {

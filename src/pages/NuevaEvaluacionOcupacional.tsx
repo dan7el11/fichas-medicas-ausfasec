@@ -4,7 +4,7 @@
 // reintegro/retiro) para catalogar y buscar. Los antecedentes se toman del
 // expediente secuencial del trabajador (se autocompletan y se actualizan).
 // Reutiliza SignosVitalesForm, SeccionI (examen físico), BuscadorCIE10 y catálogos.
-import { useState, useEffect, useCallback, Fragment } from 'react';
+import { useState, useEffect, useCallback, useRef, Fragment } from 'react';
 import { X } from 'lucide-react';
 import { useToast } from '../components/Toast';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
@@ -33,6 +33,7 @@ import { resumirActividades, textosActividades, FUNCIONES_HISTORIA_LABORAL } fro
 import { medidaCompleta } from '../constants/medidasPreventivas';
 import { recomendacionesDesdeMedidas, medidasDePerfil } from '../utils/cambioCargo';
 import { validarFechasEvaluacion, mesesEntre, hoyIso, ANIO_MINIMO } from '../utils/validacionFechas';
+import { aFecha, aDia, fechaDeAtencion } from '../utils/fechaEvaluacion';
 import { convertirCsv, campo, siNo, soloNumero, normalizarFechaCsv, type FilaCsv } from '../utils/csvTexto';
 import { CAMPOS_FECHA_POR_TIPO, ETIQUETA_CAMPO_FECHA, AYUDA_CAMPO_FECHA, type CampoFechaEvaluacion } from '../utils/catalogosEvaluacion';
 import type {
@@ -189,7 +190,12 @@ export default function NuevaEvaluacionOcupacional() {
   const [datosPersonales, setDatosPersonales] = useState<DatosPersonalesSO41>(emptyDatosPersonales());
   // B. Motivo
   const [tipoEvaluacion, setTipoEvaluacion] = useState<string>(tipoQuery && TIPOS_EVALUACION_OCUP.some(t => t.valor === tipoQuery) ? tipoQuery : 'periodica');
-  const [fechaAtencion, setFechaAtencion] = useState(new Date().toISOString().slice(0, 10));
+  // Día en hora local: `toISOString()` da el de UTC y, en Ecuador, después de
+  // las 19:00 proponía el día siguiente.
+  const [fechaAtencion, setFechaAtencion] = useState(hoyIso());
+  // `fecha` de la evaluación que se está editando: al guardar se cambia su día
+  // por el de la atención y se conserva su hora.
+  const fechaOriginal = useRef<any>(null);
   const [fechaIngresoTrabajo, setFechaIngresoTrabajo] = useState('');
   const [fechaReingreso, setFechaReingreso] = useState('');
   const [fechaUltimoDia, setFechaUltimoDia] = useState('');
@@ -351,7 +357,11 @@ export default function NuevaEvaluacionOcupacional() {
           if (evDoc.exists()) {
             const ev = evDoc.data();
             setTipoEvaluacion(ev.tipoEvaluacion || 'periodica');
-            setFechaAtencion(ev.fechaAtencion || new Date().toISOString().slice(0, 10));
+            fechaOriginal.current = ev.fecha ?? ev.createdAt ?? null;
+            // Sin fecha de atención guardada, la de la propia evaluación: con
+            // «hoy» se movería a la fecha actual al guardar.
+            const fechaGuardada = aFecha(fechaOriginal.current);
+            setFechaAtencion(ev.fechaAtencion || (fechaGuardada ? aDia(fechaGuardada) : hoyIso()));
             setFechaIngresoTrabajo(ev.fechaIngresoTrabajo || '');
             setFechaReingreso(ev.fechaReingreso || '');
             setFechaUltimoDia(ev.fechaUltimoDiaLaboral || '');
@@ -677,6 +687,10 @@ export default function NuevaEvaluacionOcupacional() {
         medicoNombre: nombreProfesionalDe(medicoData) || '',
         medicoCedula: codigoProfesionalDe(medicoData),
         datosPersonales,
+        // La fecha de la evaluación es la de la atención (la que eligió el
+        // médico), no la del momento en que se guardó: es la que se muestra en
+        // la ficha y en el PDF. Se conserva la hora de la atención original.
+        fecha: fechaDeAtencion(fechaAtencion, editEvalId ? fechaOriginal.current : undefined, hoy),
         // Solo se guardan las fechas que pide el tipo de evaluación; las demás
         // se limpian para no arrastrar valores de un tipo anterior.
         fechaAtencion,
@@ -733,7 +747,6 @@ export default function NuevaEvaluacionOcupacional() {
         await registrarAuditoria('editar', 'evaluacion', editEvalId, `Editó la evaluación ocupacional (${tipoEvaluacion}) de ${trabajador.primerApellido} ${trabajador.primerNombre}`);
         toast.success('Evaluación actualizada.');
       } else {
-        evaluacionData.fecha = hoy;
         evaluacionData.numeroHistoriaClinica = trabajador.cedula;
         evaluacionData.numeroArchivo = numeroArchivo;
         evaluacionData.createdAt = hoy;
