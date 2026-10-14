@@ -30,6 +30,9 @@ import CambioCargoModal from './CambioCargoModal';
 import BuscadorCargo from '../BuscadorCargo';
 import { cambiarCargo } from '../../services/cambioCargo';
 import { generarFichaExcel } from './fichaOcupacionalExcel';
+import { cambiarFechaEvaluacion, corregirFechasGuardadas, eliminarEvaluacion, describirEvaluacion } from '../../services/evaluaciones';
+import { fechaPorCorregir, aFecha, aDia } from '../../utils/fechaEvaluacion';
+import { validarFecha, hoyIso } from '../../utils/validacionFechas';
 import { entregarArchivo, compartirArchivo, esAppInstalada, puedeCompartirArchivo, esFalloDeCarga, infoEntorno } from '../../utils/entregarArchivo';
 import { TIPOS_PERMISO } from '../../types/permiso';
 import type { TipoPermiso } from '../../types/permiso';
@@ -140,6 +143,10 @@ const fmtHora = (fecha: any): string => {
   return d ? d.toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' }) : '-';
 };
 
+/** Evaluaciones de la más reciente a la más antigua. */
+const ordenarPorFecha = <T,>(evals: T[]): T[] =>
+  [...evals].sort((a: any, b: any) => (aFecha(b.fecha)?.getTime() ?? 0) - (aFecha(a.fecha)?.getTime() ?? 0));
+
 // ============================================================================
 // COMPONENT
 // ============================================================================
@@ -193,6 +200,10 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
   const [editPermiso, setEditPermiso] = useState<PermisoMedico | null>(null);
   const [editPatch, setEditPatch] = useState<{ desde: string; dias: number; unidad: 'dias' | 'horas'; horaDesde: string; horaHasta: string; motivo: string; tipo: TipoPermiso }>({ desde: '', dias: 1, unidad: 'dias', horaDesde: '08:00', horaHasta: '10:00', motivo: '', tipo: 'reposo_interno' });
   const [guardandoPermiso, setGuardandoPermiso] = useState(false);
+  // Fecha que se está escribiendo en el detalle de una evaluación (aaaa-mm-dd),
+  // o null si no se está cambiando.
+  const [fechaEditada, setFechaEditada] = useState<string | null>(null);
+  const [guardandoFecha, setGuardandoFecha] = useState(false);
   const [pdfVisor, setPdfVisor] = useState<{ url: string; nombre: string; blob?: Blob } | null>(null);
   // Archivo generado que no se pudo entregar solo. En la app instalada no hay
   // descargas, y compartir exige salir de un toque del usuario: si se perdió
@@ -220,6 +231,8 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
   // ----------------------------------------------------------------
   // CARGA DE DATOS
   // ----------------------------------------------------------------
+  useEffect(() => { setFechaEditada(null); }, [evDrawer?.id]);
+
   // Contador para releer la ficha tras un cambio que afecta a varias
   // colecciones a la vez (p. ej. un cambio de cargo con evaluaciones).
   const [recarga, setRecarga] = useState(0);
@@ -249,12 +262,16 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
         }
 
         const evals: EvaluacionMedica[] = evSnap.docs.map(d => ({ id: d.id, ...d.data() } as EvaluacionMedica));
-        evals.sort((a: any, b: any) => {
-          const dA = a.fecha?.seconds ?? new Date(a.fecha).getTime() / 1000;
-          const dB = b.fecha?.seconds ?? new Date(b.fecha).getTime() / 1000;
-          return dB - dA;
-        });
-        setEvaluaciones(evals);
+        // Evaluaciones a las que se les cambió la fecha de atención antes de
+        // que `fecha` la siguiera: se muestran ya con la fecha elegida y la
+        // corrección se guarda en segundo plano (con su entrada en la bitácora).
+        const porCorregir = evals.filter(ev => fechaPorCorregir(ev));
+        if (porCorregir.length) {
+          const w: any = workerSnap.exists() ? workerSnap.data() : {};
+          corregirFechasGuardadas(porCorregir.map(ev => ({ ...ev })), `${w.primerApellido ?? ''} ${w.primerNombre ?? ''}`.trim());
+          porCorregir.forEach(ev => { (ev as any).fecha = fechaPorCorregir(ev); });
+        }
+        setEvaluaciones(ordenarPorFecha(evals));
 
         const perms: PermisoMedico[] = permisosSnap.docs.map(d => ({ id: d.id, ...d.data() } as PermisoMedico));
         perms.sort((a, b) => toDate(b.desde).getTime() - toDate(a.desde).getTime());
@@ -1655,6 +1672,61 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
     }
   };
 
+  const nombreTrabajador = trabajador ? `${trabajador.primerApellido} ${trabajador.primerNombre}` : '';
+
+  /** Aplica cambios a una evaluación en la lista y en el detalle abierto. */
+  const actualizarEvaluacionLocal = (id: string, cambios: Record<string, any>) => {
+    setEvaluaciones(prev => ordenarPorFecha(prev.map(e => (e.id === id ? { ...e, ...cambios } : e))));
+    setEvDrawer(prev => (prev && prev.id === id ? { ...prev, ...cambios } : prev));
+  };
+
+  /**
+   * Cambia la fecha de una evaluación desde su detalle. Sirve para todos los
+   * formatos, también los antiguos, que no tienen campo de fecha en su
+   * formulario.
+   */
+  const guardarFechaEvaluacion = async (ev: any, dia: string) => {
+    const error = dia ? validarFecha(dia, { etiqueta: 'Fecha de la evaluación' }) : 'Elige una fecha.';
+    if (error) { toast.warning(error); return; }
+    setGuardandoFecha(true);
+    try {
+      const nueva = await cambiarFechaEvaluacion(ev, dia, nombreTrabajador);
+      actualizarEvaluacionLocal(ev.id, { fecha: nueva, ...(ev.formato === 'ocupacional-unificado' ? { fechaAtencion: dia } : {}) });
+      setFechaEditada(null);
+      toast.success('Fecha de la evaluación actualizada.');
+    } catch (err) {
+      console.error(err);
+      toast.error('No se pudo cambiar la fecha.');
+    } finally {
+      setGuardandoFecha(false);
+    }
+  };
+
+  /**
+   * Elimina una evaluación. Antes queda una copia exacta en la bitácora de
+   * auditoría, desde donde un administrador la puede restaurar.
+   */
+  const borrarEvaluacion = async (ev: any) => {
+    const ok = await confirm({
+      title: 'Eliminar evaluación',
+      message: `Se eliminará la ${describirEvaluacion(ev, nombreTrabajador)}, con su certificado de aptitud si lo tiene. `
+        + 'Desaparece de la ficha y de los reportes. Queda una copia en la bitácora de auditoría, '
+        + 'desde la que un administrador puede restaurarla.',
+      confirmLabel: 'Eliminar evaluación',
+      danger: true,
+    });
+    if (!ok) return;
+    try {
+      await eliminarEvaluacion(ev.id, nombreTrabajador);
+      setEvaluaciones(prev => prev.filter(e => e.id !== ev.id));
+      setEvDrawer(prev => (prev?.id === ev.id ? null : prev));
+      toast.success('Evaluación eliminada. Se puede restaurar desde la bitácora de auditoría.');
+    } catch (err) {
+      console.error(err);
+      toast.error(`No se eliminó la evaluación: ${err instanceof Error ? err.message : 'error inesperado'}`);
+    }
+  };
+
   const pdfEvaluacion = (ev: any) => {
     try {
       generarPdfDeEvaluacion(ev);
@@ -1696,6 +1768,7 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
         onPdfEval={pdfEvaluacion}
         onExcelEval={excelEvaluacion}
         onExcelPlantilla={excelPlantilla}
+        onEliminarEval={borrarEvaluacion}
         onEditarDatos={abrirModalEditar}
         onCambiarCargo={() => setModalCargo(true)}
         onNuevaPeriodica={() => navigate(`/evaluar/${trabajadorId}`)}
@@ -1882,7 +1955,31 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
                     : String((evDrawer as any).tipoEvaluacion || '').includes('reintegro') ? 'Evaluación de Reintegro SO-RE-39'
                     : 'Historia Clínica SO-RE-38'}
                 </p>
-                <p className="text-base font-bold text-slate-800">{fmtFH((evDrawer as any).fecha)}</p>
+                {fechaEditada === null ? (
+                  <div className="flex items-baseline gap-2">
+                    <p className="text-base font-bold text-slate-800">{fmtFH((evDrawer as any).fecha)}</p>
+                    <button
+                      onClick={() => setFechaEditada(aDia(aFecha((evDrawer as any).fecha) ?? new Date()))}
+                      title="Cambiar la fecha de la evaluación"
+                      className="text-xs font-semibold text-blue-600 hover:underline"
+                    >Cambiar fecha</button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <input
+                      type="date" value={fechaEditada} min="1900-01-01" max={hoyIso()} autoFocus
+                      onChange={e => setFechaEditada(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter') guardarFechaEvaluacion(evDrawer, fechaEditada); if (e.key === 'Escape') setFechaEditada(null); }}
+                      className="px-2 py-1 border border-slate-300 rounded text-sm"
+                    />
+                    <button
+                      disabled={guardandoFecha}
+                      onClick={() => guardarFechaEvaluacion(evDrawer, fechaEditada)}
+                      className="px-2.5 py-1 bg-blue-600 text-white text-xs font-semibold rounded hover:bg-blue-700 disabled:opacity-50"
+                    >{guardandoFecha ? 'Guardando…' : 'Guardar'}</button>
+                    <button onClick={() => setFechaEditada(null)} className="text-xs text-slate-500 hover:text-slate-800">Cancelar</button>
+                  </div>
+                )}
               </div>
               <div className="flex items-center gap-2">
                 <button
@@ -1903,6 +2000,11 @@ export default function FichaTrabajador({ trabajadorId }: Props) {
                   title="Certificado de Aptitud Médico Laboral (SO-RE-20)"
                   className="px-3 py-1.5 bg-teal-600 text-white text-xs font-semibold rounded-lg hover:bg-teal-700"
                 >📜 Certificado{(evDrawer as any).certificadoAptitud ? ' ✓' : ''}</button>
+                <button
+                  onClick={() => borrarEvaluacion(evDrawer)}
+                  title="Eliminar esta evaluación"
+                  className="px-3 py-1.5 bg-white text-red-700 border border-red-200 text-xs font-semibold rounded-lg hover:bg-red-50"
+                >🗑 Eliminar</button>
                 <button onClick={() => setEvDrawer(null)} className="ml-2 text-slate-400 hover:text-slate-700 text-2xl leading-none">&times;</button>
               </div>
             </div>
